@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Library — Secure Content Portal</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container-wide">
+    <div class="page-head">
+        <h1>Library</h1>
+    </div>
+
+    <div th:if="${#lists.isEmpty(items)}" class="empty-state">
+        <p>No content has been uploaded yet.</p>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(items)}" class="content-grid">
+        <a class="content-card" th:each="item : ${items}" th:href="@{'/content/' + ${item.id}}">
+            <div class="content-card-thumb" th:classappend="'thumb-' + ${item.contentType}">
+                <span th:text="${item.contentType.label}">Video</span>
+            </div>
+            <div class="content-card-body">
+                <h2 th:text="${item.title}">Title</h2>
+                <p th:if="${item.description}" th:text="${item.description}">Description</p>
+                <div class="content-card-meta">
+                    <span th:if="${item.category}" class="badge" th:text="${item.category}">Category</span>
+                    <span th:text="${#temporals.format(item.createdAt, 'dd MMM yyyy')}">date</span>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+</body>
+</html>

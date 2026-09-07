@@ -25,14 +25,14 @@
             You're signed in as
             <strong th:text="${#authentication.principal.role}">VIEWER</strong>.
         </p>
-        <div sec:authorize="hasRole('ADMIN')">
-            <p>Upload, edit and delete videos, PDFs and HTML pages from the admin area.</p>
-            <a class="btn btn-primary" th:href="@{/admin/content}">Manage content</a>
+        <div sec:authorize="hasRole('ADMIN')" class="home-actions">
+            <a class="btn btn-primary" th:href="@{/library}">Browse library</a>
+            <a class="btn" th:href="@{/admin/content}">Manage content</a>
         </div>
-        <p sec:authorize="!hasRole('ADMIN')">
-            The content library is on the way — check back soon to browse videos, PDFs and HTML
-            pages.
-        </p>
+        <div sec:authorize="!hasRole('ADMIN')" class="home-actions">
+            <p>Browse the training and reference videos, PDFs and HTML pages shared with you.</p>
+            <a class="btn btn-primary" th:href="@{/library}">Browse library</a>
+        </div>
     </div>
 </div>
 </body>

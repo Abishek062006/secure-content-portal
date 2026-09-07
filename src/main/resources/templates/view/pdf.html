@@ -9,7 +9,7 @@
 <body>
 <div th:replace="~{fragments/nav :: nav}"></div>
 
-<div class="container-wide">
+<div class="container-wide" id="pdf-viewer-root" th:attr="data-ticket=${ticket},data-total-pages=${item.pageCount}">
     <h1 th:text="${item.title}">Title</h1>
 
     <div class="pdf-toolbar">
@@ -19,36 +19,11 @@
     </div>
 
     <div class="pdf-page-wrap">
-        <img id="pdf-page-image" alt="PDF page"/>
+        <div id="pdf-loading" class="pdf-loading">Loading page…</div>
+        <img id="pdf-page-image" alt="PDF page" hidden/>
     </div>
 </div>
 
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    var ticket = /*[[${ticket}]]*/ '';
-    var totalPages = /*[[${item.pageCount}]]*/ 1;
-    /*]]>*/
-    var currentPage = 1;
-
-    function loadPage(n) {
-        document.getElementById('pdf-page-image').src = '/api/pdf/' + ticket + '/page/' + n;
-        document.getElementById('page-indicator').textContent = 'Page ' + n + ' of ' + totalPages;
-    }
-
-    document.getElementById('prev-page').addEventListener('click', function () {
-        if (currentPage > 1) {
-            currentPage--;
-            loadPage(currentPage);
-        }
-    });
-    document.getElementById('next-page').addEventListener('click', function () {
-        if (currentPage < totalPages) {
-            currentPage++;
-            loadPage(currentPage);
-        }
-    });
-
-    loadPage(currentPage);
-</script>
+<script th:src="@{/js/pdf-viewer.js}"></script>
 </body>
 </html>

@@ -1,4 +1,10 @@
-/* Minimal styling for early phases. Replaced by a proper Tailwind build in Phase 6. */
+/*
+ * Hand-rolled rather than the suggested Tailwind build: this is a JVM-only
+ * project end to end, and pulling in Node tooling for the CSS layer alone
+ * would be the only thing forcing it into the Docker build. A CSS variable
+ * system plus a handful of reusable component classes covers everything
+ * this app's screens need.
+ */
 
 :root {
   --ground: #f4f6f6;
@@ -33,9 +39,11 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 14px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
 }
 
 .nav-brand {
@@ -43,12 +51,42 @@ a {
   font-size: 1.05rem;
   color: var(--ink);
   text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.nav-links a {
+  padding: 7px 12px;
+  border-radius: 6px;
+  color: var(--ink-mid);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-links a:hover {
+  background: var(--ground);
+  color: var(--ink);
 }
 
 .nav-right {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .avatar {
@@ -440,4 +478,154 @@ a {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
+}
+
+.pdf-loading {
+  color: var(--ink-mid);
+  font-size: 0.9rem;
+  padding: 48px 0;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.home-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.home-actions p {
+  width: 100%;
+  margin: 0 0 4px;
+  color: var(--ink-mid);
+}
+
+/* ---------- Library ---------- */
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.content-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--ink);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.content-card:hover {
+  box-shadow: 0 8px 20px rgba(18, 33, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.content-card-thumb {
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.content-card-thumb.thumb-PDF {
+  background: #fdf0dc;
+  color: #96631a;
+}
+
+.content-card-thumb.thumb-HTML {
+  background: #e6eef7;
+  color: #2a5c9a;
+}
+
+.content-card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.content-card-body h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+.content-card-body p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-mid);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.content-card-meta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--ink-mid);
+}
+
+/* ---------- Responsive pass ---------- */
+
+@media (max-width: 640px) {
+  .nav {
+    padding: 12px 16px;
+  }
+
+  .nav-brand {
+    font-size: 0.95rem;
+  }
+
+  .nav-links {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    margin-top: 8px;
+  }
+
+  .nav-user-name {
+    display: none;
+  }
+
+  .container,
+  .container-wide {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .form-panel {
+    padding: 20px;
+  }
+
+  .pdf-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .sandboxed-frame {
+    height: 60vh;
+  }
 }

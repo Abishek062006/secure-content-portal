@@ -13,10 +13,13 @@
     <h1 th:text="${item.title}">Title</h1>
     <p class="field-hint" th:if="${item.description}" th:text="${item.description}"></p>
 
-    <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture
+    <video id="video-player" controls controlsList="nodownload noremoteplayback" disablePictureInPicture
            class="media-player" th:src="@{'/api/stream/' + ${ticket}}">
         Your browser doesn't support inline video.
     </video>
+    <p id="video-error" class="field-error" hidden>This video could not be loaded. Try refreshing the page.</p>
 </div>
+
+<script th:src="@{/js/video-player.js}"></script>
 </body>
 </html>

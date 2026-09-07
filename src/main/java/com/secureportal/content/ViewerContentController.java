@@ -4,6 +4,7 @@ import com.secureportal.auth.AppPrincipal;
 import com.secureportal.stream.StreamTicket;
 import com.secureportal.stream.StreamTicketService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -16,10 +17,10 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * A minimal, functional viewer page per content item — enough to mint a
- * ticket and exercise the protected delivery endpoints. The full library
- * grid with search/filter (and the /library route) is a separate phase;
- * this route and its templates carry forward unchanged into that.
+ * The viewer-facing side of the app: the library catalog and the per-item
+ * player pages. Search/filter on top of {@code /library} is a separate
+ * phase — {@link ContentRepository#search} already supports it, this route
+ * just isn't wired to a search box yet.
  */
 @Controller
 public class ViewerContentController {
@@ -30,6 +31,12 @@ public class ViewerContentController {
     public ViewerContentController(ContentRepository contentRepository, StreamTicketService ticketService) {
         this.contentRepository = contentRepository;
         this.ticketService = ticketService;
+    }
+
+    @GetMapping("/library")
+    public String library(Model model) {
+        model.addAttribute("items", contentRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")));
+        return "library";
     }
 
     @GetMapping("/content/{id}")
