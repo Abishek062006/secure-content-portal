@@ -423,17 +423,6 @@ a {
   gap: 10px;
 }
 
-@media (max-width: 640px) {
-  .page-head {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .row-actions {
-    justify-content: flex-start;
-  }
-}
-
 /* ---------- Viewers ---------- */
 
 .media-player {
@@ -587,9 +576,59 @@ a {
   color: var(--ink-mid);
 }
 
-/* ---------- Responsive pass ---------- */
+/* ---------- Search bar ---------- */
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.search-bar input[type="search"] {
+  flex: 1 1 220px;
+  font: inherit;
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.search-bar select {
+  font: inherit;
+  padding: 9px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------
+ * Responsive overrides — deliberately kept as ONE block at the true end
+ * of this file. Two earlier phases each added their own
+ * `@media (max-width: 640px)` block, positioned wherever that phase's new
+ * component rules happened to land in the file. Since every rule here
+ * ties on specificity with its non-media counterpart, CSS breaks the tie
+ * by *source order* — not by which one is inside a media query — so a
+ * component's own base rule, if it appeared later in the file than an
+ * earlier media block, silently overrode that block's mobile-only value
+ * at every viewport width. That's exactly what happened to the search bar
+ * (see the flex-basis comment below). One block at the end avoids the
+ * whole bug class for every component, not just this one.
+ * ------------------------------------------------------------------- */
 
 @media (max-width: 640px) {
+  .page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .row-actions {
+    justify-content: flex-start;
+  }
+
   .nav {
     padding: 12px 16px;
   }
@@ -632,38 +671,22 @@ a {
   .search-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
   }
 
-  .search-bar input[type="search"] {
+  .search-bar input[type="search"],
+  .search-bar select,
+  .search-bar button,
+  .search-bar a.btn {
+    /* .search-bar switches to flex-direction: column above, which makes
+       the main axis vertical — so input[type="search"]'s
+       flex: 1 1 220px (a preferred *width* in the row layout) becomes a
+       preferred *height* instead, and wins over width because flex-basis
+       takes priority over width on the main axis. flex: none neutralizes
+       that; width below then does the actual sizing. */
+    flex: none;
     width: 100%;
+    box-sizing: border-box;
+    justify-content: center;
   }
-}
-
-/* ---------- Search bar ---------- */
-
-.search-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 22px;
-}
-
-.search-bar input[type="search"] {
-  flex: 1 1 220px;
-  font: inherit;
-  padding: 9px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
-}
-
-.search-bar select {
-  font: inherit;
-  padding: 9px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
 }

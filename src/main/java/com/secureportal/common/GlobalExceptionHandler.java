@@ -1,5 +1,6 @@
 package com.secureportal.common;
 
+import com.secureportal.user.UserManagementException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,8 +10,8 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Turns upload failures into a redirect back to the form with a readable
- * message, instead of a stack trace or a blank screen.
+ * Turns a handful of expected failure cases into a redirect back to the
+ * page with a readable message, instead of a stack trace or a blank screen.
  */
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,20 +21,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UploadException.class)
     public String handleUploadException(UploadException ex, HttpServletRequest request,
                                          RedirectAttributes redirectAttributes) {
-        redirectAttributes.addFlashAttribute("uploadError", ex.getMessage());
-        return "redirect:" + refererOrFallback(request);
+        redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        return "redirect:" + refererOrFallback(request, "/admin/content");
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public String handleMaxUploadSize(MaxUploadSizeExceededException ex, HttpServletRequest request,
                                        RedirectAttributes redirectAttributes) {
         log.info("Upload rejected: request exceeded the configured size limit");
-        redirectAttributes.addFlashAttribute("uploadError", "That file is too large to upload.");
-        return "redirect:" + refererOrFallback(request);
+        redirectAttributes.addFlashAttribute("errorMessage", "That file is too large to upload.");
+        return "redirect:" + refererOrFallback(request, "/admin/content");
     }
 
-    private String refererOrFallback(HttpServletRequest request) {
+    @ExceptionHandler(UserManagementException.class)
+    public String handleUserManagementException(UserManagementException ex, HttpServletRequest request,
+                                                  RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        return "redirect:" + refererOrFallback(request, "/admin/users");
+    }
+
+    private String refererOrFallback(HttpServletRequest request, String fallback) {
         String referer = request.getHeader("Referer");
-        return referer != null ? referer : "/admin/content";
+        return referer != null ? referer : fallback;
     }
 }

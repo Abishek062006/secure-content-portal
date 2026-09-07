@@ -7,6 +7,7 @@
     <div class="nav-links" sec:authorize="isAuthenticated()">
         <a th:href="@{/library}">Library</a>
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/content}">Manage content</a>
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}">Users</a>
     </div>
 
     <div class="nav-right">

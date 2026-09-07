@@ -56,7 +56,8 @@ class AccessControlTest {
     private static final String[] ADMIN_GET_ROUTES = {
             "/admin/content",
             "/admin/content/new",
-            "/admin/audit"
+            "/admin/audit",
+            "/admin/users"
     };
 
     @Autowired
@@ -97,6 +98,21 @@ class AccessControlTest {
                 .andExpect(status().is3xxRedirection());
 
         mockMvc.perform(post("/admin/content/" + randomId + "/delete").with(csrf()).with(asViewer()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void userPromoteAndDemoteRoutesRejectAnonymousAndViewerAlike() throws Exception {
+        String randomId = "999999999";
+
+        mockMvc.perform(post("/admin/users/" + randomId + "/promote").with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/admin/users/" + randomId + "/promote").with(csrf()).with(asViewer()))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/admin/users/" + randomId + "/demote").with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/admin/users/" + randomId + "/demote").with(csrf()).with(asViewer()))
                 .andExpect(status().isForbidden());
     }
 
