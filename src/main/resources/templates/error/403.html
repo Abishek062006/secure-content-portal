@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>403 — Not allowed</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+<div class="center-screen">
+    <div class="card error-card">
+        <p class="error-code">403</p>
+        <h1>You don't have access to this page</h1>
+        <p>This area is restricted to admins. If you think that's wrong, contact your portal admin.</p>
+        <a class="btn btn-primary" href="/">Back to home</a>
+    </div>
+</div>
+</body>
+</html>

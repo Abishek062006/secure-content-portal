@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<nav class="nav" th:fragment="nav">
+    <a class="nav-brand" href="/">Secure Content Portal</a>
+    <div class="nav-right">
+        <div sec:authorize="isAuthenticated()" style="display:flex;align-items:center;gap:12px;">
+            <span class="badge" th:classappend="${#authentication.principal.admin} ? ' admin'"
+                  th:text="${#authentication.principal.role}">VIEWER</span>
+            <img th:if="${#authentication.principal.pictureUrl}" class="avatar"
+                 th:src="${#authentication.principal.pictureUrl}" alt=""/>
+            <span th:unless="${#authentication.principal.pictureUrl}" class="avatar"
+                  th:text="${#authentication.principal.initials}">?</span>
+            <span th:text="${#authentication.principal.displayName}">Name</span>
+            <form th:action="@{/logout}" method="post" style="margin:0;">
+                <button type="submit" class="btn">Sign out</button>
+            </form>
+        </div>
+        <a sec:authorize="!isAuthenticated()" class="btn btn-primary" href="/login">Sign in</a>
+    </div>
+</nav>
+</body>
+</html>
