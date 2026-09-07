@@ -1,0 +1,16 @@
+# Build output
+target/
+*.class
+
+# Env / secrets — never commit real values
+.env
+.env.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Logs
+*.log
