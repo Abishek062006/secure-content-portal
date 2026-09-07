@@ -39,6 +39,14 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid,email,profile
 
+  # Outer request-level ceiling — the real per-type limits are enforced by
+  # FileValidator; this just stops an oversized request from being read into
+  # memory/disk at all before it gets that far.
+  servlet:
+    multipart:
+      max-file-size: 550MB
+      max-request-size: 550MB
+
 app:
   admin-emails: ${APP_ADMIN_EMAILS:}
   ticket-secret: ${APP_TICKET_SECRET:dev-only-insecure-ticket-secret-change-me}
