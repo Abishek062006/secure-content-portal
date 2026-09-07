@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${item.title} + ' — Secure Content Portal'">HTML</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container-wide">
+    <h1 th:text="${item.title}">Title</h1>
+    <iframe sandbox th:src="@{'/api/html/' + ${ticket}}" class="sandboxed-frame"
+            title="Sandboxed HTML content"></iframe>
+</div>
+</body>
+</html>

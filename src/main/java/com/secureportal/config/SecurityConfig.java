@@ -45,6 +45,12 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/")
                         .invalidateHttpSession(true)
                         .deleteCookies("SESSION")
+                )
+                // Default is DENY, which would also block our own viewer page
+                // from framing the sandboxed HTML endpoint. SAMEORIGIN still
+                // refuses any other site from framing us either way.
+                .headers(headers -> headers
+                        .frameOptions(frameOptions -> frameOptions.sameOrigin())
                 );
 
         return http.build();

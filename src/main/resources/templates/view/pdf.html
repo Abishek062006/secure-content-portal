@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${item.title} + ' — Secure Content Portal'">PDF</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container-wide">
+    <h1 th:text="${item.title}">Title</h1>
+
+    <div class="pdf-toolbar">
+        <button type="button" class="btn" id="prev-page">&larr; Previous</button>
+        <span id="page-indicator">Page 1 of <span th:text="${item.pageCount}">1</span></span>
+        <button type="button" class="btn" id="next-page">Next &rarr;</button>
+    </div>
+
+    <div class="pdf-page-wrap">
+        <img id="pdf-page-image" alt="PDF page"/>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var ticket = /*[[${ticket}]]*/ '';
+    var totalPages = /*[[${item.pageCount}]]*/ 1;
+    /*]]>*/
+    var currentPage = 1;
+
+    function loadPage(n) {
+        document.getElementById('pdf-page-image').src = '/api/pdf/' + ticket + '/page/' + n;
+        document.getElementById('page-indicator').textContent = 'Page ' + n + ' of ' + totalPages;
+    }
+
+    document.getElementById('prev-page').addEventListener('click', function () {
+        if (currentPage > 1) {
+            currentPage--;
+            loadPage(currentPage);
+        }
+    });
+    document.getElementById('next-page').addEventListener('click', function () {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadPage(currentPage);
+        }
+    });
+
+    loadPage(currentPage);
+</script>
+</body>
+</html>

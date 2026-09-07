@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${item.title} + ' — Secure Content Portal'">Video</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container-wide">
+    <h1 th:text="${item.title}">Title</h1>
+    <p class="field-hint" th:if="${item.description}" th:text="${item.description}"></p>
+
+    <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture
+           class="media-player" th:src="@{'/api/stream/' + ${ticket}}">
+        Your browser doesn't support inline video.
+    </video>
+</div>
+</body>
+</html>

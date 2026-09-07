@@ -41,6 +41,7 @@
                 <td th:text="${item.sizeLabel}">0 MB</td>
                 <td th:text="${#temporals.format(item.createdAt, 'dd MMM yyyy, HH:mm')}">date</td>
                 <td class="row-actions">
+                    <a class="btn" th:href="@{'/content/' + ${item.id}}">View</a>
                     <a class="btn" th:href="@{'/admin/content/' + ${item.id} + '/edit'}">Edit</a>
                     <button type="button" class="btn btn-danger-outline"
                             th:attr="data-action=@{'/admin/content/' + ${item.id} + '/delete'},data-title=${item.title}"
