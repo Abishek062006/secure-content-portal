@@ -13,7 +13,10 @@
 <div class="container-wide">
     <div class="page-head">
         <h1>Content</h1>
-        <a class="btn btn-primary" th:href="@{/admin/content/new}">Upload content</a>
+        <div class="row-actions">
+            <a class="btn" th:href="@{/admin/audit}">Audit log</a>
+            <a class="btn btn-primary" th:href="@{/admin/content/new}">Upload content</a>
+        </div>
     </div>
 
     <div th:if="${#lists.isEmpty(items)}" class="empty-state">
@@ -29,6 +32,8 @@
                 <th>Type</th>
                 <th>Category</th>
                 <th>Size</th>
+                <th>Views</th>
+                <th>Last viewed</th>
                 <th>Uploaded</th>
                 <th></th>
             </tr>
@@ -39,6 +44,8 @@
                 <td><span class="badge" th:text="${item.contentType}">VIDEO</span></td>
                 <td th:text="${item.category} ?: '—'">Category</td>
                 <td th:text="${item.sizeLabel}">0 MB</td>
+                <td th:text="${item.viewCount}">0</td>
+                <td th:text="${item.lastViewedAt} ? ${#temporals.format(item.lastViewedAt, 'dd MMM yyyy, HH:mm')} : '—'">—</td>
                 <td th:text="${#temporals.format(item.createdAt, 'dd MMM yyyy, HH:mm')}">date</td>
                 <td class="row-actions">
                     <a class="btn" th:href="@{'/content/' + ${item.id}}">View</a>

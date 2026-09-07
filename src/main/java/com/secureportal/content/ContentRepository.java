@@ -14,16 +14,22 @@ import java.util.UUID;
 public interface ContentRepository extends JpaRepository<ContentItem, UUID> {
 
     /**
-     * Catalog query backing search and filtering. All three filters are
-     * optional; a null argument disables that clause.
+     * Catalog query backing search and filtering. {@code contentType} is
+     * optional (pass {@code null} to disable that clause); {@code search}
+     * and {@code category} must be passed as {@code ""} rather than
+     * {@code null} to disable theirs — binding a null String into a
+     * parameter that's also wrapped in {@code LOWER(...)} elsewhere in the
+     * same query confuses PostgreSQL's type inference for that placeholder
+     * (it was resolving to {@code bytea}, not {@code text}), which
+     * {@code LOWER()} then rejects outright.
      */
     @Query("""
             SELECT c FROM ContentItem c
-            WHERE (:search IS NULL
+            WHERE (:search = ''
                    OR LOWER(c.title) LIKE LOWER(CONCAT('%', :search, '%'))
                    OR LOWER(c.description) LIKE LOWER(CONCAT('%', :search, '%')))
               AND (:contentType IS NULL OR c.contentType = :contentType)
-              AND (:category IS NULL OR LOWER(c.category) = LOWER(:category))
+              AND (:category = '' OR LOWER(c.category) = LOWER(:category))
             """)
     Page<ContentItem> search(@Param("search") String search,
                              @Param("contentType") ContentType contentType,

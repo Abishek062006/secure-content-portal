@@ -1,5 +1,6 @@
 package com.secureportal.content;
 
+import com.secureportal.audit.AuditService;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.content.dto.EditForm;
 import com.secureportal.content.dto.UploadForm;
@@ -35,12 +36,14 @@ public class AdminContentController {
     private final ContentRepository contentRepository;
     private final ContentService contentService;
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     public AdminContentController(ContentRepository contentRepository, ContentService contentService,
-                                   UserRepository userRepository) {
+                                   UserRepository userRepository, AuditService auditService) {
         this.contentRepository = contentRepository;
         this.contentService = contentService;
         this.userRepository = userRepository;
+        this.auditService = auditService;
     }
 
     @GetMapping
@@ -71,6 +74,8 @@ public class AdminContentController {
                 .orElseThrow(() -> new IllegalStateException("Signed-in user not found: " + principal.getUserId()));
 
         ContentItem created = contentService.create(form, uploadedBy);
+        auditService.log(principal.getEmail(), "UPLOAD", created.getId(),
+                created.getContentType() + " \"" + created.getTitle() + "\"");
         redirectAttributes.addFlashAttribute("successMessage", "\"" + created.getTitle() + "\" uploaded.");
         return "redirect:/admin/content";
     }
@@ -93,7 +98,8 @@ public class AdminContentController {
 
     @PostMapping("/{id}")
     public String update(@PathVariable UUID id, @Valid @ModelAttribute("editForm") EditForm form,
-                          BindingResult bindingResult, Model model, RedirectAttributes redirectAttributes) {
+                          BindingResult bindingResult, @AuthenticationPrincipal AppPrincipal principal,
+                          Model model, RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("item", contentRepository.findById(id)
                     .orElseThrow(() -> new ContentNotFoundException(id)));
@@ -101,13 +107,21 @@ public class AdminContentController {
         }
 
         ContentItem updated = contentService.update(id, form);
+        auditService.log(principal.getEmail(), "EDIT", updated.getId(), "\"" + updated.getTitle() + "\"");
         redirectAttributes.addFlashAttribute("successMessage", "\"" + updated.getTitle() + "\" updated.");
         return "redirect:/admin/content";
     }
 
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable UUID id, RedirectAttributes redirectAttributes) {
+    public String delete(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal,
+                          RedirectAttributes redirectAttributes) {
+        ContentItem item = contentRepository.findById(id)
+                .orElseThrow(() -> new ContentNotFoundException(id));
+        String title = item.getTitle();
+        ContentType type = item.getContentType();
+
         contentService.delete(id);
+        auditService.log(principal.getEmail(), "DELETE", id, type + " \"" + title + "\"");
         redirectAttributes.addFlashAttribute("successMessage", "Item deleted.");
         return "redirect:/admin/content";
     }

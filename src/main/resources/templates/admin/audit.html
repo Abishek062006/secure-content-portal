@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Audit log — Secure Content Portal</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div th:replace="~{fragments/nav :: nav}"></div>
+
+<div class="container-wide">
+    <div class="page-head">
+        <h1>Audit log</h1>
+        <a class="btn" th:href="@{/admin/content}">Back to content</a>
+    </div>
+
+    <div th:if="${#lists.isEmpty(entries)}" class="empty-state">
+        <p>No admin actions recorded yet.</p>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(entries)}" class="table-wrap">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>When</th>
+                <th>Admin</th>
+                <th>Action</th>
+                <th>Detail</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="entry : ${entries}">
+                <td th:text="${#temporals.format(entry.createdAt, 'dd MMM yyyy, HH:mm')}">date</td>
+                <td th:text="${entry.actorEmail}">admin@example.com</td>
+                <td><span class="badge" th:text="${entry.action}">UPLOAD</span></td>
+                <td th:text="${entry.detail}">detail</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

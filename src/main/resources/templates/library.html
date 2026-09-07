@@ -14,8 +14,30 @@
         <h1>Library</h1>
     </div>
 
+    <form class="search-bar" method="get" th:action="@{/library}">
+        <input type="search" name="search" placeholder="Search titles and descriptions…" th:value="${search}"/>
+        <select name="type">
+            <option value="">All types</option>
+            <option th:each="t : ${contentTypes}" th:value="${t}" th:text="${t.label}"
+                    th:selected="${t == selectedType}"></option>
+        </select>
+        <select name="category">
+            <option value="">All categories</option>
+            <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
+                    th:selected="${c == selectedCategory}"></option>
+        </select>
+        <button type="submit" class="btn btn-primary">Search</button>
+        <a th:if="${search != null or selectedType != null or selectedCategory != null}"
+           class="btn" th:href="@{/library}">Clear</a>
+    </form>
+
     <div th:if="${#lists.isEmpty(items)}" class="empty-state">
-        <p>No content has been uploaded yet.</p>
+        <p th:if="${search != null or selectedType != null or selectedCategory != null}">
+            No content matches your search.
+        </p>
+        <p th:unless="${search != null or selectedType != null or selectedCategory != null}">
+            No content has been uploaded yet.
+        </p>
     </div>
 
     <div th:unless="${#lists.isEmpty(items)}" class="content-grid">

@@ -113,6 +113,12 @@ public class ContentService {
         }
     }
 
+    /** Recorded as a bulk update in the repository so a view can never race a concurrent metadata edit. */
+    @Transactional
+    public void recordView(UUID id) {
+        contentRepository.recordView(id, Instant.now());
+    }
+
     @Transactional
     public ContentItem update(UUID id, EditForm form) {
         ContentItem item = contentRepository.findById(id)
