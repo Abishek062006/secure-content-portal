@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="modal">
+    <dialog id="confirm-delete-dialog" class="confirm-dialog">
+        <form id="confirm-delete-form" method="post" th:action="@{''}">
+            <h2>Delete this item?</h2>
+            <p>"<strong id="confirm-delete-title"></strong>" will be permanently removed, including the
+                uploaded file. This can't be undone.</p>
+            <div class="dialog-actions">
+                <button type="button" class="btn"
+                        onclick="document.getElementById('confirm-delete-dialog').close()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-danger">Delete</button>
+            </div>
+        </form>
+    </dialog>
+    <script>
+        function openDeleteConfirm(button) {
+            var dialog = document.getElementById('confirm-delete-dialog');
+            document.getElementById('confirm-delete-form').action = button.getAttribute('data-action');
+            document.getElementById('confirm-delete-title').textContent = button.getAttribute('data-title');
+            dialog.showModal();
+        }
+    </script>
+</th:block>
+</body>
+</html>

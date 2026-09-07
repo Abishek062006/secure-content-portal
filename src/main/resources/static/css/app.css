@@ -175,3 +175,223 @@ a {
   border-radius: 10px;
   padding: 32px;
 }
+
+/* ---------- Admin: layout ---------- */
+
+.container-wide {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.page-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.empty-state {
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--ink-mid);
+}
+
+.empty-state p {
+  margin: 0 0 16px;
+}
+
+/* ---------- Admin: table ---------- */
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  min-width: 640px;
+}
+
+.data-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn-danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ---------- Forms ---------- */
+
+.form-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.field input[type="text"],
+.field input[type="file"],
+.field textarea,
+.field select {
+  font: inherit;
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-mid);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---------- Alerts ---------- */
+
+.alerts-wrap {
+  max-width: 1040px;
+  margin: 20px auto 0;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+.alert-success {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  border: 1px solid var(--accent);
+}
+
+.alert-error {
+  background: var(--danger-wash);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+/* ---------- Confirm dialog ---------- */
+
+.confirm-dialog {
+  border: none;
+  border-radius: 10px;
+  padding: 28px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 12px 32px rgba(18, 33, 42, 0.18);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(18, 33, 42, 0.45);
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+.confirm-dialog p {
+  color: var(--ink-mid);
+  font-size: 0.9rem;
+  margin: 0 0 22px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .row-actions {
+    justify-content: flex-start;
+  }
+}

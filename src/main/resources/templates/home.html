@@ -25,10 +25,10 @@
             You're signed in as
             <strong th:text="${#authentication.principal.role}">VIEWER</strong>.
         </p>
-        <p sec:authorize="hasRole('ADMIN')">
-            Admin content management is on the way — upload, edit and delete flows land in an
-            upcoming phase.
-        </p>
+        <div sec:authorize="hasRole('ADMIN')">
+            <p>Upload, edit and delete videos, PDFs and HTML pages from the admin area.</p>
+            <a class="btn btn-primary" th:href="@{/admin/content}">Manage content</a>
+        </div>
         <p sec:authorize="!hasRole('ADMIN')">
             The content library is on the way — check back soon to browse videos, PDFs and HTML
             pages.
