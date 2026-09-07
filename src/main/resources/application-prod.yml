@@ -1,0 +1,15 @@
+# Render terminates TLS upstream of the app; without forward-headers-strategy
+# Spring builds the OAuth redirect_uri as http:// and Google rejects it.
+server:
+  forward-headers-strategy: native
+  servlet:
+    session:
+      cookie:
+        secure: true
+        same-site: lax
+        http-only: true
+
+logging:
+  level:
+    root: INFO
+    com.secureportal: INFO
