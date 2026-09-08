@@ -255,10 +255,20 @@ of what actually stops a determined viewer versus what just discourages a casual
 
 ### Deterrents only
 
-- Disabling the video's right-click/download affordances (`controlsList="nodownload"`) — a browser
-  setting, not a security boundary. Anyone can still screen-record playback.
-- The video/PDF page never being watermarked with the viewer's identity for video (only PDF pages
-  are watermarked in this build) — see [What I'd do with more time](#what-id-do-with-more-time).
+- **Video's watermark is CSS, not pixels.** PDF's watermark is burned into the rendered JPEG
+  server-side — a real boundary, since there's no unwatermarked version to recover. Video's is a
+  translucent overlay drawn on top of the `<video>` element in the browser (`VideoViewer.jsx`),
+  showing the same tiled-diagonal look. True server-side burned-in video watermarking would mean
+  real-time per-viewer frame transcoding (ffmpeg), which would fight the simple range-request
+  seeking the player relies on and likely be too slow on Render's free-tier CPU — out of scope for
+  what this needed to prove. The brief itself frames this bonus as a deterrent, not a security
+  boundary, so this is an honest match for what was actually asked.
+- **Right-click "Save Video As" is disabled** (`onContextMenu` preventing the browser's native
+  context menu) and native fullscreen is suppressed (`playsInline`, plus an explicit
+  `webkitbeginfullscreen` listener backing iOS out of it — Safari ignores `controlsList` for this
+  entirely) so the watermark overlay can't be trivially bypassed by handing the video to the OS's
+  own fullscreen surface. Both are UI-level deterrents: the underlying stream URL was already
+  ticket-gated and session-bound regardless — see [Real boundaries](#real-boundaries) above.
 - Nothing here stops a sufficiently motivated person with screen-recording software. That's true of
   any content protection scheme that still has to render pixels to a real screen; the point of this
   design is to stop casual link-sharing and devtools scraping, not to build DRM.
@@ -294,16 +304,21 @@ mvn test
 
 - Per-item view count and last-viewed timestamp, visible to admins only
 - Search and filter on the library (title/description text search, content type, category)
-- Audit log of admin actions (upload/edit/delete) with actor, timestamp and detail
+- Watermarking the viewer's email onto video and PDF views as a deterrent (server-side/real for
+  PDF, CSS overlay for video — see [Deterrents only](#deterrents-only))
+- Audit log of admin actions (upload/edit/delete, and admin grant/revoke) with actor, timestamp
+  and detail
 - Access-control test suite (see [Testing](#testing))
+
+All five bonus items from the brief are implemented.
 
 ## Known limitations and assumptions
 
 - **PDF page-render cache isn't swept on delete.** Deleting a PDF removes its database row and the
   original file, but cached rendered pages under `derived/<id>/` in storage are left behind — they're
   unreachable (nothing can mint a ticket for a deleted item) but not reclaimed.
-- **Video isn't watermarked**, only PDF pages are. Both were in scope; PDF was prioritized as the
-  format where server-side rendering is also the main security boundary, not just a deterrent.
+- **Video's watermark is a CSS overlay, not burned into the file**, unlike PDF's. See
+  [Deterrents only](#deterrents-only) for why that's the honest trade-off here, not an oversight.
 - **No silent ticket refresh for long videos.** A video ticket is valid for 30 minutes; a video
   longer than that would need to be reloaded. Chosen over building refresh logic given the time
   available — see below.
@@ -314,7 +329,8 @@ mvn test
 
 - Silent stream-ticket refresh for the video player, so long videos don't hit the 30-minute ceiling
   mid-playback
-- Watermark video the same way PDF pages are watermarked
+- Real server-side video watermarking (ffmpeg-based frame transcoding) instead of the CSS overlay,
+  if the seeking/CPU trade-offs it brings turned out to be worth it
 - HLS-based video delivery instead of a single progressive stream, for adaptive quality
 - A scheduled job to sweep orphaned PDF page-render caches after a content item is deleted
 - Rate-limit ticket minting per user, as a defense against a compromised session being used to
