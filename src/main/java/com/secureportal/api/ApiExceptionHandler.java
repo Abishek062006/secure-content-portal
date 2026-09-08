@@ -11,12 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-/**
- * JSON counterpart to {@link com.secureportal.common.GlobalExceptionHandler}, which
- * redirects — fine for the Thymeleaf controllers still on {@code /admin/**}, wrong for
- * a REST client. Scoped to just the {@code api} package so the two advices never both
- * try to handle the same exception for the same request.
- */
+/** Maps the app's known exceptions to a JSON body with an appropriate status code. */
 @RestControllerAdvice(basePackages = "com.secureportal.api")
 public class ApiExceptionHandler {
 

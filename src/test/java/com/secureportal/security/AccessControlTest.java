@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -48,25 +49,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * checks are read-only GETs, and the one destructive-route test only
  * exercises the anonymous/viewer rejection paths against a random,
  * non-existent id — it never runs as an authenticated admin.
+ *
+ * <p>The frontend is a separate React SPA now (see {@code frontend/}), so
+ * routes like {@code /} and {@code /login} no longer exist on this backend
+ * at all — this only exercises the {@code /api/**} surface it actually
+ * serves.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 class AccessControlTest {
 
     private static final String[] ADMIN_GET_ROUTES = {
-            "/admin/content",
-            "/admin/content/new",
-            "/admin/audit",
-            "/admin/users"
+            "/api/admin/content",
+            "/api/admin/audit",
+            "/api/admin/users"
     };
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    void publicPagesAreReachableByAnyone() throws Exception {
-        mockMvc.perform(get("/")).andExpect(status().isOk());
-        mockMvc.perform(get("/login")).andExpect(status().isOk());
+    void publicApiEndpointsAreReachableByAnyone() throws Exception {
+        mockMvc.perform(get("/api/me")).andExpect(status().isOk());
+        mockMvc.perform(get("/healthz")).andExpect(status().isOk());
     }
 
     @Test
@@ -94,10 +99,10 @@ class AccessControlTest {
     void adminDeleteRouteRejectsAnonymousAndViewerAlike() throws Exception {
         String randomId = UUID.randomUUID().toString();
 
-        mockMvc.perform(post("/admin/content/" + randomId + "/delete").with(csrf()))
+        mockMvc.perform(delete("/api/admin/content/" + randomId).with(csrf()))
                 .andExpect(status().is3xxRedirection());
 
-        mockMvc.perform(post("/admin/content/" + randomId + "/delete").with(csrf()).with(asViewer()))
+        mockMvc.perform(delete("/api/admin/content/" + randomId).with(csrf()).with(asViewer()))
                 .andExpect(status().isForbidden());
     }
 
@@ -105,26 +110,26 @@ class AccessControlTest {
     void userPromoteAndDemoteRoutesRejectAnonymousAndViewerAlike() throws Exception {
         String randomId = "999999999";
 
-        mockMvc.perform(post("/admin/users/" + randomId + "/promote").with(csrf()))
+        mockMvc.perform(post("/api/admin/users/" + randomId + "/promote").with(csrf()))
                 .andExpect(status().is3xxRedirection());
-        mockMvc.perform(post("/admin/users/" + randomId + "/promote").with(csrf()).with(asViewer()))
+        mockMvc.perform(post("/api/admin/users/" + randomId + "/promote").with(csrf()).with(asViewer()))
                 .andExpect(status().isForbidden());
 
-        mockMvc.perform(post("/admin/users/" + randomId + "/demote").with(csrf()))
+        mockMvc.perform(post("/api/admin/users/" + randomId + "/demote").with(csrf()))
                 .andExpect(status().is3xxRedirection());
-        mockMvc.perform(post("/admin/users/" + randomId + "/demote").with(csrf()).with(asViewer()))
+        mockMvc.perform(post("/api/admin/users/" + randomId + "/demote").with(csrf()).with(asViewer()))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void anonymousUserIsRedirectedFromTheLibraryAndContentPages() throws Exception {
-        mockMvc.perform(get("/library")).andExpect(status().is3xxRedirection());
-        mockMvc.perform(get("/content/" + UUID.randomUUID())).andExpect(status().is3xxRedirection());
+    void anonymousUserIsRedirectedFromTheLibraryAndContentEndpoints() throws Exception {
+        mockMvc.perform(get("/api/content")).andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/api/content/" + UUID.randomUUID())).andExpect(status().is3xxRedirection());
     }
 
     @Test
     void viewerCanReachTheLibrary() throws Exception {
-        mockMvc.perform(get("/library").with(asViewer())).andExpect(status().isOk());
+        mockMvc.perform(get("/api/content").with(asViewer())).andExpect(status().isOk());
     }
 
     @Test
