@@ -1,12 +1,13 @@
 package com.secureportal.config;
 
 import com.secureportal.auth.AppOidcUserService;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -35,12 +36,13 @@ import java.util.List;
  *   <li>Login/logout no longer redirect to a page this app renders —
  *   {@link SpaAuthenticationHandlers} sends the browser to the frontend's own
  *   URL instead.</li>
- *   <li>The pending OAuth2 authorization request is stored in a cookie
- *   ({@link HttpCookieOAuth2AuthorizationRequestRepository}) rather than the
- *   session — real browsers were observed losing that session specifically
- *   across the Vercel-proxied redirect chain through Google and back, even
- *   though Spring Session is Postgres-backed and the same round trip worked
- *   fine when replayed with curl and an explicit cookie jar.</li>
+ *   <li>The pending OAuth2 authorization request travels inside the
+ *   {@code state} parameter itself ({@link StatelessOAuth2AuthorizationRequestResolver}
+ *   / {@link StatelessOAuth2AuthorizationRequestRepository}) instead of any
+ *   session or cookie — both were observed being lost by real browsers
+ *   specifically across the Vercel-proxied redirect chain through Google and
+ *   back, even though the exact same round trip worked fine every time when
+ *   replayed with curl and an explicit cookie jar.</li>
  * </ul>
  *
  * <p>Role is still never taken from the OAuth response; it is decided by
@@ -55,15 +57,15 @@ public class SecurityConfig {
     private final AppOidcUserService appOidcUserService;
     private final AppProperties appProperties;
     private final SpaAuthenticationHandlers spaAuthenticationHandlers;
-    private final boolean secureCookies;
+    private final ClientRegistrationRepository clientRegistrationRepository;
 
     public SecurityConfig(AppOidcUserService appOidcUserService, AppProperties appProperties,
                            SpaAuthenticationHandlers spaAuthenticationHandlers,
-                           @Value("${server.servlet.session.cookie.secure:false}") boolean secureCookies) {
+                           ClientRegistrationRepository clientRegistrationRepository) {
         this.appOidcUserService = appOidcUserService;
         this.appProperties = appProperties;
         this.spaAuthenticationHandlers = spaAuthenticationHandlers;
-        this.secureCookies = secureCookies;
+        this.clientRegistrationRepository = clientRegistrationRepository;
     }
 
     @Bean
@@ -90,7 +92,10 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(appOidcUserService))
                         .authorizationEndpoint(endpoint -> endpoint
-                                .authorizationRequestRepository(new HttpCookieOAuth2AuthorizationRequestRepository(secureCookies)))
+                                .authorizationRequestResolver(new StatelessOAuth2AuthorizationRequestResolver(
+                                        clientRegistrationRepository,
+                                        OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI))
+                                .authorizationRequestRepository(new StatelessOAuth2AuthorizationRequestRepository()))
                         .successHandler(spaAuthenticationHandlers)
                         .failureHandler(spaAuthenticationHandlers)
                 )
