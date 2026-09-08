@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 function initials(displayName) {
@@ -18,9 +18,9 @@ export default function Nav() {
 
       {user && (
         <div className="nav-links">
-          <Link to="/library">Library</Link>
-          {user.admin && <Link to="/admin/content">Manage content</Link>}
-          {user.admin && <Link to="/admin/users">Users</Link>}
+          <NavLink to="/library">Library</NavLink>
+          {user.admin && <NavLink to="/admin/content">Manage content</NavLink>}
+          {user.admin && <NavLink to="/admin/users">Users</NavLink>}
         </div>
       )}
 

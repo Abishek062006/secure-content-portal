@@ -6,13 +6,14 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div className="container">
-        <h1>Secure Content Portal</h1>
-        <p>
-          Training and reference videos, PDFs and HTML pages, shared with your organization. Sign in
-          with Google to browse the library.
+      <div className="container hero">
+        <p className="hero-eyebrow">Secure Content Portal</p>
+        <h1 className="hero-title">Training &amp; reference,<br />shared securely.</h1>
+        <p className="hero-sub">
+          Video, PDF and HTML content shared with your organization — sign in with Google to
+          browse the library.
         </p>
-        <Link className="btn btn-primary" to="/login">Sign in with Google</Link>
+        <Link className="btn btn-primary btn-lg" to="/login">Sign in with Google</Link>
       </div>
     );
   }
