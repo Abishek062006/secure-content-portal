@@ -52,12 +52,13 @@ else below was chosen deliberately, not defaulted to.
 | Layer | Choice | Why |
 |---|---|---|
 | Backend | Spring Boot 3.5, Java 21 | The assignment's one hard requirement |
-| Frontend | React (Vite) SPA, deployed separately on Vercel | Talks to the backend as a JSON REST API over `/api/**`. This is a genuine cross-origin setup (see [Deployment](#deployment) for the `SameSite=None` trade-off it requires), not a same-origin monolith — the earlier same-origin Thymeleaf build is still in this repo's history if you want to see that version |
+| Frontend | React (Vite) SPA, deployed separately on Vercel | Talks to the backend as a JSON REST API over `/api/**`, routed through Vercel's own rewrite proxy rather than plain cross-origin CORS (see [Architecture](#architecture) for why). Not a same-origin monolith — the earlier same-origin Thymeleaf build is still in this repo's history if you want to see that version |
+| UI design | Inter (Google Fonts), CSS custom properties, no component library | Layered shadows, pill-shaped controls, hover/press micro-interactions, and per-route fade-up entrances — all in `frontend/src/app.css`, applied via the existing shared classes so no page needed individual rework |
 | Auth | Spring Security `oauth2-client` | Server-side session only; no JWT in localStorage. Role is decided by *our* database, never trusted from the OAuth response |
 | Sessions | Spring Session JDBC (Postgres) | Sessions survive a redeploy or a free-tier restart, since they don't live in that process's memory |
 | Database | [Neon](https://neon.tech) Postgres | Free-tier Neon *branches* auto-resume in under a second; Supabase's free-tier *projects* pause after 7 days idle, which is a real risk for a reviewer opening this after a week |
 | File storage | [Supabase Storage](https://supabase.com) (private bucket, S3-compatible API) | 1GB free, no card required, and the S3-compatible endpoint means the code isn't locked to Supabase specifically |
-| PDF rendering | Apache PDFBox | Renders pages to images server-side — see [Content protection](#content-protection--whats-real-what-a-deterrent) |
+| PDF rendering | Apache PDFBox, 90 DPI | Renders pages to images server-side — see [Content protection](#content-protection--whats-real-what-a-deterrent). DPI kept modest since every render (even a cache hit) still redoes an in-memory decode/watermark/re-encode on Render's free-tier CPU |
 | File-type detection | Apache Tika | Magic-byte sniffing — never trusts the filename extension or the browser's `Content-Type` header |
 | HTML sanitizing | jsoup | Strips scripts/forms/event handlers at upload time |
 | Backend hosting | [Render](https://render.com) free web service, Docker | Builds the Dockerfile in the cloud — no local Docker needed |
@@ -67,16 +68,16 @@ else below was chosen deliberately, not defaulted to.
 
 ```mermaid
 flowchart TB
-    Browser["Browser<br/>(HttpOnly, Secure, SameSite=None session cookie —<br/>genuinely cross-site between Vercel and Render)"]
+    Browser["Browser<br/>(HttpOnly, Secure session cookie — scoped to vercel.app)"]
 
-    subgraph Vercel["Vercel — React SPA (static)"]
+    subgraph Vercel["Vercel — React SPA + rewrite proxy"]
         direction TB
         Spa["Library / viewers / admin pages<br/>fetch() with credentials: 'include'"]
+        Proxy["vercel.json rewrites:<br/>/api/**, /oauth2/**, /login/oauth2/**, /logout<br/>→ proxied server-to-server to Render"]
     end
 
     subgraph Render["Render — Spring Boot REST API"]
         direction TB
-        Cors["CORS + cookie-based CSRF"]
         Sec["Spring Security<br/>Google OIDC → role from our own DB"]
         Api["/api/admin/** controllers<br/>hasRole(ADMIN) + CSRF"]
         Stream["Stream ticket layer<br/>HMAC-signed, session-bound"]
@@ -87,9 +88,9 @@ flowchart TB
     Neon[("Neon Postgres<br/>users · content · sessions · audit")]
     Supabase[("Supabase Storage<br/>private bucket, opaque UUID keys")]
 
-    Browser -->|HTTPS| Spa
-    Spa -->|HTTPS, cross-origin| Cors
-    Cors --> Sec
+    Browser -->|HTTPS, same-origin the whole time| Spa
+    Spa -->|fetch to a relative path| Proxy
+    Proxy -->|server-to-server, no CORS needed| Sec
     Sec --> Api
     Sec --> Stream
     Stream --> Pdf
@@ -103,6 +104,15 @@ flowchart TB
 The browser never learns a storage key, never receives a storage credential, never holds a URL
 that outlives its session, and never stores an auth token itself — the session cookie is the only
 credential, and it's `HttpOnly` so the SPA's own JavaScript can't read it either.
+
+**Why a proxy instead of plain cross-origin CORS + cookies** (the first approach tried): browsers
+now block third-party cookies by default, which broke the whole flow for anyone but a session that
+happened to already be trusted — sign-in would appear to succeed, but every subsequent `fetch()`
+from `vercel.app` to `onrender.com` silently dropped the session cookie. Routing everything through
+Vercel's own rewrites means the browser only ever talks to `vercel.app`; Vercel forwards to Render
+server-to-server, so the session cookie ends up scoped to Vercel's own origin and every API call is
+same-origin from the browser's point of view. `frontend/vercel.json` holds the rewrite rules;
+`VITE_API_URL` is intentionally empty in production so the frontend calls relative paths.
 
 ## Running it locally
 
@@ -176,20 +186,39 @@ The Dockerfile is a two-stage build (`maven:3.9-eclipse-temurin-21` to compile,
 `eclipse-temurin:21-jre-alpine` to run as a non-root user) and skips tests during the image build —
 `AccessControlTest` needs a real Postgres connection Render's build step doesn't have, and tests are
 a dev-time check, not a deploy-time gate. On Vercel, set the project's Root Directory to `frontend/`
-and its `VITE_API_URL` env var to the Render API's URL.
+and leave `VITE_API_URL` **unset** in the dashboard — the committed `frontend/.env.production` sets
+it to empty intentionally, and a dashboard value would silently override that (see gotcha #2 below).
 
-**Two deployment-specific gotchas worth knowing:**
+**Deployment-specific gotchas worth knowing — all hit for real while building this:**
 
 1. Render terminates TLS upstream of the container, so without
    `server.forward-headers-strategy=native` (set in `application-prod.yml`), Spring builds the OAuth
    callback URL as `http://` and Google rejects it. This is set correctly here, but it's the first
    thing to check if OAuth breaks only in production and not locally.
-2. Vercel and Render are genuinely different registrable domains, so the session cookie has to be
-   `SameSite=None` in production (`application-prod.yml`) — `Lax` would never be sent on the SPA's
-   cross-site `fetch()` calls at all. `SameSite=None` requires `Secure`, which is also set; both
-   services are HTTPS-only in production, so this doesn't weaken anything, but it's a real
-   architectural cost of splitting the frontend out that a same-origin deployment wouldn't have.
-   `APP_FRONTEND_URL` on Render must exactly match the deployed Vercel origin for CORS to allow it.
+2. **Vercel dashboard environment variables silently win over the committed `.env.production` file.**
+   `VITE_API_URL` was set once in Vercel's dashboard UI while first wiring up the project, then later
+   made intentionally empty in `frontend/.env.production` — but the dashboard value kept overriding
+   it on every rebuild, with no error or warning, so the deployed app kept calling Render directly
+   instead of through the proxy no matter what the code said. If a Vite env var isn't behaving as the
+   repo says it should on Vercel, check the dashboard for a stale override before anything else.
+3. **The OAuth "pending request" can't safely live in a cookie or session across the redirect
+   through Google, in production.** The natural fix for a proxied setup — store the
+   `OAuth2AuthorizationRequest` in a cookie instead of `HttpSession` — worked perfectly when replayed
+   with curl (an explicit cookie jar, no real Google visit), every single time, and still failed
+   identically in real browsers with `authorization_request_not_found`. The actual fix
+   (`StatelessOAuth2AuthorizationRequestResolver` / `...Repository`, in `com.secureportal.config`)
+   encodes the whole request into the `state` parameter itself — Google is contractually required to
+   echo `state` back verbatim over a plain URL parameter, so there's nothing left for a cookie policy
+   or a redirect-chain quirk to interfere with. See the class Javadoc for the full story; this is the
+   single most subtle thing in the whole project and worth reading if OAuth-behind-a-proxy ever comes
+   up again.
+4. Vercel and Render are genuinely different registrable domains at the DNS level, so the session
+   cookie is still `SameSite=None; Secure` in production (`application-prod.yml`) as a defensive
+   default — but because of gotcha #3 and the proxy in #2's fix, the cookie is actually *set* while
+   the browser is talking to `vercel.app` (proxied), so it ends up scoped there rather than to
+   Render, and every later API call is same-origin from the browser's perspective regardless.
+   `APP_FRONTEND_URL` on Render must still exactly match the deployed Vercel origin, for CORS (kept
+   as defense-in-depth) and as the post-login redirect target.
 
 **Cold starts:** the free Render instance sleeps after 15 minutes of no traffic and takes 30–60
 seconds to wake on the next request. This is a known, accepted trade-off of the free tier, not a
