@@ -1,6 +1,7 @@
 package com.secureportal.config;
 
 import com.secureportal.auth.AppOidcUserService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -34,6 +35,12 @@ import java.util.List;
  *   <li>Login/logout no longer redirect to a page this app renders —
  *   {@link SpaAuthenticationHandlers} sends the browser to the frontend's own
  *   URL instead.</li>
+ *   <li>The pending OAuth2 authorization request is stored in a cookie
+ *   ({@link HttpCookieOAuth2AuthorizationRequestRepository}) rather than the
+ *   session — real browsers were observed losing that session specifically
+ *   across the Vercel-proxied redirect chain through Google and back, even
+ *   though Spring Session is Postgres-backed and the same round trip worked
+ *   fine when replayed with curl and an explicit cookie jar.</li>
  * </ul>
  *
  * <p>Role is still never taken from the OAuth response; it is decided by
@@ -48,12 +55,15 @@ public class SecurityConfig {
     private final AppOidcUserService appOidcUserService;
     private final AppProperties appProperties;
     private final SpaAuthenticationHandlers spaAuthenticationHandlers;
+    private final boolean secureCookies;
 
     public SecurityConfig(AppOidcUserService appOidcUserService, AppProperties appProperties,
-                           SpaAuthenticationHandlers spaAuthenticationHandlers) {
+                           SpaAuthenticationHandlers spaAuthenticationHandlers,
+                           @Value("${server.servlet.session.cookie.secure:false}") boolean secureCookies) {
         this.appOidcUserService = appOidcUserService;
         this.appProperties = appProperties;
         this.spaAuthenticationHandlers = spaAuthenticationHandlers;
+        this.secureCookies = secureCookies;
     }
 
     @Bean
@@ -79,6 +89,8 @@ public class SecurityConfig {
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(appOidcUserService))
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestRepository(new HttpCookieOAuth2AuthorizationRequestRepository(secureCookies)))
                         .successHandler(spaAuthenticationHandlers)
                         .failureHandler(spaAuthenticationHandlers)
                 )
