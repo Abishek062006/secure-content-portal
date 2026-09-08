@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { contentTypeIcon } from '../components/Icons';
 
 const CONTENT_TYPES = [
   { value: 'VIDEO', label: 'Video' },
@@ -90,6 +91,7 @@ export default function Library() {
           {items.map((item) => (
             <Link className="content-card" key={item.id} to={`/content/${item.id}`}>
               <div className={`content-card-thumb thumb-${item.contentType}`}>
+                {contentTypeIcon(item.contentType)}
                 <span>{CONTENT_TYPES.find((t) => t.value === item.contentType)?.label || item.contentType}</span>
               </div>
               <div className="content-card-body">

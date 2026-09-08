@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Logo } from './Icons';
 
 function initials(displayName) {
   const source = (displayName || '').trim();
@@ -14,7 +15,10 @@ export default function Nav() {
 
   return (
     <nav className="nav">
-      <Link className="nav-brand" to="/">Secure Content Portal</Link>
+      <Link className="nav-brand" to="/">
+        <Logo />
+        Secure Content Portal
+      </Link>
 
       {user && (
         <div className="nav-links">

@@ -146,6 +146,9 @@ a {
 }
 
 .nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 700;
   font-size: 1.08rem;
   letter-spacing: -0.01em;
@@ -153,6 +156,10 @@ a {
   text-decoration: none;
   white-space: nowrap;
   transition: opacity 0.2s var(--ease-snap);
+}
+
+.nav-brand svg {
+  flex: 0 0 auto;
 }
 
 .nav-brand:hover {
@@ -331,6 +338,68 @@ a {
 .hero .btn-lg {
   animation: fadeInUp 0.6s var(--ease) both;
   animation-delay: 0.15s;
+}
+
+/* ---------- Homepage features ---------- */
+
+.features-section {
+  padding-top: 8px;
+  padding-bottom: 88px;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 22px;
+}
+
+.feature-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow 0.3s var(--ease), transform 0.3s var(--ease);
+  animation: fadeInUp 0.5s var(--ease) both;
+}
+
+.feature-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.feature-card:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.feature-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.feature-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.feature-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.04rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.feature-card p {
+  margin: 0;
+  font-size: 0.89rem;
+  color: var(--ink-mid);
+  line-height: 1.55;
 }
 
 /* ---------- Layout shells ---------- */
@@ -797,14 +866,16 @@ a {
 }
 
 .content-card-thumb {
-  height: 116px;
+  height: 128px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 9px;
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   transition: transform 0.4s var(--ease);
