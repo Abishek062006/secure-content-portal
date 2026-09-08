@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../context/AuthContext';
 import VideoViewer from './viewers/VideoViewer';
 import PdfViewer from './viewers/PdfViewer';
 import HtmlViewer from './viewers/HtmlViewer';
@@ -12,6 +13,7 @@ import HtmlViewer from './viewers/HtmlViewer';
  */
 export default function ContentView() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
@@ -54,7 +56,7 @@ export default function ContentView() {
       <h1>{item.title}</h1>
       {item.description && <p className="field-hint">{item.description}</p>}
 
-      {item.contentType === 'VIDEO' && <VideoViewer ticket={ticket} />}
+      {item.contentType === 'VIDEO' && <VideoViewer ticket={ticket} viewerEmail={user?.email} />}
       {item.contentType === 'PDF' && <PdfViewer ticket={ticket} pageCount={item.pageCount} />}
       {item.contentType === 'HTML' && <HtmlViewer ticket={ticket} />}
     </div>

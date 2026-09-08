@@ -688,6 +688,22 @@ a {
   box-shadow: var(--shadow-md);
 }
 
+.video-wrap {
+  position: relative;
+  max-width: 960px;
+}
+
+.video-watermark {
+  position: absolute;
+  inset: 0;
+  /* Leaves room for the native controls bar so the tiled text doesn't sit
+     on top of (and fight for clicks with) play/seek/volume. */
+  bottom: 40px;
+  background-repeat: repeat;
+  pointer-events: none;
+  border-radius: var(--radius);
+}
+
 .pdf-toolbar {
   display: flex;
   align-items: center;
