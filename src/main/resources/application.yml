@@ -38,6 +38,15 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid,email,profile
+            # Explicit rather than left to Spring's {baseUrl} auto-detection: in
+            # production this request arrives at Render via a Vercel rewrite proxy
+            # (so the session cookie ends up first-party to the frontend's own
+            # domain, which browsers now require), and relying on Vercel forwarding
+            # the right X-Forwarded-Host for baseUrl detection is one more thing
+            # that could silently be wrong. Override with APP_OAUTH_REDIRECT_URI in
+            # production; the default here is Spring's own built-in template,
+            # unchanged for local dev.
+            redirect-uri: ${APP_OAUTH_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
 
   # Outer request-level ceiling — the real per-type limits are enforced by
   # FileValidator; this just stops an oversized request from being read into

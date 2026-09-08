@@ -1,4 +1,7 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// ?? (not ||) so an intentionally empty VITE_API_URL (production — see
+// .env.production) is preserved as "same origin", rather than falling back
+// to the localhost default meant only for unset/local dev.
+export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
 
 function readCookie(name) {
   const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
