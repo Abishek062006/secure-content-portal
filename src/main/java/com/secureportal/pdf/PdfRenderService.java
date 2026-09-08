@@ -101,6 +101,16 @@ public class PdfRenderService {
         }
     }
 
+    /**
+     * Tiles the watermark across a 2D grid, in the pre-rotation coordinate
+     * space, generously past every edge of the page in both directions —
+     * rotating a full-page-sized grid by 30° sweeps its corners well outside
+     * the original width/height on every side, so a grid needs to already
+     * cover that full rotated extent before rotation, not just the page's
+     * own dimensions. (An earlier version tiled only a single fixed X
+     * position down the Y axis, which after rotation produced a watermark
+     * clustered toward the left edge instead of covering the page.)
+     */
     private byte[] applyWatermark(byte[] jpegBytes, String watermarkText) {
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(jpegBytes));
@@ -109,12 +119,18 @@ public class PdfRenderService {
             g.setColor(new Color(0, 0, 0, 40));
             g.setFont(new Font("SansSerif", Font.BOLD, Math.max(18, image.getWidth() / 28)));
 
+            int textWidth = g.getFontMetrics().stringWidth(watermarkText);
+            int stepX = textWidth + 70;
+            int stepY = Math.max(60, image.getHeight() / 5);
+            int span = image.getWidth() + image.getHeight();
+
             AffineTransform original = g.getTransform();
             g.rotate(-Math.PI / 6, image.getWidth() / 2.0, image.getHeight() / 2.0);
 
-            int step = Math.max(60, image.getHeight() / 4);
-            for (int y = -image.getHeight(); y < image.getHeight() * 2; y += step) {
-                g.drawString(watermarkText, -image.getWidth() / 4, y);
+            for (int y = -span; y < span; y += stepY) {
+                for (int x = -span; x < span; x += stepX) {
+                    g.drawString(watermarkText, x, y);
+                }
             }
             g.setTransform(original);
             g.dispose();

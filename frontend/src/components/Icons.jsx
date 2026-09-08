@@ -4,22 +4,25 @@
  * its color from CSS (currentColor) to match whatever surface it sits on.
  */
 
+/**
+ * One shape, one meaning, generous padding — a single flat padlock rather
+ * than a shield-plus-checkmark composite. The busier version read as a
+ * generic "AI security icon" stock cliché; this is closer to how Apple's own
+ * reduced system icons (Passwords, Screen Time) are drawn: minimal geometry,
+ * no more detail than the concept needs.
+ */
 export function Logo(props) {
   return (
     <svg width="30" height="30" viewBox="0 0 30 30" fill="none" {...props}>
-      <rect width="30" height="30" rx="8" fill="url(#scp-logo-grad)" />
+      <rect width="30" height="30" rx="9" fill="url(#scp-logo-grad)" />
       <path
-        d="M15 6.5l7 2.6v4.7c0 4.7-3 8.5-7 9.4-4-.9-7-4.7-7-9.4V9.1l7-2.6z"
-        fill="#fff"
-        fillOpacity="0.97"
-      />
-      <path
-        d="M11.8 15.2l2.3 2.3 4-4.6"
-        stroke="url(#scp-logo-grad)"
-        strokeWidth="1.8"
+        d="M11.5 14.2v-2.7a3.5 3.5 0 0 1 7 0v2.7"
+        stroke="#fff"
+        strokeWidth="2.1"
         strokeLinecap="round"
-        strokeLinejoin="round"
+        fill="none"
       />
+      <rect x="9.5" y="14.2" width="11" height="8.3" rx="2.4" fill="#fff" />
       <defs>
         <linearGradient id="scp-logo-grad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
           <stop stopColor="#0eae97" />

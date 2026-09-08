@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE } from '../../api';
 
 /**
@@ -26,20 +26,44 @@ function buildWatermarkTile(text) {
 
 export default function VideoViewer({ ticket, viewerEmail }) {
   const [failed, setFailed] = useState(false);
+  const videoRef = useRef(null);
   const watermarkTile = useMemo(
     () => (viewerEmail ? buildWatermarkTile(viewerEmail) : null),
     [viewerEmail],
   );
 
+  // The overlay watermark is a DOM element positioned on top of the player —
+  // it isn't part of the video itself, so native fullscreen (which hands the
+  // whole screen to the OS's own video surface) leaves it behind. iOS Safari
+  // in particular ignores controlsList entirely and always offers its own
+  // fullscreen toggle regardless, so playsInline/controlsList alone isn't
+  // enough there; this listens for iOS's fullscreen event and immediately
+  // backs out of it, every time.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    const exitNativeFullscreen = () => {
+      if (video.webkitExitFullscreen) {
+        video.webkitExitFullscreen();
+      }
+    };
+    video.addEventListener('webkitbeginfullscreen', exitNativeFullscreen);
+    return () => video.removeEventListener('webkitbeginfullscreen', exitNativeFullscreen);
+  }, []);
+
   return (
     <div className="video-wrap">
       <video
+        ref={videoRef}
         controls
-        controlsList="nodownload noremoteplayback"
+        controlsList="nodownload noremoteplayback nofullscreen"
         disablePictureInPicture
+        playsInline
+        webkit-playsinline="true"
         className="media-player"
         src={`${API_BASE}/api/stream/${ticket}`}
         onError={() => setFailed(true)}
+        onContextMenu={(e) => e.preventDefault()}
       >
         Your browser doesn't support inline video.
       </video>
