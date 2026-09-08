@@ -51,7 +51,7 @@ app:
   admin-emails: ${APP_ADMIN_EMAILS:}
   ticket-secret: ${APP_TICKET_SECRET:dev-only-insecure-ticket-secret-change-me}
   ticket-ttl: 5m
-  pdf-render-dpi: 110
+  pdf-render-dpi: 90
   pdf-max-pages: 300
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
 
