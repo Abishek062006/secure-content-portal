@@ -11,8 +11,12 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const me = await api.get('/api/me');
+      // eslint-disable-next-line no-console
+      console.log('[auth] /api/me resolved', me);
       setUser(me.authenticated ? me.user : null);
-    } catch {
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[auth] /api/me failed', err);
       setUser(null);
     } finally {
       setLoading(false);

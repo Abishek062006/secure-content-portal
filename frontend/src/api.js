@@ -31,6 +31,17 @@ async function request(path, options = {}) {
     credentials: 'include',
   });
 
+  if (path === '/api/me') {
+    // eslint-disable-next-line no-console
+    console.log('[api] /api/me raw response', {
+      status: response.status,
+      ok: response.ok,
+      redirected: response.redirected,
+      url: response.url,
+      contentType: response.headers.get('content-type'),
+    });
+  }
+
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
     try {
