@@ -33,6 +33,13 @@ public class AppProperties {
     /** Refuse PDFs longer than this, to bound rasterisation cost. */
     private int pdfMaxPages = 300;
 
+    /**
+     * Origin of the React SPA — used for CORS, and as the redirect target
+     * after a successful (or failed) Google login, since the backend can no
+     * longer redirect to its own "/" the way the Thymeleaf version did.
+     */
+    private String frontendUrl = "http://localhost:5173";
+
     public List<String> getAdminEmails() {
         return adminEmails;
     }
@@ -71,6 +78,14 @@ public class AppProperties {
 
     public void setPdfMaxPages(int pdfMaxPages) {
         this.pdfMaxPages = pdfMaxPages;
+    }
+
+    public String getFrontendUrl() {
+        return frontendUrl;
+    }
+
+    public void setFrontendUrl(String frontendUrl) {
+        this.frontendUrl = frontendUrl;
     }
 
     public boolean isAdminEmail(String email) {

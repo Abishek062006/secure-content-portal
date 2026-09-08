@@ -53,6 +53,7 @@ app:
   ticket-ttl: 5m
   pdf-render-dpi: 110
   pdf-max-pages: 300
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
 
 storage:
   endpoint: ${STORAGE_ENDPOINT:}

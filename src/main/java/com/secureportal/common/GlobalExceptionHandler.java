@@ -1,5 +1,7 @@
 package com.secureportal.common;
 
+import com.secureportal.content.AdminContentController;
+import com.secureportal.user.UserAdminController;
 import com.secureportal.user.UserManagementException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -12,8 +14,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * Turns a handful of expected failure cases into a redirect back to the
  * page with a readable message, instead of a stack trace or a blank screen.
+ *
+ * <p>Scoped to just the two Thymeleaf admin controllers — {@link com.secureportal.api}
+ * has its own {@code ApiExceptionHandler} returning JSON for the same exception types,
+ * and an unscoped advice here would collide with it.
  */
-@ControllerAdvice
+@ControllerAdvice(basePackageClasses = {AdminContentController.class, UserAdminController.class})
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);

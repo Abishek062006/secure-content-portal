@@ -6,7 +6,13 @@ server:
     session:
       cookie:
         secure: true
-        same-site: lax
+        # The React frontend (Vercel) and this API (Render) are different
+        # registrable domains — genuinely cross-site, not just cross-port
+        # like local dev. SameSite=Lax would never be sent on those
+        # cross-site fetch() calls at all; None is required for the session
+        # cookie to reach the API. Secure=true (above) is mandatory whenever
+        # SameSite=None is used — browsers reject None on a non-HTTPS cookie.
+        same-site: none
         http-only: true
 
 logging:
