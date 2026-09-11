@@ -1,9 +1,9 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://secure-content-portal.onrender.com/api/:path*" },
-    { "source": "/oauth2/:path*", "destination": "https://secure-content-portal.onrender.com/oauth2/:path*" },
-    { "source": "/login/oauth2/:path*", "destination": "https://secure-content-portal.onrender.com/login/oauth2/:path*" },
-    { "source": "/logout", "destination": "https://secure-content-portal.onrender.com/logout" },
+    { "source": "/api/:path*", "destination": "http://secure-content-portal-env.eba-iab4nf46.eu-north-1.elasticbeanstalk.com/api/:path*" },
+    { "source": "/oauth2/:path*", "destination": "http://secure-content-portal-env.eba-iab4nf46.eu-north-1.elasticbeanstalk.com/oauth2/:path*" },
+    { "source": "/login/oauth2/:path*", "destination": "http://secure-content-portal-env.eba-iab4nf46.eu-north-1.elasticbeanstalk.com/login/oauth2/:path*" },
+    { "source": "/logout", "destination": "http://secure-content-portal-env.eba-iab4nf46.eu-north-1.elasticbeanstalk.com/logout" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
