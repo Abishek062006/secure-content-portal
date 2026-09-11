@@ -45,7 +45,8 @@ html {
 
 body {
   margin: 0;
-  background: radial-gradient(ellipse 70% 50% at 50% -20%, var(--accent-wash) 0%, transparent 60%),
+  overflow-x: hidden;
+  background: radial-gradient(ellipse 90% 60% at 50% -10%, var(--accent-wash) 0%, transparent 65%),
     var(--ground);
   background-attachment: fixed;
   color: var(--ink);
@@ -136,10 +137,11 @@ a {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 28px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.42);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
   flex-wrap: wrap;
   position: sticky;
   top: 0;
@@ -306,6 +308,22 @@ a {
 .hero {
   padding-top: 96px;
   padding-bottom: 96px;
+  position: relative;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -160px;
+  left: 50%;
+  transform: translateX(-42%);
+  width: 560px;
+  height: 420px;
+  background: radial-gradient(circle, var(--accent-bright), transparent 70%);
+  opacity: 0.28;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .hero-eyebrow {
@@ -326,6 +344,10 @@ a {
   margin: 0 0 22px;
   animation: fadeInUp 0.6s var(--ease) both;
   animation-delay: 0.05s;
+  background: linear-gradient(120deg, var(--ink) 30%, var(--accent-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .hero-sub {
@@ -382,12 +404,13 @@ a {
   width: 46px;
   height: 46px;
   border-radius: 12px;
-  background: var(--accent-wash);
+  background: linear-gradient(150deg, var(--accent-wash), #d8f0ea 130%);
   color: var(--accent-deep);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
+  box-shadow: var(--shadow-xs);
 }
 
 .feature-card h3 {
@@ -479,17 +502,15 @@ a {
 .login-screen {
   min-height: calc(100vh - 65px);
   position: relative;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(ellipse 80% 60% at 50% -10%, var(--accent-wash), transparent),
-    var(--ground);
 }
 
 .login-glow {
-  position: absolute;
+  position: fixed;
+  z-index: 0;
   border-radius: 50%;
   filter: blur(70px);
   opacity: 0.55;
