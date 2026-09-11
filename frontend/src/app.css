@@ -539,6 +539,7 @@ a {
   font-size: 0.86rem;
   letter-spacing: 0.02em;
   color: var(--ink-mid);
+  white-space: nowrap;
 }
 
 .login-card h1 {
