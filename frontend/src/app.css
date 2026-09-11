@@ -45,7 +45,9 @@ html {
 
 body {
   margin: 0;
-  background: var(--ground);
+  background: radial-gradient(ellipse 70% 50% at 50% -20%, var(--accent-wash) 0%, transparent 60%),
+    var(--ground);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   line-height: 1.55;
@@ -472,6 +474,113 @@ a {
   transform: translateY(0) scale(0.98);
 }
 
+/* ---------- Login ---------- */
+
+.login-screen {
+  min-height: calc(100vh - 65px);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, var(--accent-wash), transparent),
+    var(--ground);
+}
+
+.login-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  pointer-events: none;
+  animation: fadeIn 1.2s var(--ease) both;
+}
+
+.login-glow-a {
+  width: 420px;
+  height: 420px;
+  top: -140px;
+  left: -120px;
+  background: radial-gradient(circle, var(--accent-bright), transparent 70%);
+}
+
+.login-glow-b {
+  width: 360px;
+  height: 360px;
+  bottom: -160px;
+  right: -100px;
+  background: radial-gradient(circle, var(--accent-deep), transparent 70%);
+  opacity: 0.35;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 48px 44px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.6s var(--ease) both;
+}
+
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 auto 28px;
+  font-weight: 600;
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-mid);
+}
+
+.login-card h1 {
+  font-size: 1.7rem;
+  letter-spacing: -0.03em;
+  margin: 0 0 8px;
+}
+
+.login-card > p {
+  color: var(--ink-mid);
+  font-size: 0.94rem;
+  margin: 0 0 26px;
+}
+
+.login-points {
+  list-style: none;
+  margin: 0 0 30px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.login-points li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.87rem;
+  color: var(--ink);
+}
+
+.login-point-icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  border-radius: 10px;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+
 .error-card {
   text-align: center;
 }
@@ -515,9 +624,13 @@ a {
 
 .page-head h1 {
   margin: 0;
-  font-size: 1.7rem;
-  letter-spacing: -0.025em;
+  font-size: 1.85rem;
+  letter-spacing: -0.03em;
   font-weight: 700;
+  background: linear-gradient(120deg, var(--ink) 40%, var(--accent-deep));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .empty-state {
@@ -872,7 +985,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 9px;
-  background: var(--accent-wash);
+  background: linear-gradient(150deg, var(--accent-wash), #d8f0ea 120%);
   color: var(--accent-deep);
   font-weight: 700;
   font-size: 0.74rem;
@@ -882,12 +995,12 @@ a {
 }
 
 .content-card-thumb.thumb-PDF {
-  background: #fdf0dc;
+  background: linear-gradient(150deg, #fdf0dc, #f9dfb6 120%);
   color: #96631a;
 }
 
 .content-card-thumb.thumb-HTML {
-  background: #e6eef7;
+  background: linear-gradient(150deg, #e6eef7, #d3e2f4 120%);
   color: #2a5c9a;
 }
 

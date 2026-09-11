@@ -1,5 +1,12 @@
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Logo, LockIcon, ShieldPlayIcon, UsersGearIcon } from '../components/Icons';
+
+const POINTS = [
+  { Icon: ShieldPlayIcon, text: 'Video, PDF and HTML — one secure library' },
+  { Icon: LockIcon, text: 'Nothing is ever downloadable, only viewable' },
+  { Icon: UsersGearIcon, text: 'Role-based access, enforced on every request' },
+];
 
 export default function Login() {
   const { login } = useAuth();
@@ -7,11 +14,30 @@ export default function Login() {
   const error = searchParams.get('error');
 
   return (
-    <div className="center-screen">
-      <div className="card">
-        <h1>Sign in</h1>
-        <p>Use your Google account to access the content portal. New accounts start as a Viewer.</p>
+    <div className="login-screen">
+      <div className="login-glow login-glow-a" />
+      <div className="login-glow login-glow-b" />
+
+      <div className="login-card">
+        <div className="login-brand">
+          <Logo />
+          <span>Secure Content Portal</span>
+        </div>
+
+        <h1>Welcome back</h1>
+        <p>Sign in with Google to access the content portal. New accounts start as a Viewer.</p>
+
+        <ul className="login-points">
+          {POINTS.map(({ Icon, text }) => (
+            <li key={text}>
+              <Icon className="login-point-icon" />
+              <span>{text}</span>
+            </li>
+          ))}
+        </ul>
+
         {error && <p className="field-error">{error}</p>}
+
         <button type="button" className="google-btn" onClick={login}>
           <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
             <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z" />

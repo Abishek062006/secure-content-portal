@@ -8,11 +8,8 @@ Built for an internship screening assignment. Java Spring Boot was a hard requir
 else below was chosen deliberately, not defaulted to.
 
 **Live app:** https://secure-content-portal.vercel.app (React frontend — talks to the API below)
-**API:** https://secure-content-portal.onrender.com
+**API:** AWS Elastic Beanstalk (Docker, `eu-north-1`), proxied through Vercel — see [Deployment](#deployment)
 **Repo:** https://github.com/Abishek062006/secure-content-portal
-
-> First load can take 30–60 seconds — the free-tier API instance sleeps after 15 minutes of
-> inactivity and cold-starts on the next request. This is expected; see [Deployment](#deployment).
 
 ---
 
@@ -53,15 +50,15 @@ else below was chosen deliberately, not defaulted to.
 |---|---|---|
 | Backend | Spring Boot 3.5, Java 21 | The assignment's one hard requirement |
 | Frontend | React (Vite) SPA, deployed separately on Vercel | Talks to the backend as a JSON REST API over `/api/**`, routed through Vercel's own rewrite proxy rather than plain cross-origin CORS (see [Architecture](#architecture) for why). Not a same-origin monolith — the earlier same-origin Thymeleaf build is still in this repo's history if you want to see that version |
-| UI design | Inter (Google Fonts), CSS custom properties, no component library | Layered shadows, pill-shaped controls, hover/press micro-interactions, and per-route fade-up entrances — all in `frontend/src/app.css`, applied via the existing shared classes so no page needed individual rework |
+| UI design | Inter (Google Fonts), CSS custom properties, no component library | Layered shadows, pill-shaped controls, hover/press micro-interactions, per-route fade-up entrances, a glassmorphic sign-in screen with gradient glow accents, and gradient-text page headings — all in `frontend/src/app.css`, applied via the existing shared classes so no page needed individual rework |
 | Auth | Spring Security `oauth2-client` | Server-side session only; no JWT in localStorage. Role is decided by *our* database, never trusted from the OAuth response |
 | Sessions | Spring Session JDBC (Postgres) | Sessions survive a redeploy or a free-tier restart, since they don't live in that process's memory |
 | Database | [Neon](https://neon.tech) Postgres | Free-tier Neon *branches* auto-resume in under a second; Supabase's free-tier *projects* pause after 7 days idle, which is a real risk for a reviewer opening this after a week |
 | File storage | [Supabase Storage](https://supabase.com) (private bucket, S3-compatible API) | 1GB free, no card required, and the S3-compatible endpoint means the code isn't locked to Supabase specifically |
-| PDF rendering | Apache PDFBox, 90 DPI | Renders pages to images server-side — see [Content protection](#content-protection--whats-real-what-a-deterrent). DPI kept modest since every render (even a cache hit) still redoes an in-memory decode/watermark/re-encode on Render's free-tier CPU |
+| PDF rendering | Apache PDFBox, 90 DPI | Renders pages to images server-side — see [Content protection](#content-protection--whats-real-what-a-deterrent). DPI kept modest since every render (even a cache hit) still redoes an in-memory decode/watermark/re-encode on a small single-core instance |
 | File-type detection | Apache Tika | Magic-byte sniffing — never trusts the filename extension or the browser's `Content-Type` header |
 | HTML sanitizing | jsoup | Strips scripts/forms/event handlers at upload time |
-| Backend hosting | [Render](https://render.com) free web service, Docker | Builds the Dockerfile in the cloud — no local Docker needed |
+| Backend hosting | AWS Elastic Beanstalk (Docker on `t3.micro`, single instance) | Builds the same Dockerfile the repo already had — no separate deploy config needed. Moved off Render mid-project because Render's free tier sleeps after 15 min idle and cold-starts 30–60s on the next request; EB's free-tier instance runs continuously instead |
 | Frontend hosting | [Vercel](https://vercel.com) free tier | Zero-config Vite build, instant deploys on push |
 
 ## Architecture
@@ -73,10 +70,10 @@ flowchart TB
     subgraph Vercel["Vercel — React SPA + rewrite proxy"]
         direction TB
         Spa["Library / viewers / admin pages<br/>fetch() with credentials: 'include'"]
-        Proxy["vercel.json rewrites:<br/>/api/**, /oauth2/**, /login/oauth2/**, /logout<br/>→ proxied server-to-server to Render"]
+        Proxy["vercel.json rewrites:<br/>/api/**, /oauth2/**, /login/oauth2/**, /logout<br/>→ proxied server-to-server to AWS"]
     end
 
-    subgraph Render["Render — Spring Boot REST API"]
+    subgraph AWS["AWS Elastic Beanstalk — Spring Boot REST API"]
         direction TB
         Sec["Spring Security<br/>Google OIDC → role from our own DB"]
         Api["/api/admin/** controllers<br/>hasRole(ADMIN) + CSRF"]
@@ -108,11 +105,14 @@ credential, and it's `HttpOnly` so the SPA's own JavaScript can't read it either
 **Why a proxy instead of plain cross-origin CORS + cookies** (the first approach tried): browsers
 now block third-party cookies by default, which broke the whole flow for anyone but a session that
 happened to already be trusted — sign-in would appear to succeed, but every subsequent `fetch()`
-from `vercel.app` to `onrender.com` silently dropped the session cookie. Routing everything through
-Vercel's own rewrites means the browser only ever talks to `vercel.app`; Vercel forwards to Render
-server-to-server, so the session cookie ends up scoped to Vercel's own origin and every API call is
-same-origin from the browser's point of view. `frontend/vercel.json` holds the rewrite rules;
-`VITE_API_URL` is intentionally empty in production so the frontend calls relative paths.
+from `vercel.app` to the backend's own domain silently dropped the session cookie. Routing
+everything through Vercel's own rewrites means the browser only ever talks to `vercel.app`; Vercel
+forwards to the backend server-to-server, so the session cookie ends up scoped to Vercel's own
+origin and every API call is same-origin from the browser's point of view. `frontend/vercel.json`
+holds the rewrite rules; `VITE_API_URL` is intentionally empty in production so the frontend calls
+relative paths. This also means the backend can move — Render to AWS, or anywhere else — by
+changing only the destination URLs in `vercel.json`; nothing about Google OAuth or the frontend
+needs to know or care.
 
 ## Running it locally
 
@@ -176,7 +176,7 @@ The frontend has its own, much smaller set: `VITE_API_URL`, the backend's origin
 
 | Piece | Service | Free tier |
 |---|---|---|
-| API | Render (Docker web service) | 512MB RAM, sleeps after 15 min idle |
+| API | AWS Elastic Beanstalk (Docker, `t3.micro`, single instance, `eu-north-1`) | 750 instance-hours/month free for 12 months on a new AWS account; no sleep/cold-start |
 | Frontend | Vercel | Static build, no sleep/cold-start |
 | Database | Neon Postgres | Auto-resumes in <1s when idle |
 | File storage | Supabase Storage | 1GB, 50MB per-file cap |
@@ -184,14 +184,23 @@ The frontend has its own, much smaller set: `VITE_API_URL`, the backend's origin
 
 The Dockerfile is a two-stage build (`maven:3.9-eclipse-temurin-21` to compile,
 `eclipse-temurin:21-jre-alpine` to run as a non-root user) and skips tests during the image build —
-`AccessControlTest` needs a real Postgres connection Render's build step doesn't have, and tests are
-a dev-time check, not a deploy-time gate. On Vercel, set the project's Root Directory to `frontend/`
-and leave `VITE_API_URL` **unset** in the dashboard — the committed `frontend/.env.production` sets
-it to empty intentionally, and a dashboard value would silently override that (see gotcha #2 below).
+`AccessControlTest` needs a real Postgres connection the build step doesn't have, and tests are
+a dev-time check, not a deploy-time gate. EB's Docker platform builds this same Dockerfile directly
+from an uploaded source zip and auto-detects the exposed port from `EXPOSE 8080` — no extra deploy
+config needed. On Vercel, set the project's Root Directory to `frontend/` and leave `VITE_API_URL`
+**unset** in the dashboard — the committed `frontend/.env.production` sets it to empty intentionally,
+and a dashboard value would silently override that (see gotcha #2 below).
+
+**Why AWS instead of Render:** the project started on Render's free tier, which works but sleeps
+after 15 minutes of idle and cold-starts 30–60s on the next request. It was migrated mid-project to
+an AWS Elastic Beanstalk `t3.micro` instance (Single instance environment type, so no load balancer
+— keeps it inside the free tier) once that cold-start became the main complaint. File storage stayed
+on Supabase throughout; only the compute layer moved. The migration needed no changes to Google
+OAuth config or to Vercel's dashboard — see the proxy rationale above for why.
 
 **Deployment-specific gotchas worth knowing — all hit for real while building this:**
 
-1. Render terminates TLS upstream of the container, so without
+1. Both Render and, now, Vercel terminate TLS upstream of the container, so without
    `server.forward-headers-strategy=native` (set in `application-prod.yml`), Spring builds the OAuth
    callback URL as `http://` and Google rejects it. This is set correctly here, but it's the first
    thing to check if OAuth breaks only in production and not locally.
@@ -212,18 +221,18 @@ it to empty intentionally, and a dashboard value would silently override that (s
    or a redirect-chain quirk to interfere with. See the class Javadoc for the full story; this is the
    single most subtle thing in the whole project and worth reading if OAuth-behind-a-proxy ever comes
    up again.
-4. Vercel and Render are genuinely different registrable domains at the DNS level, so the session
-   cookie is still `SameSite=None; Secure` in production (`application-prod.yml`) as a defensive
-   default — but because of gotcha #3 and the proxy in #2's fix, the cookie is actually *set* while
-   the browser is talking to `vercel.app` (proxied), so it ends up scoped there rather than to
-   Render, and every later API call is same-origin from the browser's perspective regardless.
-   `APP_FRONTEND_URL` on Render must still exactly match the deployed Vercel origin, for CORS (kept
-   as defense-in-depth) and as the post-login redirect target.
+4. Vercel and the backend (Render before, AWS now) are genuinely different registrable domains at
+   the DNS level, so the session cookie is still `SameSite=None; Secure` in production
+   (`application-prod.yml`) as a defensive default — but because of gotcha #3 and the proxy in #2's
+   fix, the cookie is actually *set* while the browser is talking to `vercel.app` (proxied), so it
+   ends up scoped there rather than to the backend, and every later API call is same-origin from the
+   browser's perspective regardless. `APP_FRONTEND_URL` on the backend must still exactly match the
+   deployed Vercel origin, for CORS (kept as defense-in-depth) and as the post-login redirect target.
 
-**Cold starts:** the free Render instance sleeps after 15 minutes of no traffic and takes 30–60
-seconds to wake on the next request. This is a known, accepted trade-off of the free tier, not a
-bug — the Vercel-hosted frontend itself loads instantly either way, but its first API calls will
-wait on the backend waking up.
+**No cold starts on AWS:** Render's free tier slept after 15 minutes of no traffic and took 30–60
+seconds to wake on the next request — a known, accepted trade-off at the time, not a bug. That's
+the main thing the AWS migration fixed: the EB `t3.micro` instance runs continuously within the
+free tier, so there's no sleep/wake cycle to wait on anymore.
 
 ## Content protection — what's real, what's a deterrent
 
@@ -260,8 +269,8 @@ of what actually stops a determined viewer versus what just discourages a casual
   translucent overlay drawn on top of the `<video>` element in the browser (`VideoViewer.jsx`),
   showing the same tiled-diagonal look. True server-side burned-in video watermarking would mean
   real-time per-viewer frame transcoding (ffmpeg), which would fight the simple range-request
-  seeking the player relies on and likely be too slow on Render's free-tier CPU — out of scope for
-  what this needed to prove. The brief itself frames this bonus as a deterrent, not a security
+  seeking the player relies on and likely be too slow on a free-tier instance's CPU — out of scope
+  for what this needed to prove. The brief itself frames this bonus as a deterrent, not a security
   boundary, so this is an honest match for what was actually asked.
 - **Right-click "Save Video As" is disabled** (`onContextMenu` preventing the browser's native
   context menu) and native fullscreen is suppressed (`playsInline`, plus an explicit
