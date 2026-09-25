@@ -2104,3 +2104,41 @@ a {
 .setup-guide p { margin: 2px 0 0; color: var(--text-muted, #6b7280); font-size: 0.9rem; }
 .step-mark { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #cfd3d9; display: grid; place-items: center; font-size: 0.8rem; color: #fff; }
 .setup-guide li.done .step-mark { background: var(--accent); border-color: var(--accent); }
+
+/* Form controls that had no styling of their own (filters, counts, schedule pickers) */
+select, input[type="number"], input[type="datetime-local"] {
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+select:focus, input[type="number"]:focus, input[type="datetime-local"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-wash);
+}
+
+/* New course: one-page form with videos */
+.page-sub { margin: -8px 0 20px; color: var(--ink-soft, #6b7280); }
+.course-form-videos, .course-form-progress { grid-column: 1 / -1; }
+.videos-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.videos-head label { font-weight: 600; }
+.videos-head .field-hint { margin: 2px 0 0; }
+.video-drop {
+  width: 100%; display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center;
+  padding: 28px 16px; border: 2px dashed var(--accent); border-radius: var(--radius-lg, 14px);
+  background: var(--accent-wash); color: var(--accent-deep); cursor: pointer; font: inherit;
+}
+.video-drop:hover:not(:disabled) { background: #d3ede8; }
+.video-drop span { font-size: 0.88rem; }
+.video-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.video-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-alt); }
+.video-num { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 0.85rem; font-weight: 600; }
+.video-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.video-fields input[type="text"] { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.transcript-pick { color: var(--accent-deep); font-size: 0.88rem; cursor: pointer; width: fit-content; }
+.transcript-pick:hover { text-decoration: underline; }
+.video-actions { display: flex; gap: 4px; }
+.sections-hint { margin: 4px 0 0; color: var(--ink-soft, #6b7280); font-size: 0.9rem; }

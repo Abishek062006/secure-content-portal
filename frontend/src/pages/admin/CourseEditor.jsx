@@ -14,10 +14,11 @@ export default function CourseEditor() {
   const location = useLocation();
   const [outline, setOutline] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', category: '' });
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(location.state?.error || null);
   const [successMessage, setSuccessMessage] = useState(location.state?.success || null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [newModuleTitle, setNewModuleTitle] = useState('');
+  const [sectioned, setSectioned] = useState(false);
 
   const [questions, setQuestions] = useState([]);
 
@@ -60,6 +61,8 @@ export default function CourseEditor() {
 
   const { course, modules } = outline;
   const published = course.status === 'PUBLISHED';
+  // Most courses are just a video or a few: hide the section concept until the admin asks for it.
+  const flat = modules.length === 1 && !sectioned;
 
   /** Approved questions by difficulty across the given lessons: what an attempt could be drawn from. */
   function availability(lessonIds) {
@@ -171,37 +174,48 @@ export default function CourseEditor() {
         </div>
       </form>
 
-      <SetupGuide id={id} modules={modules} finalAssessment={outline.finalAssessment} published={published} />
+      <SetupGuide id={id} modules={modules} finalAssessment={outline.finalAssessment} published={published} flat={flat} />
 
-      <h2 className="editor-heading">Outline</h2>
+      <h2 className="editor-heading">{flat ? 'Videos and quiz' : 'Outline'}</h2>
       {modules.length === 0 && (
         <div className="empty-state"><p>No modules yet. Add the first one below.</p></div>
       )}
       {modules.map((module, index) => (
-        <ModuleCard key={module.id} module={module} index={index} total={modules.length} actions={moduleActions}
+        <ModuleCard key={module.id} module={module} index={index} total={modules.length} actions={moduleActions} flat={flat}
                     available={availability(new Set(module.lessons.map((l) => l.id)))} />
       ))}
 
+      {flat ? (
+        <p className="sections-hint">
+          Need chapters or a quiz per chapter?{' '}
+          <button type="button" className="link-button" onClick={() => setSectioned(true)}>Organize into sections</button>
+        </p>
+      ) : (
       <form className="module-add" onSubmit={(e) => {
-        e.preventDefault();
-        swallow(run(() => api.post(`/api/admin/courses/${id}/modules`, { title: newModuleTitle }), 'Module added.')
-          .then(() => setNewModuleTitle('')));
-      }}>
-        <input type="text" placeholder="New module title" maxLength={200} required value={newModuleTitle}
-               onChange={(e) => setNewModuleTitle(e.target.value)} />
-        <button type="submit" className="btn btn-primary">Add module</button>
-      </form>
+          e.preventDefault();
+          swallow(run(() => api.post(`/api/admin/courses/${id}/modules`, { title: newModuleTitle }), 'Module added.')
+            .then(() => setNewModuleTitle('')));
+        }}>
+          <input type="text" placeholder="New module title" maxLength={200} required value={newModuleTitle}
+                 onChange={(e) => setNewModuleTitle(e.target.value)} />
+          <button type="submit" className="btn btn-primary">Add module</button>
+        </form>
+      )}
 
+      {!flat && (
+        <>
       <h2 className="editor-heading">Final assessment</h2>
-      <section className="module-card">
-        <AssessmentPanel
-          isFinal
-          assessment={outline.finalAssessment}
-          available={availability(new Set(modules.flatMap((m) => m.lessons.map((l) => l.id))))}
-          onSave={(values) => run(() => api.put(`/api/admin/courses/${id}/final-assessment`, values), 'Final assessment saved.')}
-          onRemove={() => setPendingDelete({ type: 'assessment', item: { ...outline.finalAssessment, kind: 'final' } })}
-        />
-      </section>
+        <section className="module-card">
+          <AssessmentPanel
+            isFinal
+            assessment={outline.finalAssessment}
+            available={availability(new Set(modules.flatMap((m) => m.lessons.map((l) => l.id))))}
+            onSave={(values) => run(() => api.put(`/api/admin/courses/${id}/final-assessment`, values), 'Final assessment saved.')}
+            onRemove={() => setPendingDelete({ type: 'assessment', item: { ...outline.finalAssessment, kind: 'final' } })}
+          />
+        </section>
+        </>
+      )}
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}

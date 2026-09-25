@@ -13,7 +13,7 @@ function summary(a) {
 }
 
 /** A module's (or the course's final) quiz or assessment: skip it, or set it up. */
-export default function AssessmentPanel({ assessment, available, allowGate, isFinal, onSave, onRemove }) {
+export default function AssessmentPanel({ assessment, available, allowGate, isFinal, flat, onSave, onRemove }) {
   const [editing, setEditing] = useState(false);
 
   return (
@@ -44,8 +44,8 @@ export default function AssessmentPanel({ assessment, available, allowGate, isFi
         </div>
       ) : (
         <div className="module-assessment-row">
-          <span className="field-hint">{isFinal ? 'No final assessment.' : 'No quiz or assessment — this module is skipped.'}</span>
-          <button type="button" className="btn" onClick={() => setEditing(true)}>{isFinal ? 'Add final assessment' : 'Add quiz or assessment'}</button>
+          <span className="field-hint">{isFinal ? 'No final assessment.' : flat ? 'No quiz yet. Learners will just watch the video(s).' : 'No quiz or assessment — this module is skipped.'}</span>
+          <button type="button" className="btn" onClick={() => setEditing(true)}>{isFinal ? 'Add final assessment' : flat ? 'Add a quiz' : 'Add quiz or assessment'}</button>
         </div>
       )}
     </div>

@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 
 /** A live checklist so it's obvious where videos, transcripts and quiz questions come from. */
-export default function SetupGuide({ id, modules, finalAssessment, published }) {
+export default function SetupGuide({ id, modules, finalAssessment, published, flat }) {
   const lessons = modules.flatMap((m) => m.lessons);
   const withTranscript = lessons.filter((l) => l.hasTranscript).length;
   const hasAssessment = Boolean(finalAssessment) || modules.some((m) => m.assessment);
 
-  const steps = [
+  const allSteps = [
     {
       done: modules.length > 0,
       title: 'Add a module',
@@ -14,11 +14,11 @@ export default function SetupGuide({ id, modules, finalAssessment, published }) 
     },
     {
       done: lessons.length > 0,
-      title: 'Add lessons with a video and a transcript',
+      title: flat ? 'Add your video(s) with transcripts' : 'Add lessons with a video and a transcript',
       text: lessons.length > 0
         ? `${lessons.length} lesson${lessons.length === 1 ? '' : 's'}, ${withTranscript} with a transcript. `
-          + 'Each module has a "+ Add lesson" button; the form asks for the video and a .vtt transcript.'
-        : 'Inside a module, click "+ Add lesson". The form asks for the video (.mp4/.webm) and the transcript (.vtt).',
+          + 'Use "+ Add video" below; the form asks for the video and a .vtt transcript.'
+        : 'Use "+ Add video" below. The form asks for the video (.mp4/.webm) and the transcript (.vtt).',
     },
     {
       done: false,
@@ -30,8 +30,8 @@ export default function SetupGuide({ id, modules, finalAssessment, published }) 
     },
     {
       done: hasAssessment,
-      title: 'Choose a quiz or assessment per module',
-      text: 'Each module has a quiz/assessment panel, and there is a final assessment at the bottom. Both draw from the approved questions.',
+      title: flat ? 'Add a quiz' : 'Choose a quiz or assessment per module',
+      text: flat ? 'Below your videos, click "Add a quiz". It draws from the approved questions.' : 'Each module has a quiz/assessment panel, and there is a final assessment at the bottom. Both draw from the approved questions.',
     },
     {
       done: published,
@@ -39,6 +39,8 @@ export default function SetupGuide({ id, modules, finalAssessment, published }) 
       text: 'The Publish button at the top makes the course visible to learners.',
     },
   ];
+
+  const steps = flat ? allSteps.slice(1) : allSteps;
 
   return (
     <section className="setup-guide">

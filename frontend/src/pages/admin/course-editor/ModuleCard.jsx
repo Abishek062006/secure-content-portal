@@ -12,7 +12,7 @@ function MoveButtons({ index, total, onMove, label }) {
   );
 }
 
-function AddLessonForm({ onAdd, onCancel }) {
+function AddLessonForm({ onAdd, onCancel, flat }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
@@ -50,7 +50,7 @@ function AddLessonForm({ onAdd, onCancel }) {
     <form className="inline-form" onSubmit={submit}>
       {error && <p className="field-error">{error}</p>}
       <div className="field">
-        <label>Lesson title</label>
+        <label>{flat ? 'Video title' : 'Lesson title'}</label>
         <input name="title" type="text" maxLength={200} required disabled={busy} />
       </div>
       <div className="field">
@@ -131,7 +131,7 @@ function LessonRow({ lesson, index, total, actions }) {
   );
 }
 
-export default function ModuleCard({ module, index, total, actions, available }) {
+export default function ModuleCard({ module, index, total, actions, available, flat }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: module.title, description: module.description || '' });
@@ -144,6 +144,7 @@ export default function ModuleCard({ module, index, total, actions, available })
 
   return (
     <section className="module-card">
+      {!flat && (
       <header className="module-card-head">
         {editing ? (
           <form className="inline-form" onSubmit={save}>
@@ -170,8 +171,9 @@ export default function ModuleCard({ module, index, total, actions, available })
           </>
         )}
       </header>
+      )}
 
-      {module.lessons.length === 0 && !adding && <p className="field-hint">No lessons in this module yet.</p>}
+      {module.lessons.length === 0 && !adding && <p className="field-hint">{flat ? 'No videos yet.' : 'No lessons in this module yet.'}</p>}
       <ol className="lesson-rows">
         {module.lessons.map((lesson, lIndex) => (
           <LessonRow
@@ -192,6 +194,7 @@ export default function ModuleCard({ module, index, total, actions, available })
       <AssessmentPanel
         assessment={module.assessment}
         available={available}
+        flat={flat}
         allowGate
         onSave={(values) => actions.saveAssessment(module.id, values)}
         onRemove={() => actions.removeAssessment(module)}
@@ -199,6 +202,7 @@ export default function ModuleCard({ module, index, total, actions, available })
 
       {adding ? (
         <AddLessonForm
+          flat={flat}
           onCancel={() => setAdding(false)}
           onAdd={async (formData, onProgress) => {
             await actions.addLesson(module.id, formData, onProgress);
@@ -207,7 +211,7 @@ export default function ModuleCard({ module, index, total, actions, available })
         />
       ) : (
         <button type="button" className={`btn${module.lessons.length === 0 ? ' btn-primary' : ''}`} onClick={() => setAdding(true)}>
-          + Add lesson (video and transcript)
+          {flat ? '+ Add video' : '+ Add lesson (video and transcript)'}
         </button>
       )}
     </section>
