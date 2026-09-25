@@ -1201,3 +1201,140 @@ a {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Courses ---------- */
+
+.content-card-thumb.has-image {
+  padding: 0;
+  background: var(--surface-alt);
+}
+
+.content-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.course-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+  margin-top: 18px;
+}
+
+.course-layout.no-transcript {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.transcript-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  padding: 18px 8px 8px 18px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.transcript-panel h2 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.transcript-panel ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px 0 0;
+}
+
+.transcript-cue {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-snap);
+}
+
+.transcript-cue:hover {
+  background: var(--surface-alt);
+}
+
+.transcript-cue.active {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+
+.transcript-time {
+  flex: none;
+  min-width: 2.6em;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.thumb-preview {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  margin: 10px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.table-thumb {
+  display: block;
+  width: 72px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.progress {
+  position: relative;
+  height: 26px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-bright), var(--accent));
+  transition: width 0.2s var(--ease-snap);
+}
+
+.progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .course-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .transcript-panel {
+    max-height: 320px;
+  }
+}

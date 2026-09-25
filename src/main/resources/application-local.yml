@@ -1,0 +1,14 @@
+# Activated by SPRING_PROFILES_ACTIVE=local (see .env.local / run-local.sh).
+# Keeps a local run fully separate from production data:
+#  - its own Postgres schema, so migrations and test rows never touch the live tables
+#  - local-disk storage, so uploads never touch the live bucket
+spring:
+  datasource:
+    hikari:
+      # The JDBC currentSchema option is ignored by Neon, so pin it per connection.
+      connection-init-sql: SET search_path TO local_dev
+  flyway:
+    schemas: local_dev
+
+storage:
+  provider: local

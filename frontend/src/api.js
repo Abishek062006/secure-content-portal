@@ -53,6 +53,42 @@ async function request(path, options = {}) {
   return contentType.includes('application/json') ? response.json() : null;
 }
 
+/**
+ * fetch() can't report upload progress, and a lecture recording is big enough
+ * that a bare "Uploading…" reads as a hang — hence XMLHttpRequest here.
+ */
+function uploadWithProgress(path, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE}${path}`);
+    xhr.withCredentials = true;
+    const csrfToken = readCookie('XSRF-TOKEN');
+    if (csrfToken) {
+      xhr.setRequestHeader('X-XSRF-TOKEN', csrfToken);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        // Non-JSON body — fall through to the status check.
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body);
+        return;
+      }
+      const error = new Error((body && body.error) || `Request failed (${xhr.status})`);
+      error.status = xhr.status;
+      reject(error);
+    };
+    xhr.onerror = () => reject(new Error('Network error — the upload did not complete.'));
+    xhr.send(formData);
+  });
+}
+
 export const api = {
   get: (path) => request(path),
   post: (path, body) =>
@@ -69,4 +105,5 @@ export const api = {
     }),
   del: (path) => request(path, { method: 'DELETE' }),
   upload: (path, formData) => request(path, { method: 'POST', body: formData }),
+  uploadWithProgress,
 };

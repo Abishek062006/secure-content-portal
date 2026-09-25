@@ -5,6 +5,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "storage")
 public class StorageProperties {
 
+    /** {@code s3} (default) or {@code local} — local writes to disk, for running without any cloud storage. */
+    private String provider = "s3";
+
+    private String localPath = "./local-storage";
+
     /** S3-compatible endpoint (Supabase Storage, R2, MinIO, ...). */
     private String endpoint;
 
@@ -68,5 +73,21 @@ public class StorageProperties {
 
     public void setPathStyleAccess(boolean pathStyleAccess) {
         this.pathStyleAccess = pathStyleAccess;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public String getLocalPath() {
+        return localPath;
+    }
+
+    public void setLocalPath(String localPath) {
+        this.localPath = localPath;
     }
 }

@@ -2,6 +2,7 @@ package com.secureportal.api;
 
 import com.secureportal.common.UploadException;
 import com.secureportal.content.ContentNotFoundException;
+import com.secureportal.course.CourseNotFoundException;
 import com.secureportal.user.UserManagementException;
 import com.secureportal.user.UserNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,11 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(ContentNotFoundException.class)
     public ResponseEntity<ApiError> handleContentNotFound(ContentNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(CourseNotFoundException.class)
+    public ResponseEntity<ApiError> handleCourseNotFound(CourseNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
     }
 

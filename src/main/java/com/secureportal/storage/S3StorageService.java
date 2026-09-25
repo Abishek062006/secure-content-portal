@@ -1,6 +1,7 @@
 package com.secureportal.storage;
 
 import com.secureportal.config.StorageProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -15,6 +16,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.io.InputStream;
 
 @Service
+@ConditionalOnProperty(name = "storage.provider", havingValue = "s3", matchIfMissing = true)
 public class S3StorageService implements StorageService {
 
     private final S3Client s3Client;

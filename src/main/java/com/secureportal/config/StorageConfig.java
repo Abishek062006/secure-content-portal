@@ -1,5 +1,6 @@
 package com.secureportal.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -14,6 +15,7 @@ import java.net.URI;
 public class StorageConfig {
 
     @Bean
+    @ConditionalOnProperty(name = "storage.provider", havingValue = "s3", matchIfMissing = true)
     public S3Client s3Client(StorageProperties storageProperties) {
         return S3Client.builder()
                 .endpointOverride(URI.create(storageProperties.getEndpoint()))

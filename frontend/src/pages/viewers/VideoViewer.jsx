@@ -24,9 +24,10 @@ function buildWatermarkTile(text) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-export default function VideoViewer({ ticket, viewerEmail }) {
+export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/stream', videoRef: externalRef }) {
   const [failed, setFailed] = useState(false);
-  const videoRef = useRef(null);
+  const internalRef = useRef(null);
+  const videoRef = externalRef || internalRef;
   const watermarkTile = useMemo(
     () => (viewerEmail ? buildWatermarkTile(viewerEmail) : null),
     [viewerEmail],
@@ -49,7 +50,7 @@ export default function VideoViewer({ ticket, viewerEmail }) {
     };
     video.addEventListener('webkitbeginfullscreen', exitNativeFullscreen);
     return () => video.removeEventListener('webkitbeginfullscreen', exitNativeFullscreen);
-  }, []);
+  }, [videoRef]);
 
   return (
     <div className="video-wrap">
@@ -61,7 +62,7 @@ export default function VideoViewer({ ticket, viewerEmail }) {
         playsInline
         webkit-playsinline="true"
         className="media-player"
-        src={`${API_BASE}/api/stream/${ticket}`}
+        src={`${API_BASE}${streamPath}/${ticket}`}
         onError={() => setFailed(true)}
         onContextMenu={(e) => e.preventDefault()}
       >

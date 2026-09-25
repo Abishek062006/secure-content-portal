@@ -58,13 +58,16 @@ export default function Home() {
         <p>You're signed in as <strong>{user.role}</strong>.</p>
         {user.admin ? (
           <div className="home-actions">
-            <Link className="btn btn-primary" to="/library">Browse library</Link>
+            <Link className="btn btn-primary" to="/courses">Browse courses</Link>
+            <Link className="btn" to="/library">Browse library</Link>
+            <Link className="btn" to="/admin/courses">Manage courses</Link>
             <Link className="btn" to="/admin/content">Manage content</Link>
           </div>
         ) : (
           <div className="home-actions">
             <p>Browse the training and reference videos, PDFs and HTML pages shared with you.</p>
-            <Link className="btn btn-primary" to="/library">Browse library</Link>
+            <Link className="btn btn-primary" to="/courses">Browse courses</Link>
+            <Link className="btn" to="/library">Browse library</Link>
           </div>
         )}
       </div>

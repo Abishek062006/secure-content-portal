@@ -38,6 +38,12 @@ else below was chosen deliberately, not defaulted to.
 - Read PDFs page-by-page as rendered images
 - View HTML pages sandboxed
 
+**Courses** (in development on the `feature/courses` branch — not deployed)
+- Admins create a course from a Zoom recording: lecture video, optional cover image, optional `.vtt` transcript
+- Learners browse a course catalog and watch through the same signed-ticket, watermarked player; the
+  transcript sits beside the video and each line jumps to that moment
+- Planned next: AI-generated quizzes (with difficulty levels) and assessments from the transcript
+
 **Admins** (seeded via an email allow-list, not self-service)
 - Upload video/PDF/HTML with title, description, category
 - Edit metadata; delete with a confirmation dialog
@@ -143,10 +149,24 @@ npm run dev
 Starts on `http://localhost:5173` and talks to the backend above (`.env.development` already
 points `VITE_API_URL` at `http://localhost:8080`). Both need to be running to sign in and browse.
 
-To run the test suite:
+**Keeping local runs away from production data.** `.env` points at the live Neon database and Supabase
+bucket, so for local development add a gitignored `.env.local` — `run-local.sh` loads it on top of `.env`:
 
 ```bash
-set -a; source .env; set +a
+SPRING_PROFILES_ACTIVE=local
+# Neon's *direct* host (no "-pooler"): the local profile pins a per-connection search_path, which
+# PgBouncer's pooled endpoint doesn't honour.
+DB_URL="jdbc:postgresql://<your-neon-host-without-pooler>/neondb?sslmode=require&channel_binding=require"
+```
+
+The `local` profile (`application-local.yml`) migrates and runs against its own `local_dev` schema and
+writes uploads to `./local-storage/` on disk instead of the bucket (`storage.provider=local`), so nothing
+you upload or test locally can reach the live tables or bucket.
+
+To run the test suite (source both files so the tests use the isolated schema too):
+
+```bash
+set -a; source .env; source .env.local; set +a
 mvn test
 ```
 

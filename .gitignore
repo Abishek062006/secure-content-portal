@@ -12,5 +12,8 @@ target/
 .vscode/
 .DS_Store
 
+# Local-disk storage (storage.provider=local)
+local-storage/
+
 # Logs
 *.log

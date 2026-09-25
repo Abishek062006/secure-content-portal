@@ -10,6 +10,10 @@ fi
 
 set -a
 source .env
+# Optional local-only overrides (separate DB schema, local-disk storage) — see README.
+if [ -f .env.local ]; then
+  source .env.local
+fi
 set +a
 
 mvn spring-boot:run

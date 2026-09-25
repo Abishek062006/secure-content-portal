@@ -7,7 +7,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Three independent checks, all required: extension, size, and the file's
@@ -21,7 +24,45 @@ public class FileValidator {
 
     private final Tika tika = new Tika();
 
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
+    private static final Set<String> IMAGE_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+    private static final long THUMBNAIL_MAX_BYTES = 5L * 1024 * 1024;
+    private static final long TRANSCRIPT_MAX_BYTES = 2L * 1024 * 1024;
+
     public ValidatedFile validate(MultipartFile file, ContentType expectedType) {
+        return validate(file, expectedType.getLabel(), expectedType.getAllowedExtensions(),
+                expectedType.getAllowedMimeTypes(), expectedType.getMaxSizeBytes(), expectedType.getMaxSizeLabel());
+    }
+
+    public ValidatedFile validateThumbnail(MultipartFile file) {
+        return validate(file, "Image", IMAGE_EXTENSIONS, IMAGE_MIME_TYPES, THUMBNAIL_MAX_BYTES, "5 MB");
+    }
+
+    /** WebVTT is plain text, so besides extension and size the file must actually open with the WEBVTT signature. */
+    public ValidatedFile validateTranscript(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new UploadException("Please choose a file to upload.");
+        }
+        String originalFilename = cleanFilename(file.getOriginalFilename());
+        if (!"vtt".equals(extractExtension(originalFilename))) {
+            throw new UploadException("Transcripts must be WebVTT (.vtt) files, like the ones Zoom exports.");
+        }
+        if (file.getSize() > TRANSCRIPT_MAX_BYTES) {
+            throw new UploadException("Transcript files must be 2 MB or smaller.");
+        }
+        try (InputStream in = file.getInputStream()) {
+            String head = new String(in.readNBytes(16), StandardCharsets.UTF_8).replace("\uFEFF", "");
+            if (!head.startsWith("WEBVTT")) {
+                throw new UploadException("This file doesn't look like a WebVTT transcript (it should start with WEBVTT).");
+            }
+        } catch (IOException e) {
+            throw new UploadException("Could not read the uploaded file. Please try again.");
+        }
+        return new ValidatedFile(originalFilename, "text/vtt", file.getSize());
+    }
+
+    private ValidatedFile validate(MultipartFile file, String label, Collection<String> allowedExtensions,
+                                   Set<String> allowedMimeTypes, long maxSizeBytes, String maxSizeLabel) {
         if (file == null || file.isEmpty()) {
             throw new UploadException("Please choose a file to upload.");
         }
@@ -29,21 +70,20 @@ public class FileValidator {
         String originalFilename = cleanFilename(file.getOriginalFilename());
         String extension = extractExtension(originalFilename);
 
-        if (!expectedType.getAllowedExtensions().contains(extension)) {
+        if (!allowedExtensions.contains(extension)) {
             throw new UploadException(
-                    "\"." + extension + "\" isn't a supported " + expectedType.getLabel().toLowerCase(Locale.ROOT)
-                            + " file. Allowed: " + String.join(", ", expectedType.getAllowedExtensions()));
+                    "\"." + extension + "\" isn't a supported " + label.toLowerCase(Locale.ROOT)
+                            + " file. Allowed: " + String.join(", ", allowedExtensions));
         }
 
-        if (file.getSize() > expectedType.getMaxSizeBytes()) {
-            throw new UploadException(
-                    expectedType.getLabel() + " files must be " + expectedType.getMaxSizeLabel() + " or smaller.");
+        if (file.getSize() > maxSizeBytes) {
+            throw new UploadException(label + " files must be " + maxSizeLabel + " or smaller.");
         }
 
         String detectedMimeType = detectMimeType(file);
-        if (!expectedType.getAllowedMimeTypes().contains(detectedMimeType)) {
+        if (!allowedMimeTypes.contains(detectedMimeType)) {
             throw new UploadException(
-                    "This file's contents don't match a " + expectedType.getLabel().toLowerCase(Locale.ROOT)
+                    "This file's contents don't match a " + label.toLowerCase(Locale.ROOT)
                             + " (detected: " + detectedMimeType
                             + "). Renaming a file's extension does not change what it actually is.");
         }

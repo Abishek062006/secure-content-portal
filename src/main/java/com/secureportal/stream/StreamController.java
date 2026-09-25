@@ -2,11 +2,8 @@ package com.secureportal.stream;
 
 import com.secureportal.content.ContentItem;
 import com.secureportal.content.ContentRepository;
-import com.secureportal.storage.StorageObject;
-import com.secureportal.storage.StorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,13 +22,13 @@ public class StreamController {
 
     private final TicketGuard ticketGuard;
     private final ContentRepository contentRepository;
-    private final StorageService storageService;
+    private final RangedMediaResponder mediaResponder;
 
     public StreamController(TicketGuard ticketGuard, ContentRepository contentRepository,
-                             StorageService storageService) {
+                             RangedMediaResponder mediaResponder) {
         this.ticketGuard = ticketGuard;
         this.contentRepository = contentRepository;
-        this.storageService = storageService;
+        this.mediaResponder = mediaResponder;
     }
 
     @GetMapping("/api/stream/{ticket}")
@@ -41,27 +38,6 @@ public class StreamController {
         ContentItem item = contentRepository.findById(streamTicket.contentId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
-        RangeRequest range = RangeRequest.parse(request.getHeader(HttpHeaders.RANGE)).orElse(null);
-        Long rangeStart = range != null ? range.start() : null;
-        Long rangeEnd = range != null ? range.end() : null;
-
-        StorageObject object = storageService.get(item.getStorageKey(), rangeStart, rangeEnd);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.ACCEPT_RANGES, "bytes");
-        headers.add(HttpHeaders.CONTENT_TYPE, item.getMimeType());
-        headers.add(HttpHeaders.CONTENT_LENGTH, String.valueOf(object.rangeLength()));
-        headers.add(HttpHeaders.CACHE_CONTROL, "no-store");
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline");
-        headers.add("X-Content-Type-Options", "nosniff");
-
-        HttpStatus status = HttpStatus.OK;
-        if (range != null) {
-            headers.add(HttpHeaders.CONTENT_RANGE,
-                    "bytes " + object.rangeStart() + "-" + object.rangeEnd() + "/" + object.totalSize());
-            status = HttpStatus.PARTIAL_CONTENT;
-        }
-
-        return ResponseEntity.status(status).headers(headers).body(new InputStreamResource(object.content()));
+        return mediaResponder.respond(item.getStorageKey(), item.getMimeType(), request);
     }
 }
