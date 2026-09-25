@@ -2005,3 +2005,50 @@ a {
 .content-card-body h2 a { color: inherit; text-decoration: none; }
 .muted { color: var(--text-muted, #6b7280); font-size: 0.9rem; }
 .form-error { color: #b42318; margin: 8px 0 0; }
+
+/* Feed */
+.feed { max-width: 680px; }
+.composer, .post-card {
+  background: var(--surface);
+  border: 1px solid var(--accent-wash);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.composer textarea, .comment-form input {
+  width: 100%;
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid #d5d7dc;
+  border-radius: 10px;
+  background: var(--surface);
+  resize: vertical;
+}
+.composer-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 10px; font-size: 0.9rem; }
+.composer-row select { max-width: 240px; padding: 6px 8px; border-radius: 8px; border: 1px solid #d5d7dc; }
+.composer-row .btn { margin-left: auto; }
+.post-card.pinned { border-left: 4px solid var(--accent); }
+.post-head { display: flex; align-items: center; gap: 12px; }
+.post-admin { margin-left: auto; display: flex; gap: 12px; }
+.post-body { white-space: pre-wrap; margin: 12px 0; line-height: 1.5; }
+.post-image { width: 100%; border-radius: 10px; margin-bottom: 12px; }
+.promo-card { display: flex; gap: 14px; border: 1px solid var(--accent-wash); background: var(--surface-alt); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+.promo-card img { width: 160px; object-fit: cover; }
+.promo-info { padding: 14px; }
+.promo-info h3 { margin: 6px 0; }
+.promo-info p { margin: 0 0 10px; color: var(--text-muted, #6b7280); font-size: 0.9rem; }
+.post-stats { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.85rem; }
+.post-actions { display: flex; flex-wrap: wrap; gap: 4px; border-top: 1px solid var(--accent-wash); padding-top: 8px; }
+.react-btn { background: none; border: 0; padding: 6px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 0.9rem; color: inherit; }
+.react-btn:hover:not(:disabled) { background: var(--surface-alt); }
+.react-btn.active { background: var(--accent-wash); color: var(--accent-deep); font-weight: 600; }
+.react-btn:disabled { opacity: 0.5; cursor: default; }
+.link-button { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 0.85rem; color: var(--accent-deep); }
+.link-button.danger { color: #b42318; }
+.comments { margin-top: 10px; border-top: 1px solid var(--accent-wash); padding-top: 10px; }
+.comment { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.comment-body { flex: 1; }
+.comment-body p { margin: 2px 0 0; white-space: pre-wrap; }
+.comment-form { display: flex; gap: 8px; }
+.load-more { display: block; margin: 8px auto 32px; }
+@media (max-width: 560px) { .promo-card { flex-direction: column; } .promo-card img { width: 100%; height: 140px; } }

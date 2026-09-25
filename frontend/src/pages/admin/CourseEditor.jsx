@@ -124,6 +124,7 @@ export default function CourseEditor() {
           <Link className="btn" to={`/admin/courses/${id}/questions`}>Question bank</Link>
           <Link className="btn" to={`/admin/courses/${id}/results`}>Results</Link>
           <Link className="btn" to={`/courses/${id}`}>Preview</Link>
+          {published && <Link className="btn" to={`/feed?promote=${id}`}>Promote this course</Link>}
           <button type="button" className="btn btn-primary"
                   onClick={() => swallow(run(() => api.post(`/api/admin/courses/${id}/${published ? 'unpublish' : 'publish'}`),
                     published ? 'Course unpublished — learners can no longer see it.' : 'Course published — learners can now enroll.'))}>

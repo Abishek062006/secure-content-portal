@@ -22,6 +22,7 @@ export default function Nav() {
 
       {user && (
         <div className="nav-links">
+          <NavLink to="/feed">Feed</NavLink>
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/courses">Courses</NavLink>
           <NavLink to="/my-learning">My learning</NavLink>
