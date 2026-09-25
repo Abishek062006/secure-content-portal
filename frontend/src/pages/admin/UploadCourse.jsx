@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import Alert from '../../components/Alert';
 
+const MAX_VIDEO_BYTES = 5 * 1024 ** 3;
+
 export default function UploadCourse() {
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState(null);
@@ -24,15 +26,25 @@ export default function UploadCourse() {
   async function onSubmit(e) {
     e.preventDefault();
     setErrorMessage(null);
-    setProgress(0);
-    setSubmitting(true);
 
     const form = e.currentTarget;
+    const video = form.video.files[0];
+    if (!/\.(mp4|webm)$/i.test(video.name)) {
+      setErrorMessage('The lecture video must be an .mp4 or .webm file.');
+      return;
+    }
+    if (video.size > MAX_VIDEO_BYTES) {
+      setErrorMessage('That video is over the 5 GB limit.');
+      return;
+    }
+
+    setProgress(0);
+    setSubmitting(true);
     const formData = new FormData();
     formData.set('title', form.title.value);
     formData.set('description', form.description.value);
     formData.set('category', form.category.value);
-    formData.set('video', form.video.files[0]);
+    formData.set('video', video);
     if (form.thumbnail.files[0]) formData.set('thumbnail', form.thumbnail.files[0]);
     if (form.transcript.files[0]) formData.set('transcript', form.transcript.files[0]);
 
@@ -70,7 +82,7 @@ export default function UploadCourse() {
         <div className="field">
           <label htmlFor="video">Lecture video</label>
           <input id="video" name="video" type="file" accept=".mp4,.webm" required />
-          <p className="field-hint">The Zoom recording (.mp4 or .webm), up to 512 MB.</p>
+          <p className="field-hint">The Zoom recording (.mp4 or .webm), up to 5 GB. Large files can take a while; keep this tab open until it finishes.</p>
         </div>
 
         <div className="field">

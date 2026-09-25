@@ -73,7 +73,7 @@ export default function UploadContent() {
         <div className="field">
           <label htmlFor="file">File</label>
           <input id="file" name="file" type="file" accept={accept} required />
-          <p className="field-hint">Video up to 512 MB (.mp4, .webm) &middot; PDF up to 32 MB &middot; HTML up to 2 MB</p>
+          <p className="field-hint">Video up to 5 GB (.mp4, .webm) &middot; PDF up to 32 MB &middot; HTML up to 2 MB</p>
         </div>
 
         <div className="form-actions">

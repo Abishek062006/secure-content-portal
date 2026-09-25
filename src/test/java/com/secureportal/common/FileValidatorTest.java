@@ -21,6 +21,29 @@ class FileValidatorTest {
 
     private final FileValidator validator = new FileValidator();
 
+    /** Reports a huge size without holding the bytes, so the size cap can be tested without a real 4 GB file. */
+    private static MockMultipartFile claimingSize(long size) {
+        return new MockMultipartFile("file", "lecture.mp4", "video/mp4", mp4Mp42Brand()) {
+            @Override
+            public long getSize() {
+                return size;
+            }
+        };
+    }
+
+    @Test
+    void acceptsAFourGigabyteVideo() {
+        assertThat(validator.validate(claimingSize(4L * 1024 * 1024 * 1024), ContentType.VIDEO).detectedMimeType())
+                .isEqualTo("video/mp4");
+    }
+
+    @Test
+    void rejectsAVideoOverTheFiveGigabyteCap() {
+        assertThatThrownBy(() -> validator.validate(claimingSize(5L * 1024 * 1024 * 1024 + 1), ContentType.VIDEO))
+                .isInstanceOf(UploadException.class)
+                .hasMessageContaining("5 GB");
+    }
+
     // --- Real-world-shaped fixtures, confirmed against this Tika version ---
 
     /** major_brand=isom — what ffmpeg and macOS/iOS commonly emit. Detects as video/quicktime. */

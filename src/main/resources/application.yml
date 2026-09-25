@@ -53,8 +53,8 @@ spring:
   # memory/disk at all before it gets that far.
   servlet:
     multipart:
-      max-file-size: 550MB
-      max-request-size: 550MB
+      max-file-size: 5GB
+      max-request-size: 5GB
 
 app:
   admin-emails: ${APP_ADMIN_EMAILS:}

@@ -55,7 +55,7 @@ public class ContentService {
      * bytes are already safe, so there's nothing dangerous sitting in the
      * bucket even if a delivery endpoint were ever misconfigured. PDF and
      * HTML are small enough (32MB / 2MB caps) to buffer in memory for this;
-     * video (up to 512MB) is streamed straight through instead.
+     * video (up to 5GB) is streamed straight through instead.
      */
     public ContentItem create(UploadForm form, User uploadedBy) {
         MultipartFile file = form.getFile();

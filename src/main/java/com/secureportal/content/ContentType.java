@@ -26,7 +26,7 @@ public enum ContentType {
      */
     VIDEO(Set.of("video/mp4", "video/quicktime", "application/x-matroska", "video/x-matroska"),
             List.of("mp4", "webm"),
-            512L * 1024 * 1024),
+            5L * 1024 * 1024 * 1024),
 
     PDF(Set.of("application/pdf"),
             List.of("pdf"),
@@ -59,7 +59,8 @@ public enum ContentType {
     }
 
     public String getMaxSizeLabel() {
-        return (maxSizeBytes / (1024 * 1024)) + " MB";
+        long mb = maxSizeBytes / (1024 * 1024);
+        return mb >= 1024 ? (mb / 1024) + " GB" : mb + " MB";
     }
 
     /** Comma-separated extension list, for the file picker's {@code accept} attribute. */

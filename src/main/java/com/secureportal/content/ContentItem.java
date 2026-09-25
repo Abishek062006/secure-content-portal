@@ -174,6 +174,9 @@ public class ContentItem {
         if (sizeBytes < 1024 * 1024) {
             return String.format("%.0f KB", sizeBytes / 1024.0);
         }
-        return String.format("%.1f MB", sizeBytes / (1024.0 * 1024.0));
+        if (sizeBytes < 1024L * 1024 * 1024) {
+            return String.format("%.1f MB", sizeBytes / (1024.0 * 1024.0));
+        }
+        return String.format("%.2f GB", sizeBytes / (1024.0 * 1024.0 * 1024.0));
     }
 }
