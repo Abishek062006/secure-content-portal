@@ -55,6 +55,10 @@ public class Enrollment {
         return courseId;
     }
 
+    public Instant getEnrolledAt() {
+        return enrolledAt;
+    }
+
     public UUID getLastLessonId() {
         return lastLessonId;
     }

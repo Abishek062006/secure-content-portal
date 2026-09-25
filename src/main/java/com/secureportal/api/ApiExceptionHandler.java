@@ -7,6 +7,7 @@ import com.secureportal.assessment.AttemptClosedException;
 import com.secureportal.assessment.AttemptNotFoundException;
 import com.secureportal.assessment.InvalidAssessmentException;
 import com.secureportal.ai.AiNotConfiguredException;
+import com.secureportal.certificate.CertificateNotEarnedException;
 import com.secureportal.common.UploadException;
 import com.secureportal.content.ContentNotFoundException;
 import com.secureportal.course.CourseNotFoundException;
@@ -48,6 +49,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(CourseStructureException.class)
     public ResponseEntity<ApiError> handleCourseStructure(CourseStructureException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(CertificateNotEarnedException.class)
+    public ResponseEntity<ApiError> handleCertificateNotEarned(CertificateNotEarnedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
     }
 
     @ExceptionHandler(EnrollmentRequiredException.class)

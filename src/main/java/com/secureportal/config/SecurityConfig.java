@@ -3,6 +3,7 @@ package com.secureportal.config;
 import com.secureportal.auth.AppOidcUserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -86,6 +87,8 @@ public class SecurityConfig {
                 .addFilterAfter(new CsrfCookieFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error", "/healthz", "/api/me").permitAll()
+                        // Anyone holding a certificate code may check it; it reveals only name, course and date.
+                        .requestMatchers(HttpMethod.GET, "/api/certificates/verify/*").permitAll()
                         .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

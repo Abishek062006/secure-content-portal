@@ -50,7 +50,11 @@ else below was chosen deliberately, not defaulted to.
   answer, unlimited retakes) or a graded **assessment** (pass mark, optional time limit and attempt limit,
   optionally required before the next module opens); a course can also have a final assessment. Every attempt
   draws random approved questions by the admin's difficulty mix, with shuffled options.
-- Planned next: certificates and a "My learning" page, then a LinkedIn-style feed for promoting courses
+- **My learning and certificates.** "My learning" lists enrolled courses with progress and a Continue button.
+  A certificate is earned by completing every lesson and passing every graded assessment (quizzes are practice
+  and never required). It is issued once, rendered as a PDF on the server, and carries an ID that anyone can
+  check at `/verify/<ID>` without signing in (the check shows only name, course and date).
+- Planned next: a LinkedIn-style feed for promoting courses
 
 **Admins** (seeded via an email allow-list, not self-service)
 - Upload video/PDF/HTML with title, description, category

@@ -166,6 +166,10 @@ public class CourseOutlineAssembler {
         }).toList();
     }
 
+    public UUID resumeLessonFor(Long userId, UUID courseId, Enrollment enrollment) {
+        return resumeLesson(enrollment, structureService.orderedLessons(courseId), learningService.progress(userId, courseId));
+    }
+
     /** Where "Continue" goes: the last lesson opened, else the first unfinished one, else the first. */
     private UUID resumeLesson(Enrollment enrollment, List<Lesson> ordered, Map<UUID, LessonProgress> progress) {
         if (ordered.isEmpty()) {
