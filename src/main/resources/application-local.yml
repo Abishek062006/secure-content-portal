@@ -1,14 +1,12 @@
 # Activated by SPRING_PROFILES_ACTIVE=local (see .env.local / run-local.sh).
-# Keeps a local run fully separate from production data:
-#  - its own Postgres schema, so migrations and test rows never touch the live tables
-#  - local-disk storage, so uploads never touch the live bucket
+# A local run needs nothing from the cloud:
+#  - MySQL on localhost (a dedicated `secureportal` database and user, see the README)
+#  - local-disk storage instead of a bucket
 spring:
   datasource:
-    hikari:
-      # The JDBC currentSchema option is ignored by Neon, so pin it per connection.
-      connection-init-sql: SET search_path TO local_dev
-  flyway:
-    schemas: local_dev
+    url: ${LOCAL_DB_URL:jdbc:mysql://localhost:3306/secureportal}
+    username: ${LOCAL_DB_USERNAME:secureportal}
+    password: ${LOCAL_DB_PASSWORD:secureportal}
 
 storage:
   provider: local

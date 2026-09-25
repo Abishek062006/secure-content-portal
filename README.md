@@ -58,13 +58,13 @@ else below was chosen deliberately, not defaulted to.
 | Frontend | React (Vite) SPA, deployed separately on Vercel | Talks to the backend as a JSON REST API over `/api/**`, routed through Vercel's own rewrite proxy rather than plain cross-origin CORS (see [Architecture](#architecture) for why). Not a same-origin monolith — the earlier same-origin Thymeleaf build is still in this repo's history if you want to see that version |
 | UI design | Inter (Google Fonts), CSS custom properties, no component library | Layered shadows, pill-shaped controls, hover/press micro-interactions, per-route fade-up entrances, a glassmorphic sign-in screen with gradient glow accents, and gradient-text page headings — all in `frontend/src/app.css`, applied via the existing shared classes so no page needed individual rework |
 | Auth | Spring Security `oauth2-client` | Server-side session only; no JWT in localStorage. Role is decided by *our* database, never trusted from the OAuth response |
-| Sessions | Spring Session JDBC (Postgres) | Sessions survive a redeploy or a free-tier restart, since they don't live in that process's memory |
-| Database | [Neon](https://neon.tech) Postgres | Free-tier Neon *branches* auto-resume in under a second; Supabase's free-tier *projects* pause after 7 days idle, which is a real risk for a reviewer opening this after a week |
+| Sessions | Spring Session JDBC (MySQL) | Sessions survive a restart, since they don't live in that process's memory. Planned: move to Redis so several app instances can share them behind a load balancer |
+| Database | MySQL 8+ (local for now; AWS RDS/Aurora MySQL when deployed) | Moved from Postgres/Neon by choice; both scale far beyond this app's needs. Flyway owns the schema (`src/main/resources/db/migration`); UUID keys are `BINARY(16)` and timestamps `DATETIME(6)` in UTC |
 | File storage | [Supabase Storage](https://supabase.com) (private bucket, S3-compatible API) | 1GB free, no card required, and the S3-compatible endpoint means the code isn't locked to Supabase specifically |
 | PDF rendering | Apache PDFBox, 90 DPI | Renders pages to images server-side — see [Content protection](#content-protection--whats-real-what-a-deterrent). DPI kept modest since every render (even a cache hit) still redoes an in-memory decode/watermark/re-encode on a small single-core instance |
 | File-type detection | Apache Tika | Magic-byte sniffing — never trusts the filename extension or the browser's `Content-Type` header |
 | HTML sanitizing | jsoup | Strips scripts/forms/event handlers at upload time |
-| Backend hosting | Runs locally | The hosted backend (Render, then AWS Elastic Beanstalk) has been retired; Neon and Supabase stay live and the API runs from `./run-local.sh` |
+| Backend hosting | Runs locally | The hosted backend (Render, then AWS Elastic Beanstalk) has been retired; the API runs from `./run-local.sh` and AWS deployment is planned for last |
 | Frontend hosting | [Vercel](https://vercel.com) free tier | Zero-config Vite build, instant deploys on push |
 
 ## Architecture
@@ -88,7 +88,7 @@ flowchart TB
         Html["HTML sandbox<br/>jsoup-sanitized + CSP"]
     end
 
-    Neon[("Neon Postgres<br/>users · content · sessions · audit")]
+    Db[("MySQL<br/>users · content · courses · sessions · audit")]
     Supabase[("Supabase Storage<br/>private bucket, opaque UUID keys")]
 
     Browser -->|HTTPS, same-origin the whole time| Spa
@@ -98,8 +98,8 @@ flowchart TB
     Sec --> Stream
     Stream --> Pdf
     Stream --> Html
-    Api -->|JDBC| Neon
-    Stream -->|JDBC| Neon
+    Api -->|JDBC| Db
+    Stream -->|JDBC| Db
     Api -->|S3 API, server-side creds only| Supabase
     Stream -->|S3 API, server-side creds only| Supabase
 ```
@@ -123,7 +123,7 @@ needs to know or care.
 ## Running it locally
 
 **Prerequisites:** Java 21, Maven, Node 18+, and the accounts described in
-[Environment variables](#environment-variables) (Google OAuth client, Neon database, Supabase bucket).
+[Environment variables](#environment-variables) (Google OAuth client, a MySQL database, and a storage bucket or the local-disk option).
 
 Backend:
 
@@ -149,29 +149,34 @@ npm run dev
 Starts on `http://localhost:5173` and talks to the backend above (`.env.development` already
 points `VITE_API_URL` at `http://localhost:8080`). Both need to be running to sign in and browse.
 
-**Keeping local runs away from production data.** `.env` points at the live Neon database and Supabase
-bucket, so for local development add a gitignored `.env.local` — `run-local.sh` loads it on top of `.env`:
+**Local database and storage.** A local run needs no cloud accounts apart from Google OAuth. Create a
+MySQL database and user once (MySQL 8+ running on `localhost:3306`):
+
+```sql
+CREATE DATABASE secureportal CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER 'secureportal'@'localhost' IDENTIFIED BY 'secureportal';
+GRANT ALL PRIVILEGES ON secureportal.* TO 'secureportal'@'localhost';
+```
+
+Then add a gitignored `.env.local` — `run-local.sh` loads it on top of `.env`:
 
 ```bash
 SPRING_PROFILES_ACTIVE=local
-# Neon's *direct* host (no "-pooler"): the local profile pins a per-connection search_path, which
-# PgBouncer's pooled endpoint doesn't honour.
-DB_URL="jdbc:postgresql://<your-neon-host-without-pooler>/neondb?sslmode=require&channel_binding=require"
 ```
 
-The `local` profile (`application-local.yml`) migrates and runs against its own `local_dev` schema and
-writes uploads to `./local-storage/` on disk instead of the bucket (`storage.provider=local`), so nothing
-you upload or test locally can reach the live tables or bucket.
+The `local` profile (`application-local.yml`) points at that database (override with `LOCAL_DB_URL`,
+`LOCAL_DB_USERNAME`, `LOCAL_DB_PASSWORD`) and writes uploads to `./local-storage/` on disk instead of a
+bucket (`storage.provider=local`). Flyway creates the tables on first start.
 
-To run the test suite (source both files so the tests use the isolated schema too):
+To run the test suite (source both files so the tests use the local profile):
 
 ```bash
 set -a; source .env; source .env.local; set +a
 mvn test
 ```
 
-`AccessControlTest` boots the full app against your real Postgres database (same as running the
-app), so it needs `.env` sourced. `FileValidatorTest` and `StreamTicketServiceTest` are plain unit
+`AccessControlTest` and `CourseFlowTest` boot the full app against your local MySQL database (same as
+running the app), so they need `.env` and `.env.local` sourced. `FileValidatorTest` and `StreamTicketServiceTest` are plain unit
 tests with no external dependencies.
 
 ## Environment variables
@@ -182,7 +187,7 @@ with real values.
 | Variable | Where it comes from |
 |---|---|
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud Console → APIs & Services → Credentials |
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Neon project → Connection Details (use the **pooled** connection string) |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Only for a hosted database, e.g. `jdbc:mysql://<host>:3306/<db>`. Local runs use the `local` profile instead |
 | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | Supabase project → Storage → S3 Connection |
 | `APP_ADMIN_EMAILS` | Comma-separated list of emails that should be promoted to Admin on login |
 | `APP_TICKET_SECRET` | Random secret for signing stream tickets — generate with `openssl rand -base64 32`. **Use a different one in production than in development.** |
@@ -194,8 +199,8 @@ The frontend has its own, much smaller set: `VITE_API_URL`, the backend's origin
 
 ## Deployment
 
-The backend is **not currently hosted**: it runs locally with `./run-local.sh` against live Neon and
-Supabase, and the React app runs with `npm run dev`. The Vercel frontend deployment still exists, but its
+The backend is **not currently hosted**: it runs locally with `./run-local.sh` against a local MySQL
+database, and the React app runs with `npm run dev`. The Vercel frontend deployment still exists, but its
 `frontend/vercel.json` rewrites point at a backend that has been shut down, so the hosted site can't sign
 anyone in until a backend is hosted again.
 
@@ -203,7 +208,7 @@ anyone in until a backend is hosted again.
 |---|---|---|
 | API | Local (`./run-local.sh`) | Previously Render, then AWS Elastic Beanstalk `t3.micro` — both retired |
 | Frontend | Vercel (or `npm run dev` locally) | Static build, no sleep/cold-start |
-| Database | Neon Postgres | Auto-resumes in <1s when idle |
+| Database | MySQL (local now; AWS RDS/Aurora MySQL planned) | |
 | File storage | Supabase Storage (or local disk with the `local` profile) | 1GB, 50MB per-file cap on Supabase |
 | OAuth | Google Cloud | Free, no verification needed for the non-sensitive scopes used here |
 
@@ -214,7 +219,7 @@ value would silently override that (see gotcha #2 below).
 **Hosting history, and why it moved twice:** the API started on Render's free tier, which sleeps after
 15 minutes idle and cold-starts in 30–60s. It moved to an AWS Elastic Beanstalk `t3.micro` to avoid that,
 then off AWS again to run locally while the project grows into a learning platform. File storage stayed on
-Supabase and the database on Neon throughout; only the compute layer moved, and because of the proxy it
+Supabase throughout; only the compute layer moved, and because of the proxy it
 never needed any change to the Google OAuth config.
 
 **Deployment-specific gotchas worth knowing — all hit for real while building this:**

@@ -30,8 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Proves the access-control policy through the real Spring Security filter
  * chain and real controllers — not by reading SecurityConfig and trusting
- * it. The full application context boots against the real Neon database
- * (same as running the app), so this needs {@code .env} sourced — see the
+ * it. The full application context boots against the configured
+ * database (same as running the app), so this needs {@code .env} and {@code .env.local} sourced — see the
  * README. It's a dev-time check, so it needs the database configured.
  *
  * <p>Authentication is simulated with a real {@link AppPrincipal} — not

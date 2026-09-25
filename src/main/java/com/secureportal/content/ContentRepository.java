@@ -19,7 +19,7 @@ public interface ContentRepository extends JpaRepository<ContentItem, UUID> {
      * and {@code category} must be passed as {@code ""} rather than
      * {@code null} to disable theirs — binding a null String into a
      * parameter that's also wrapped in {@code LOWER(...)} elsewhere in the
-     * same query confuses PostgreSQL's type inference for that placeholder
+     * same query confused PostgreSQL's type inference for that placeholder
      * (it was resolving to {@code bytea}, not {@code text}), which
      * {@code LOWER()} then rejects outright.
      */
