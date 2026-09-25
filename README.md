@@ -64,7 +64,7 @@ else below was chosen deliberately, not defaulted to.
 | PDF rendering | Apache PDFBox, 90 DPI | Renders pages to images server-side — see [Content protection](#content-protection--whats-real-what-a-deterrent). DPI kept modest since every render (even a cache hit) still redoes an in-memory decode/watermark/re-encode on a small single-core instance |
 | File-type detection | Apache Tika | Magic-byte sniffing — never trusts the filename extension or the browser's `Content-Type` header |
 | HTML sanitizing | jsoup | Strips scripts/forms/event handlers at upload time |
-| Backend hosting | Runs locally | The hosted backend (Render, then AWS Elastic Beanstalk) has been retired; Neon and Supabase stay live and the API runs from `./run-local.sh`. The Dockerfile still builds the same image if a host is wanted again |
+| Backend hosting | Runs locally | The hosted backend (Render, then AWS Elastic Beanstalk) has been retired; Neon and Supabase stay live and the API runs from `./run-local.sh` |
 | Frontend hosting | [Vercel](https://vercel.com) free tier | Zero-config Vite build, instant deploys on push |
 
 ## Architecture
@@ -207,11 +207,7 @@ anyone in until a backend is hosted again.
 | File storage | Supabase Storage (or local disk with the `local` profile) | 1GB, 50MB per-file cap on Supabase |
 | OAuth | Google Cloud | Free, no verification needed for the non-sensitive scopes used here |
 
-The Dockerfile is a two-stage build (`maven:3.9-eclipse-temurin-21` to compile,
-`eclipse-temurin:21-jre-alpine` to run as a non-root user) and skips tests during the image build —
-`AccessControlTest` needs a real Postgres connection the build step doesn't have, and tests are
-a dev-time check, not a deploy-time gate. Any Docker host can build it directly; it listens on 8080. On
-Vercel, set the project's Root Directory to `frontend/` and leave `VITE_API_URL` **unset** in the
+On Vercel, set the project's Root Directory to `frontend/` and leave `VITE_API_URL` **unset** in the
 dashboard — the committed `frontend/.env.production` sets it to empty intentionally, and a dashboard
 value would silently override that (see gotcha #2 below).
 

@@ -32,8 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * chain and real controllers — not by reading SecurityConfig and trusting
  * it. The full application context boots against the real Neon database
  * (same as running the app), so this needs {@code .env} sourced — see the
- * README. Deliberately not run during the Docker build for that reason;
- * it's a dev-time/CI check, not a deploy-time one.
+ * README. It's a dev-time check, so it needs the database configured.
  *
  * <p>Authentication is simulated with a real {@link AppPrincipal} — not
  * spring-security-test's generic {@code oidcLogin()}, which builds a plain
