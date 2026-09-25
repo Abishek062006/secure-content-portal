@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SetupGuide from './course-editor/SetupGuide';
 import CoverPicker from '../../components/CoverPicker';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { API_BASE, api } from '../../api';
@@ -169,6 +170,8 @@ export default function CourseEditor() {
           <button type="submit" className="btn btn-primary">Save details</button>
         </div>
       </form>
+
+      <SetupGuide id={id} modules={modules} finalAssessment={outline.finalAssessment} published={published} />
 
       <h2 className="editor-heading">Outline</h2>
       {modules.length === 0 && (

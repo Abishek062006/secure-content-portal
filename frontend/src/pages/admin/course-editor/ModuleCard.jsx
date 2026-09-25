@@ -62,8 +62,9 @@ function AddLessonForm({ onAdd, onCancel }) {
         <input name="video" type="file" accept=".mp4,.webm" required disabled={busy} />
       </div>
       <div className="field">
-        <label>Transcript (optional .vtt)</label>
+        <label>Transcript (.vtt file, e.g. the one Zoom saves with the recording)</label>
         <input name="transcript" type="file" accept=".vtt" disabled={busy} />
+        <p className="field-hint">Optional, but quiz and assessment questions are generated from transcripts, so lessons without one can't get AI questions.</p>
       </div>
       {busy && (
         <div className="progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
@@ -205,7 +206,9 @@ export default function ModuleCard({ module, index, total, actions, available })
           }}
         />
       ) : (
-        <button type="button" className="btn" onClick={() => setAdding(true)}>+ Add lesson</button>
+        <button type="button" className={`btn${module.lessons.length === 0 ? ' btn-primary' : ''}`} onClick={() => setAdding(true)}>
+          + Add lesson (video and transcript)
+        </button>
       )}
     </section>
   );
