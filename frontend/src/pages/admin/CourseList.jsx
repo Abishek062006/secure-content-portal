@@ -68,10 +68,10 @@ export default function CourseList() {
               <tr>
                 <th></th>
                 <th>Title</th>
-                <th>Category</th>
-                <th>Size</th>
+                <th>Status</th>
+                <th>Modules</th>
+                <th>Lessons</th>
                 <th>Views</th>
-                <th>Last viewed</th>
                 <th>Created</th>
                 <th></th>
               </tr>
@@ -84,18 +84,15 @@ export default function CourseList() {
                       ? <img className="table-thumb" src={`${API_BASE}${course.thumbnailUrl}`} alt="" />
                       : <span className="table-thumb table-thumb-empty" />}
                   </td>
-                  <td>
-                    {course.title}
-                    {course.hasTranscript && <span className="badge" style={{ marginLeft: 8 }}>Transcript</span>}
-                  </td>
-                  <td>{course.category || '—'}</td>
-                  <td>{course.videoSizeLabel}</td>
+                  <td>{course.title}</td>
+                  <td><span className={`badge status-${course.status.toLowerCase()}`}>{course.status === 'DRAFT' ? 'Draft' : 'Published'}</span></td>
+                  <td>{course.moduleCount}</td>
+                  <td>{course.lessonCount}</td>
                   <td>{course.viewCount}</td>
-                  <td>{formatDate(course.lastViewedAt)}</td>
                   <td>{formatDate(course.createdAt)}</td>
                   <td className="row-actions">
-                    <Link className="btn" to={`/courses/${course.id}`}>View</Link>
                     <Link className="btn" to={`/admin/courses/${course.id}/edit`}>Edit</Link>
+                    <Link className="btn" to={`/courses/${course.id}`}>Preview</Link>
                     <button type="button" className="btn btn-danger-outline" onClick={() => setPendingDelete(course)}>
                       Delete
                     </button>
@@ -110,6 +107,7 @@ export default function CourseList() {
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title={pendingDelete?.title}
+        detail="Its modules, lessons and every uploaded video will be removed too."
         onCancel={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
       />

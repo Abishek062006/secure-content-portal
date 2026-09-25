@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { API_BASE, api } from '../api';
 import { VideoIcon } from '../components/Icons';
 
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
 export default function Courses() {
@@ -66,8 +66,13 @@ export default function Courses() {
                 {course.description && <p>{course.description}</p>}
                 <div className="content-card-meta">
                   {course.category && <span className="badge">{course.category}</span>}
-                  <span>{formatDate(course.createdAt)}</span>
+                  <span>{plural(course.moduleCount, 'module')} · {plural(course.lessonCount, 'lesson')}</span>
                 </div>
+                {course.enrolled && (
+                  <div className="card-progress" title={`${course.progressPercent}% complete`}>
+                    <div className="card-progress-bar" style={{ width: `${course.progressPercent}%` }} />
+                  </div>
+                )}
               </div>
             </Link>
           ))}

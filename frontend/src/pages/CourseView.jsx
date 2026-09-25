@@ -1,32 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { api } from '../api';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
-import VideoViewer from './viewers/VideoViewer';
+import Alert from '../components/Alert';
 
-function clock(seconds) {
-  const total = Math.floor(seconds);
-  const m = Math.floor(total / 60);
-  const s = String(total % 60).padStart(2, '0');
-  return `${m}:${s}`;
-}
-
-/** A fresh ticket is fetched on every mount — tickets are short-lived and session-bound, never cached. */
 export default function CourseView() {
   const { id } = useParams();
   const { user } = useAuth();
-  const videoRef = useRef(null);
-  const [data, setData] = useState(null);
+  const [outline, setOutline] = useState(null);
   const [error, setError] = useState(null);
-  const [activeCue, setActiveCue] = useState(-1);
+  const [enrolling, setEnrolling] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setData(null);
-    setError(null);
     api.get(`/api/courses/${id}`)
       .then((res) => {
-        if (!cancelled) setData(res);
+        if (!cancelled) setOutline(res);
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);
@@ -36,33 +25,25 @@ export default function CourseView() {
     };
   }, [id]);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!data || !video) return undefined;
-    const onTimeUpdate = () => {
-      const t = video.currentTime;
-      setActiveCue(data.transcript.findIndex((cue) => t >= cue.start && t < cue.end));
-    };
-    video.addEventListener('timeupdate', onTimeUpdate);
-    return () => video.removeEventListener('timeupdate', onTimeUpdate);
-  }, [data]);
-
-  function seekTo(cue) {
-    const video = videoRef.current;
-    if (!video) return;
-    video.currentTime = cue.start;
-    video.play().catch(() => {});
+  async function enroll() {
+    setEnrolling(true);
+    try {
+      setOutline(await api.post(`/api/courses/${id}/enroll`));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnrolling(false);
+    }
   }
 
-  if (error) {
+  if (error && !outline) {
     return (
       <div className="container-wide">
         <p className="field-error">{error}</p>
       </div>
     );
   }
-
-  if (!data) {
+  if (!outline) {
     return (
       <div className="container-wide">
         <p className="pdf-loading">Loading…</p>
@@ -70,42 +51,76 @@ export default function CourseView() {
     );
   }
 
-  const { course, ticket, transcript } = data;
+  const { course, modules, enrolled, progressPercent, resumeLessonId } = outline;
+  const canOpen = enrolled || user?.admin;
 
   return (
     <div className="container-wide">
-      <h1>{course.title}</h1>
-      {course.category && <span className="badge">{course.category}</span>}
-      {course.description && <p className="field-hint">{course.description}</p>}
+      <Alert error={error} />
+      {course.status === 'DRAFT' && (
+        <div className="alert alert-error">Draft — only admins can see this course.</div>
+      )}
 
-      <div className={`course-layout${transcript.length === 0 ? ' no-transcript' : ''}`}>
-        <VideoViewer
-          ticket={ticket}
-          viewerEmail={user?.email}
-          streamPath="/api/course-stream"
-          videoRef={videoRef}
-        />
+      <div className="course-hero">
+        {course.thumbnailUrl && <img className="course-hero-cover" src={`${API_BASE}${course.thumbnailUrl}`} alt="" />}
+        <div className="course-hero-body">
+          {course.category && <span className="badge">{course.category}</span>}
+          <h1>{course.title}</h1>
+          {course.description && <p className="field-hint">{course.description}</p>}
+          <p className="field-hint">
+            {course.moduleCount} module{course.moduleCount === 1 ? '' : 's'} · {course.lessonCount} lesson
+            {course.lessonCount === 1 ? '' : 's'}
+          </p>
 
-        {transcript.length > 0 && (
-          <aside className="transcript-panel" aria-label="Transcript">
-            <h2>Transcript</h2>
-            <ol>
-              {transcript.map((cue, index) => (
-                <li key={`${cue.start}-${index}`}>
-                  <button
-                    type="button"
-                    className={`transcript-cue${index === activeCue ? ' active' : ''}`}
-                    onClick={() => seekTo(cue)}
-                  >
-                    <span className="transcript-time">{clock(cue.start)}</span>
-                    <span>{cue.text}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          </aside>
-        )}
+          {enrolled && (
+            <div className="course-progress-row">
+              <div className="card-progress">
+                <div className="card-progress-bar" style={{ width: `${progressPercent}%` }} />
+              </div>
+              <span>{progressPercent}% complete</span>
+            </div>
+          )}
+
+          {resumeLessonId && canOpen ? (
+            <Link className="btn btn-primary btn-lg" to={`/courses/${course.id}/lessons/${resumeLessonId}`}>
+              {progressPercent > 0 ? 'Continue' : 'Start course'}
+            </Link>
+          ) : (
+            <button type="button" className="btn btn-primary btn-lg" onClick={enroll} disabled={enrolling || !resumeLessonId}>
+              {enrolling ? 'Enrolling…' : 'Enroll — it’s free'}
+            </button>
+          )}
+        </div>
       </div>
+
+      {modules.length === 0 && (
+        <div className="empty-state"><p>This course has no lessons yet.</p></div>
+      )}
+
+      {modules.map((module, mIndex) => (
+        <section className="outline-module" key={module.id}>
+          <h2>Module {mIndex + 1}: {module.title}</h2>
+          {module.description && <p className="field-hint">{module.description}</p>}
+          <ol className="outline-lessons">
+            {module.lessons.map((lesson) => (
+              <li key={lesson.id}>
+                {canOpen ? (
+                  <Link to={`/courses/${course.id}/lessons/${lesson.id}`}>
+                    <span className={`lesson-check${lesson.completed ? ' done' : ''}`} aria-hidden="true">{lesson.completed ? '✓' : ''}</span>
+                    {lesson.title}
+                  </Link>
+                ) : (
+                  <span className="outline-locked">
+                    <span className="lesson-check" aria-hidden="true" />
+                    {lesson.title}
+                  </span>
+                )}
+                {lesson.hasTranscript && <span className="badge">Transcript</span>}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
     </div>
   );
 }

@@ -39,10 +39,12 @@ else below was chosen deliberately, not defaulted to.
 - View HTML pages sandboxed
 
 **Courses** (in development on the `feature/courses` branch — not deployed)
-- Admins create a course from a Zoom recording: lecture video, optional cover image, optional `.vtt` transcript
-- Learners browse a course catalog and watch through the same signed-ticket, watermarked player; the
-  transcript sits beside the video and each line jumps to that moment
-- Planned next: AI-generated quizzes (with difficulty levels) and assessments from the transcript
+- A course is a set of **modules**, each holding video **lessons** (each with an optional `.vtt` transcript);
+  admins build and reorder the outline, add a cover image, and publish it (new courses start as drafts)
+- Learners browse the catalog, enroll for free, watch through the signed-ticket, watermarked player with a
+  click-to-seek transcript, and see progress: completed lessons, resume position, and percent complete
+- Planned next: an AI-generated question bank with difficulty levels, per-module quizzes and timed
+  assessments, then a LinkedIn-style feed for promoting courses
 
 **Admins** (seeded via an email allow-list, not self-service)
 - Upload video/PDF/HTML with title, description, category
