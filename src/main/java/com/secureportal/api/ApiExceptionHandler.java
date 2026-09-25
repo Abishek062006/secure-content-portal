@@ -1,6 +1,11 @@
 package com.secureportal.api;
 
 import com.secureportal.ai.AiException;
+import com.secureportal.assessment.AssessmentAccessException;
+import com.secureportal.assessment.AssessmentNotFoundException;
+import com.secureportal.assessment.AttemptClosedException;
+import com.secureportal.assessment.AttemptNotFoundException;
+import com.secureportal.assessment.InvalidAssessmentException;
 import com.secureportal.ai.AiNotConfiguredException;
 import com.secureportal.common.UploadException;
 import com.secureportal.content.ContentNotFoundException;
@@ -68,6 +73,26 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AiException.class)
     public ResponseEntity<ApiError> handleAi(AiException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler({AssessmentNotFoundException.class, AttemptNotFoundException.class})
+    public ResponseEntity<ApiError> handleAssessmentNotFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidAssessmentException.class)
+    public ResponseEntity<ApiError> handleInvalidAssessment(InvalidAssessmentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AssessmentAccessException.class)
+    public ResponseEntity<ApiError> handleAssessmentAccess(AssessmentAccessException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AttemptClosedException.class)
+    public ResponseEntity<ApiError> handleAttemptClosed(AttemptClosedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
     }
 
     @ExceptionHandler(UserNotFoundException.class)

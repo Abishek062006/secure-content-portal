@@ -3,6 +3,8 @@ package com.secureportal.api;
 import com.secureportal.api.dto.CourseDto;
 import com.secureportal.api.dto.CourseOutlineDto;
 import com.secureportal.api.dto.LessonDetailResponse;
+import com.secureportal.assessment.AssessmentAccess;
+import com.secureportal.assessment.AssessmentAccessException;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.Course;
 import com.secureportal.course.CourseRepository;
@@ -60,12 +62,13 @@ public class CourseApiController {
     private final CourseOutlineAssembler assembler;
     private final StreamTicketService ticketService;
     private final StorageService storageService;
+    private final AssessmentAccess assessmentAccess;
 
     public CourseApiController(CourseRepository courseRepository, CourseService courseService,
                                CourseStructureService structureService, LearningService learningService,
                                EnrollmentRepository enrollmentRepository, LessonProgressRepository progressRepository,
                                CourseOutlineAssembler assembler, StreamTicketService ticketService,
-                               StorageService storageService) {
+                               StorageService storageService, AssessmentAccess assessmentAccess) {
         this.courseRepository = courseRepository;
         this.courseService = courseService;
         this.structureService = structureService;
@@ -75,6 +78,7 @@ public class CourseApiController {
         this.assembler = assembler;
         this.ticketService = ticketService;
         this.storageService = storageService;
+        this.assessmentAccess = assessmentAccess;
     }
 
     public record ProgressRequest(@Min(0) int positionSeconds, boolean completed) {
@@ -95,14 +99,14 @@ public class CourseApiController {
 
     @GetMapping("/{id}")
     public CourseOutlineDto outline(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
-        return assembler.learnerOutline(learningService.visibleCourse(id, principal.isAdmin()), principal.getUserId());
+        return assembler.learnerOutline(learningService.visibleCourse(id, principal.isAdmin()), principal.getUserId(), principal.isAdmin());
     }
 
     @PostMapping("/{id}/enroll")
     public CourseOutlineDto enroll(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
         Course course = learningService.visibleCourse(id, principal.isAdmin());
         learningService.enroll(principal.getUserId(), course);
-        return assembler.learnerOutline(course, principal.getUserId());
+        return assembler.learnerOutline(course, principal.getUserId(), principal.isAdmin());
     }
 
     /** Cover images sit behind sign-in like everything else, but aren't ticketed: they're catalog art. */
@@ -133,6 +137,12 @@ public class CourseApiController {
         Enrollment enrollment = learningService.enrollment(principal.getUserId(), courseId).orElse(null);
         if (enrollment == null && !principal.isAdmin()) {
             throw new EnrollmentRequiredException();
+        }
+        if (!principal.isAdmin()) {
+            String locked = assessmentAccess.lockedModules(courseId, principal.getUserId()).get(lesson.getModuleId());
+            if (locked != null) {
+                throw new AssessmentAccessException(locked);
+            }
         }
         if (enrollment != null) {
             learningService.visit(enrollment, lessonId);

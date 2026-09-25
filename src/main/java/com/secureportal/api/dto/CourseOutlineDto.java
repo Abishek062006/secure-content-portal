@@ -9,9 +9,12 @@ public record CourseOutlineDto(
         List<ModuleDto> modules,
         boolean enrolled,
         int progressPercent,
-        UUID resumeLessonId
+        UUID resumeLessonId,
+        AssessmentSummaryDto finalAssessment
 ) {
-    public record ModuleDto(UUID id, String title, String description, int position, List<LessonDto> lessons) {
+    /** {@code locked} (with {@code lockedReason}) applies to learners only; {@code assessment} is the module's quiz or assessment, if it has one. */
+    public record ModuleDto(UUID id, String title, String description, int position, List<LessonDto> lessons,
+                            boolean locked, String lockedReason, AssessmentSummaryDto assessment) {
     }
 
     /**

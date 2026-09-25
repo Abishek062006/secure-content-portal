@@ -4,6 +4,13 @@ import com.secureportal.api.dto.CourseDto;
 import com.secureportal.api.dto.CourseOutlineDto;
 import com.secureportal.api.dto.CourseOutlineDto.LessonDto;
 import com.secureportal.api.dto.CourseOutlineDto.ModuleDto;
+import com.secureportal.api.dto.AssessmentSummaryDto;
+import com.secureportal.assessment.Assessment;
+import com.secureportal.assessment.AssessmentAccess;
+import com.secureportal.assessment.AssessmentService;
+import com.secureportal.assessment.Attempt;
+import com.secureportal.assessment.AttemptRepository;
+import com.secureportal.assessment.AttemptService;
 import com.secureportal.course.Course;
 import com.secureportal.course.CourseModuleRepository;
 import com.secureportal.course.CourseStructureService;
@@ -31,13 +38,26 @@ public class CourseOutlineAssembler {
     private final LearningService learningService;
     private final CourseModuleRepository moduleRepository;
     private final LessonRepository lessonRepository;
+    private final AssessmentService assessmentService;
+    private final AssessmentAssembler assessmentAssembler;
+    private final AssessmentAccess assessmentAccess;
+    private final AttemptRepository attemptRepository;
+    private final AttemptService attemptService;
 
     public CourseOutlineAssembler(CourseStructureService structureService, LearningService learningService,
-                                  CourseModuleRepository moduleRepository, LessonRepository lessonRepository) {
+                                  CourseModuleRepository moduleRepository, LessonRepository lessonRepository,
+                                  AssessmentService assessmentService, AssessmentAssembler assessmentAssembler,
+                                  AssessmentAccess assessmentAccess, AttemptRepository attemptRepository,
+                                  AttemptService attemptService) {
         this.structureService = structureService;
         this.learningService = learningService;
         this.moduleRepository = moduleRepository;
         this.lessonRepository = lessonRepository;
+        this.assessmentService = assessmentService;
+        this.assessmentAssembler = assessmentAssembler;
+        this.assessmentAccess = assessmentAccess;
+        this.attemptRepository = attemptRepository;
+        this.attemptService = attemptService;
     }
 
     public CourseDto adminCourse(Course course) {
@@ -65,10 +85,15 @@ public class CourseOutlineAssembler {
     }
 
     public CourseOutlineDto adminOutline(Course course) {
-        return new CourseOutlineDto(adminCourse(course), modules(course.getId(), null, true), false, 0, null);
+        UUID courseId = course.getId();
+        List<Assessment> assessments = assessmentService.forCourse(courseId);
+        Assessment finalOne = assessments.stream().filter(a -> a.getModuleId() == null).findFirst().orElse(null);
+        return new CourseOutlineDto(adminCourse(course), modules(courseId, null, true, assessments, Map.of(), null), false, 0,
+                null, finalOne == null ? null : assessmentAssembler.admin(finalOne));
     }
 
-    public CourseOutlineDto learnerOutline(Course course, Long userId) {
+    /** {@code admin} previews the course: nothing is locked for them. */
+    public CourseOutlineDto learnerOutline(Course course, Long userId, boolean admin) {
         UUID courseId = course.getId();
         Map<UUID, LessonProgress> progress = learningService.progress(userId, courseId);
         Enrollment enrollment = learningService.enrollment(userId, courseId).orElse(null);
@@ -78,8 +103,34 @@ public class CourseOutlineAssembler {
         int percent = LearningService.percent(done, ordered.size());
         CourseDto dto = CourseDto.forLearner(course, moduleRepository.countByCourseId(courseId), ordered.size(),
                 enrollment != null, percent);
-        return new CourseOutlineDto(dto, modules(courseId, progress, false), enrollment != null, percent,
-                resumeLesson(enrollment, ordered, progress));
+
+        List<Assessment> assessments = assessmentService.forCourse(courseId);
+        Map<UUID, Assessment> byId = assessments.stream().collect(Collectors.toMap(Assessment::getId, a -> a));
+        attemptService.finalizeExpired(userId, byId);
+        Map<UUID, String> locked = admin ? Map.of() : assessmentAccess.lockedModules(courseId, userId);
+        Map<UUID, List<Attempt>> attempts = new HashMap<>();
+        if (!byId.isEmpty()) {
+            attemptRepository.findByUserIdAndAssessmentIdIn(userId, byId.keySet())
+                    .forEach(x -> attempts.computeIfAbsent(x.getAssessmentId(), k -> new java.util.ArrayList<>()).add(x));
+        }
+        AssessmentContext context = new AssessmentContext(userId, admin, locked, attempts, progress, ordered);
+
+        Assessment finalOne = assessments.stream().filter(a -> a.getModuleId() == null).findFirst().orElse(null);
+        return new CourseOutlineDto(dto, modules(courseId, progress, false, assessments, locked, context), enrollment != null,
+                percent, resumeLesson(enrollment, ordered, progress),
+                finalOne == null ? null : learnerAssessment(finalOne, context));
+    }
+
+    /** What's needed to work out a learner's standing on each assessment without re-querying per assessment. */
+    private record AssessmentContext(Long userId, boolean admin, Map<UUID, String> lockedModules,
+                                     Map<UUID, List<Attempt>> attempts, Map<UUID, LessonProgress> progress,
+                                     List<Lesson> lessons) {
+    }
+
+    private AssessmentSummaryDto learnerAssessment(Assessment a, AssessmentContext c) {
+        var reason = c.admin() ? java.util.Optional.<String>empty()
+                : assessmentAccess.lockReason(a, c.lockedModules(), c.progress(), c.lessons());
+        return assessmentAssembler.learner(a, c.attempts().getOrDefault(a.getId(), List.of()), reason);
     }
 
     public LessonDto lessonDto(Lesson lesson, Map<UUID, LessonProgress> progress, boolean admin) {
@@ -94,15 +145,25 @@ public class CourseOutlineAssembler {
                                Map<UUID, LessonProgress> progress, boolean admin) {
         return new ModuleDto(module.getId(), module.getTitle(), module.getDescription(), module.getPosition(),
                 lessons.stream().sorted(Comparator.comparingInt(Lesson::getPosition))
-                        .map(l -> lessonDto(l, progress, admin)).toList());
+                        .map(l -> lessonDto(l, progress, admin)).toList(), false, null, null);
     }
 
-    private List<ModuleDto> modules(UUID courseId, Map<UUID, LessonProgress> progress, boolean admin) {
+    private List<ModuleDto> modules(UUID courseId, Map<UUID, LessonProgress> progress, boolean admin,
+                                    List<Assessment> assessments, Map<UUID, String> locked, AssessmentContext context) {
         Map<UUID, List<Lesson>> byModule = lessonRepository.findByCourseId(courseId).stream()
                 .collect(Collectors.groupingBy(Lesson::getModuleId));
-        return structureService.modules(courseId).stream()
-                .map(m -> moduleDto(m, byModule.getOrDefault(m.getId(), List.of()), progress, admin))
-                .toList();
+        Map<UUID, Assessment> assessmentByModule = new HashMap<>();
+        assessments.stream().filter(a -> a.getModuleId() != null).forEach(a -> assessmentByModule.put(a.getModuleId(), a));
+
+        return structureService.modules(courseId).stream().map(m -> {
+            ModuleDto base = moduleDto(m, byModule.getOrDefault(m.getId(), List.of()), progress, admin);
+            Assessment a = assessmentByModule.get(m.getId());
+            AssessmentSummaryDto summary = a == null ? null
+                    : admin ? assessmentAssembler.admin(a) : learnerAssessment(a, context);
+            String reason = locked.get(m.getId());
+            return new ModuleDto(base.id(), base.title(), base.description(), base.position(), base.lessons(),
+                    reason != null, reason, summary);
+        }).toList();
     }
 
     /** Where "Continue" goes: the last lesson opened, else the first unfinished one, else the first. */
