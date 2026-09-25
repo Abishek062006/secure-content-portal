@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import CoverPicker from '../../components/CoverPicker';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { API_BASE, api } from '../../api';
 import Alert from '../../components/Alert';
@@ -154,18 +155,15 @@ export default function CourseEditor() {
                  onChange={(e) => setForm({ ...form, category: e.target.value })} />
         </div>
         <div className="field">
-          <label htmlFor="cover">Cover image</label>
-          {course.thumbnailUrl
-            ? <img className="thumb-preview" src={`${API_BASE}${course.thumbnailUrl}`} alt="Current cover" />
-            : <p className="field-hint">No cover image yet.</p>}
-          <input id="cover" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={(e) => {
-            const file = e.target.files[0];
-            e.target.value = '';
-            if (!file) return;
-            const formData = new FormData();
-            formData.set('file', file);
-            swallow(run(() => api.upload(`/api/admin/courses/${id}/thumbnail`, formData), 'Cover image replaced.'));
-          }} />
+          <label>Cover image</label>
+          <CoverPicker
+            src={course.thumbnailUrl ? `${API_BASE}${course.thumbnailUrl}` : null}
+            onPick={(file) => {
+              const formData = new FormData();
+              formData.set('file', file);
+              swallow(run(() => api.upload(`/api/admin/courses/${id}/thumbnail`, formData), 'Cover image replaced.'));
+            }}
+          />
         </div>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">Save details</button>

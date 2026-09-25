@@ -1,24 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import Alert from '../../components/Alert';
+import CoverPicker from '../../components/CoverPicker';
 
 export default function NewCourse() {
   const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [coverFile, setCoverFile] = useState(null);
-  const [coverPreview, setCoverPreview] = useState(null);
-
-  useEffect(() => {
-    if (!coverFile) {
-      setCoverPreview(null);
-      return undefined;
-    }
-    const url = URL.createObjectURL(coverFile);
-    setCoverPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [coverFile]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -30,7 +20,7 @@ export default function NewCourse() {
     formData.set('title', form.title.value);
     formData.set('description', form.description.value);
     formData.set('category', form.category.value);
-    if (form.thumbnail.files[0]) formData.set('thumbnail', form.thumbnail.files[0]);
+    if (coverFile) formData.set('thumbnail', coverFile);
 
     try {
       const created = await api.upload('/api/admin/courses', formData);
@@ -44,13 +34,18 @@ export default function NewCourse() {
   }
 
   return (
-    <div className="container">
+    <div className="container container-course-form">
       <Alert error={errorMessage} />
       <h1>New course</h1>
       <p className="field-hint" style={{ marginTop: -10 }}>
         Start with the basics. You'll add modules and video lessons on the next screen.
       </p>
-      <form className="form-panel" onSubmit={onSubmit}>
+      <form className="form-panel course-form" onSubmit={onSubmit}>
+        <div className="course-form-cover">
+          <label>Cover image</label>
+          <CoverPicker onPick={setCoverFile} onRemove={() => setCoverFile(null)} />
+        </div>
+        <div className="course-form-fields">
         <div className="field">
           <label htmlFor="title">Title</label>
           <input id="title" name="title" type="text" maxLength={200} required />
@@ -66,14 +61,7 @@ export default function NewCourse() {
           <input id="category" name="category" type="text" maxLength={80} placeholder="e.g. Onboarding" />
         </div>
 
-        <div className="field">
-          <label htmlFor="thumbnail">Cover image (optional)</label>
-          <input id="thumbnail" name="thumbnail" type="file" accept=".jpg,.jpeg,.png,.webp"
-                 onChange={(e) => setCoverFile(e.target.files[0] || null)} />
-          <p className="field-hint">JPG, PNG or WebP, up to 5 MB. 16:9 looks best.</p>
-          {coverPreview && <img className="thumb-preview" src={coverPreview} alt="Cover preview" />}
         </div>
-
         <div className="form-actions">
           <Link className="btn" to="/admin/courses">Cancel</Link>
           <button type="submit" className="btn btn-primary" disabled={submitting}>

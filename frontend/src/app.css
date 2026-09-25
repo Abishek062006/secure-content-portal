@@ -2052,3 +2052,38 @@ a {
 .comment-form { display: flex; gap: 8px; }
 .load-more { display: block; margin: 8px auto 32px; }
 @media (max-width: 560px) { .promo-card { flex-direction: column; } .promo-card img { width: 100%; height: 140px; } }
+
+/* Cover picker and the wider course form */
+.container-course-form { max-width: 960px; }
+.course-form { display: grid; grid-template-columns: minmax(0, 1fr); }
+.course-form-fields { display: flex; flex-direction: column; gap: 22px; }
+.course-form-cover label { display: block; font-weight: 600; margin-bottom: 8px; }
+@media (min-width: 820px) {
+  .course-form { grid-template-columns: 340px minmax(0, 1fr); column-gap: 36px; }
+  .course-form .form-actions { grid-column: 1 / -1; }
+}
+.cover-picker { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.cover-zone {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg, 14px);
+  background: var(--accent-wash);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cover-zone:hover, .cover-zone.dragging { background: #d3ede8; border-color: var(--accent-deep); }
+.cover-zone.has-image { border-style: solid; border-color: var(--line); }
+.cover-zone img { width: 100%; height: 100%; object-fit: cover; }
+.cover-empty { display: flex; flex-direction: column; gap: 6px; padding: 16px; color: var(--accent-deep); }
+.cover-empty strong { font-size: 1.05rem; }
+.cover-change {
+  position: absolute; bottom: 10px; right: 10px; padding: 5px 12px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 0.85rem;
+}
