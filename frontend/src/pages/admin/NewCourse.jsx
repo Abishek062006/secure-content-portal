@@ -37,9 +37,10 @@ export default function NewCourse() {
     <div className="container container-course-form">
       <Alert error={errorMessage} />
       <h1>New course</h1>
-      <p className="field-hint" style={{ marginTop: -10 }}>
-        Start with the basics. You'll add modules and video lessons on the next screen.
-      </p>
+      <div className="steps-note">
+        <strong>Step 1 of 2:</strong> course details. After you click <em>Create course</em>, the next screen is
+        where you add modules and upload each lesson's video (and its transcript), then publish.
+      </div>
       <form className="form-panel course-form" onSubmit={onSubmit}>
         <div className="course-form-cover">
           <label>Cover image</label>
@@ -65,7 +66,7 @@ export default function NewCourse() {
         <div className="form-actions">
           <Link className="btn" to="/admin/courses">Cancel</Link>
           <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create course'}
+            {submitting ? 'Creating…' : 'Create course and add videos'}
           </button>
         </div>
       </form>
