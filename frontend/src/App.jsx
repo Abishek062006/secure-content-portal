@@ -10,6 +10,8 @@ import CourseView from './pages/CourseView';
 import LessonView from './pages/LessonView';
 import AssessmentView from './pages/AssessmentView';
 import AttemptView from './pages/AttemptView';
+import MyLearning from './pages/MyLearning';
+import VerifyCertificate from './pages/VerifyCertificate';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
 import ContentList from './pages/admin/ContentList';
@@ -30,11 +32,13 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/verify/:code" element={<VerifyCertificate />} />
         <Route path="/forbidden" element={<Forbidden />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/library" element={<Library />} />
           <Route path="/content/:id" element={<ContentView />} />
+          <Route path="/my-learning" element={<MyLearning />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseView />} />
           <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />

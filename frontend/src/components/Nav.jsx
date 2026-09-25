@@ -24,6 +24,7 @@ export default function Nav() {
         <div className="nav-links">
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/courses">Courses</NavLink>
+          <NavLink to="/my-learning">My learning</NavLink>
           {user.admin && <NavLink to="/admin/courses">Manage courses</NavLink>}
           {user.admin && <NavLink to="/admin/content">Manage content</NavLink>}
           {user.admin && <NavLink to="/admin/users">Users</NavLink>}

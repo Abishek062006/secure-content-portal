@@ -4,6 +4,7 @@ import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
 import AssessmentRow from '../components/AssessmentRow';
+import CertificateCard from '../components/CertificateCard';
 
 export default function CourseView() {
   const { id } = useParams();
@@ -139,6 +140,8 @@ export default function CourseView() {
           <AssessmentRow courseId={course.id} assessment={finalAssessment} canOpen={canOpen} />
         </section>
       )}
+
+      {enrolled && !user?.admin && <CertificateCard courseId={course.id} progressPercent={progressPercent} />}
     </div>
   );
 }
