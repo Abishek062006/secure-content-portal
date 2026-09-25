@@ -72,19 +72,6 @@ public class AppPrincipal implements OidcUser, Serializable {
         return role == Role.ADMIN;
     }
 
-    /** Initials shown in the header avatar when Google gives us no picture. */
-    public String getInitials() {
-        String source = getDisplayName().trim();
-        if (source.isEmpty()) {
-            return "?";
-        }
-        String[] parts = source.split("\\s+");
-        if (parts.length == 1) {
-            return parts[0].substring(0, 1).toUpperCase();
-        }
-        return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
-    }
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role.authority()));

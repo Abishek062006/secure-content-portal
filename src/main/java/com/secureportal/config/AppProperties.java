@@ -2,7 +2,6 @@ package com.secureportal.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -23,9 +22,6 @@ public class AppProperties {
      * {@code prod} profile is active.
      */
     private String ticketSecret = "dev-only-insecure-ticket-secret-change-me";
-
-    /** How long a minted stream ticket stays valid. */
-    private Duration ticketTtl = Duration.ofMinutes(5);
 
     /** DPI used when rasterising PDF pages server-side. */
     private int pdfRenderDpi = 110;
@@ -54,14 +50,6 @@ public class AppProperties {
 
     public void setTicketSecret(String ticketSecret) {
         this.ticketSecret = ticketSecret;
-    }
-
-    public Duration getTicketTtl() {
-        return ticketTtl;
-    }
-
-    public void setTicketTtl(Duration ticketTtl) {
-        this.ticketTtl = ticketTtl;
     }
 
     public int getPdfRenderDpi() {

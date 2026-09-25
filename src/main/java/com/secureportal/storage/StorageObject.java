@@ -21,10 +21,6 @@ public record StorageObject(
         return rangeEnd - rangeStart + 1;
     }
 
-    public boolean isPartial() {
-        return rangeLength() < totalSize;
-    }
-
     @Override
     public void close() throws IOException {
         content.close();

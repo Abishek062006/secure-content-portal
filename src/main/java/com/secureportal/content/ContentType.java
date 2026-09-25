@@ -63,11 +63,6 @@ public enum ContentType {
         return mb >= 1024 ? (mb / 1024) + " GB" : mb + " MB";
     }
 
-    /** Comma-separated extension list, for the file picker's {@code accept} attribute. */
-    public String getAcceptAttribute() {
-        return allowedExtensions.stream().map(ext -> "." + ext).reduce((a, b) -> a + "," + b).orElse("");
-    }
-
     public String getLabel() {
         return switch (this) {
             case VIDEO -> "Video";
