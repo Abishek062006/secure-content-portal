@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import VideoViewer from './viewers/VideoViewer';
@@ -14,6 +14,7 @@ function clock(seconds) {
 /** A fresh ticket is fetched on every mount — tickets are short-lived and session-bound, never cached. */
 export default function LessonView() {
   const { courseId, lessonId } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const videoRef = useRef(null);
   const lastSavedAt = useRef(0);
@@ -62,8 +63,10 @@ export default function LessonView() {
     const video = videoRef.current;
     if (!data || !video) return undefined;
 
+    const requested = Number(searchParams.get('t'));
+    const startAt = requested > 0 ? requested : data.resumeSeconds;
     const resume = () => {
-      if (data.resumeSeconds > 0) video.currentTime = data.resumeSeconds;
+      if (startAt > 0) video.currentTime = startAt;
     };
     if (video.readyState >= 1) resume();
     const onTimeUpdate = () => {
@@ -84,6 +87,7 @@ export default function LessonView() {
       video.removeEventListener('ended', onEnded);
       saveProgress(false);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, saveProgress]);
 
   function seekTo(cue) {

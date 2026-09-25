@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
+import AssessmentRow from '../components/AssessmentRow';
 
 export default function CourseView() {
   const { id } = useParams();
@@ -51,7 +52,7 @@ export default function CourseView() {
     );
   }
 
-  const { course, modules, enrolled, progressPercent, resumeLessonId } = outline;
+  const { course, modules, enrolled, progressPercent, resumeLessonId, finalAssessment } = outline;
   const canOpen = enrolled || user?.admin;
 
   return (
@@ -97,30 +98,47 @@ export default function CourseView() {
         <div className="empty-state"><p>This course has no lessons yet.</p></div>
       )}
 
-      {modules.map((module, mIndex) => (
-        <section className="outline-module" key={module.id}>
-          <h2>Module {mIndex + 1}: {module.title}</h2>
-          {module.description && <p className="field-hint">{module.description}</p>}
-          <ol className="outline-lessons">
-            {module.lessons.map((lesson) => (
-              <li key={lesson.id}>
-                {canOpen ? (
-                  <Link to={`/courses/${course.id}/lessons/${lesson.id}`}>
-                    <span className={`lesson-check${lesson.completed ? ' done' : ''}`} aria-hidden="true">{lesson.completed ? '✓' : ''}</span>
-                    {lesson.title}
-                  </Link>
-                ) : (
-                  <span className="outline-locked">
-                    <span className="lesson-check" aria-hidden="true" />
-                    {lesson.title}
-                  </span>
-                )}
-                {lesson.hasTranscript && <span className="badge">Transcript</span>}
-              </li>
-            ))}
-          </ol>
+      {modules.map((module, mIndex) => {
+        const open = canOpen && !module.locked;
+        return (
+          <section className={`outline-module${module.locked ? ' locked' : ''}`} key={module.id}>
+            <h2>
+              Module {mIndex + 1}: {module.title}
+              {module.locked && <span className="badge lock-badge">Locked</span>}
+            </h2>
+            {module.locked && <p className="field-hint">{module.lockedReason}</p>}
+            {module.description && <p className="field-hint">{module.description}</p>}
+            <ol className="outline-lessons">
+              {module.lessons.map((lesson) => (
+                <li key={lesson.id}>
+                  {open ? (
+                    <Link to={`/courses/${course.id}/lessons/${lesson.id}`}>
+                      <span className={`lesson-check${lesson.completed ? ' done' : ''}`} aria-hidden="true">{lesson.completed ? '✓' : ''}</span>
+                      {lesson.title}
+                    </Link>
+                  ) : (
+                    <span className="outline-locked">
+                      <span className="lesson-check" aria-hidden="true" />
+                      {lesson.title}
+                    </span>
+                  )}
+                  {lesson.hasTranscript && <span className="badge">Transcript</span>}
+                </li>
+              ))}
+            </ol>
+            {module.assessment && (
+              <AssessmentRow courseId={course.id} assessment={module.assessment} canOpen={canOpen} />
+            )}
+          </section>
+        );
+      })}
+
+      {finalAssessment && (
+        <section className="outline-module">
+          <h2>Final assessment</h2>
+          <AssessmentRow courseId={course.id} assessment={finalAssessment} canOpen={canOpen} />
         </section>
-      ))}
+      )}
     </div>
   );
 }

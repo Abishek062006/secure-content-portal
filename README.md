@@ -46,8 +46,11 @@ else below was chosen deliberately, not defaulted to.
 - A **question bank** per course: questions belong to a lesson, carry a difficulty (easy/medium/hard) and an
   explanation. Admins generate them from a lesson's transcript with AI, type them in, or import a CSV, then
   review, edit and approve. AI questions start as drafts; hand-written and imported ones are approved.
-- Planned next: per-module quizzes and timed assessments built from the bank, then a LinkedIn-style feed
-  for promoting courses
+- **Quizzes and assessments.** Each module can end with nothing, a practice **quiz** (instant feedback per
+  answer, unlimited retakes) or a graded **assessment** (pass mark, optional time limit and attempt limit,
+  optionally required before the next module opens); a course can also have a final assessment. Every attempt
+  draws random approved questions by the admin's difficulty mix, with shuffled options.
+- Planned next: certificates and a "My learning" page, then a LinkedIn-style feed for promoting courses
 
 **Admins** (seeded via an email allow-list, not self-service)
 - Upload video/PDF/HTML with title, description, category
@@ -183,6 +186,20 @@ mvn test
 `AccessControlTest` and `CourseFlowTest` boot the full app against your local MySQL database (same as
 running the app), so they need `.env` and `.env.local` sourced. `FileValidatorTest` and `StreamTicketServiceTest` are plain unit
 tests with no external dependencies.
+
+### How quizzes and assessments behave
+
+- **The server owns everything that matters.** It picks the questions, shuffles the options, runs the clock and
+  grades. While an attempt is running the browser never receives which option is correct; a submitted
+  attempt reveals it. A quiz reveals each answer's result straight away, since it's practice.
+- **Timed attempts** are submitted automatically when time runs out (with a few seconds' grace for the
+  request to arrive); a learner who leaves and returns finds it already graded. Refreshing resumes the same
+  attempt, so a reload never costs one.
+- **When things unlock:** a module's quiz or assessment opens once all of its lessons are completed; the
+  final assessment once every lesson is; a module opens only after the previous module's *gating* assessment
+  is passed. Admins are never locked out, so they can preview everything.
+- **Results** for admins: attempts, learners, average score and pass rate per assessment, plus the questions
+  learners miss most.
 
 ### AI question generation
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AssessmentPanel from './AssessmentPanel';
 
 const MAX_VIDEO_BYTES = 5 * 1024 ** 3;
 
@@ -129,7 +130,7 @@ function LessonRow({ lesson, index, total, actions }) {
   );
 }
 
-export default function ModuleCard({ module, index, total, actions }) {
+export default function ModuleCard({ module, index, total, actions, available }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: module.title, description: module.description || '' });
@@ -186,6 +187,14 @@ export default function ModuleCard({ module, index, total, actions }) {
           />
         ))}
       </ol>
+
+      <AssessmentPanel
+        assessment={module.assessment}
+        available={available}
+        allowGate
+        onSave={(values) => actions.saveAssessment(module.id, values)}
+        onRemove={() => actions.removeAssessment(module)}
+      />
 
       {adding ? (
         <AddLessonForm

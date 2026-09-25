@@ -4,6 +4,7 @@ import { API_BASE, api } from '../../api';
 import Alert from '../../components/Alert';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import ModuleCard from './course-editor/ModuleCard';
+import AssessmentPanel from './course-editor/AssessmentPanel';
 
 /** Builds a course: its details, cover, publish state, and the outline of modules and lessons. */
 export default function CourseEditor() {
@@ -16,9 +17,12 @@ export default function CourseEditor() {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [newModuleTitle, setNewModuleTitle] = useState('');
 
+  const [questions, setQuestions] = useState([]);
+
   const load = useCallback(async () => {
-    const res = await api.get(`/api/admin/courses/${id}`);
+    const [res, bank] = await Promise.all([api.get(`/api/admin/courses/${id}`), api.get(`/api/admin/courses/${id}/questions`)]);
     setOutline(res);
+    setQuestions(bank);
     return res;
   }, [id]);
 
@@ -55,6 +59,13 @@ export default function CourseEditor() {
   const { course, modules } = outline;
   const published = course.status === 'PUBLISHED';
 
+  /** Approved questions by difficulty across the given lessons: what an attempt could be drawn from. */
+  function availability(lessonIds) {
+    const counts = { EASY: 0, MEDIUM: 0, HARD: 0 };
+    questions.filter((q) => q.status === 'APPROVED' && lessonIds.has(q.lessonId)).forEach((q) => { counts[q.difficulty] += 1; });
+    return counts;
+  }
+
   function reorder(ids, from, delta) {
     const to = from + delta;
     if (to < 0 || to >= ids.length) return null;
@@ -80,6 +91,8 @@ export default function CourseEditor() {
       swallow(run(() => api.upload(`/api/admin/lessons/${lessonId}/transcript`, formData), 'Transcript replaced.'));
     },
     deleteLesson: (lesson) => setPendingDelete({ type: 'lesson', item: lesson }),
+    saveAssessment: (moduleId, body) => run(() => api.put(`/api/admin/modules/${moduleId}/assessment`, body), 'Saved.'),
+    removeAssessment: (module) => setPendingDelete({ type: 'assessment', item: { ...module.assessment, kind: 'module', moduleId: module.id } }),
     moveLesson: (module, lessonId, delta) => {
       const ids = module.lessons.map((l) => l.id);
       const next = reorder(ids, ids.indexOf(lessonId), delta);
@@ -90,8 +103,14 @@ export default function CourseEditor() {
   async function confirmDelete() {
     const { type, item } = pendingDelete;
     setPendingDelete(null);
-    const path = type === 'module' ? `/api/admin/modules/${item.id}` : `/api/admin/lessons/${item.id}`;
-    swallow(run(() => api.del(path), `${type === 'module' ? 'Module' : 'Lesson'} deleted.`));
+    let path;
+    if (type === 'assessment') {
+      path = item.kind === 'final' ? `/api/admin/courses/${id}/final-assessment` : `/api/admin/modules/${item.moduleId}/assessment`;
+    } else {
+      path = type === 'module' ? `/api/admin/modules/${item.id}` : `/api/admin/lessons/${item.id}`;
+    }
+    const label = { module: 'Module', lesson: 'Lesson', assessment: 'Quiz/assessment' }[type];
+    swallow(run(() => api.del(path), `${label} deleted.`));
   }
 
   return (
@@ -103,6 +122,7 @@ export default function CourseEditor() {
         <div className="row-actions">
           <span className={`badge status-${course.status.toLowerCase()}`}>{published ? 'Published' : 'Draft'}</span>
           <Link className="btn" to={`/admin/courses/${id}/questions`}>Question bank</Link>
+          <Link className="btn" to={`/admin/courses/${id}/results`}>Results</Link>
           <Link className="btn" to={`/courses/${id}`}>Preview</Link>
           <button type="button" className="btn btn-primary"
                   onClick={() => swallow(run(() => api.post(`/api/admin/courses/${id}/${published ? 'unpublish' : 'publish'}`),
@@ -156,7 +176,8 @@ export default function CourseEditor() {
         <div className="empty-state"><p>No modules yet. Add the first one below.</p></div>
       )}
       {modules.map((module, index) => (
-        <ModuleCard key={module.id} module={module} index={index} total={modules.length} actions={moduleActions} />
+        <ModuleCard key={module.id} module={module} index={index} total={modules.length} actions={moduleActions}
+                    available={availability(new Set(module.lessons.map((l) => l.id)))} />
       ))}
 
       <form className="module-add" onSubmit={(e) => {
@@ -169,10 +190,25 @@ export default function CourseEditor() {
         <button type="submit" className="btn btn-primary">Add module</button>
       </form>
 
+      <h2 className="editor-heading">Final assessment</h2>
+      <section className="module-card">
+        <AssessmentPanel
+          isFinal
+          assessment={outline.finalAssessment}
+          available={availability(new Set(modules.flatMap((m) => m.lessons.map((l) => l.id))))}
+          onSave={(values) => run(() => api.put(`/api/admin/courses/${id}/final-assessment`, values), 'Final assessment saved.')}
+          onRemove={() => setPendingDelete({ type: 'assessment', item: { ...outline.finalAssessment, kind: 'final' } })}
+        />
+      </section>
+
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title={pendingDelete?.item.title}
-        detail={pendingDelete?.type === 'module' ? 'All its lessons and their videos will be removed too.' : 'Its video and transcript will be removed too.'}
+        detail={{
+          module: 'All its lessons and their videos will be removed too.',
+          lesson: 'Its video and transcript will be removed too.',
+          assessment: 'Learners\' attempts at it will be removed too.',
+        }[pendingDelete?.type]}
         onCancel={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
       />
