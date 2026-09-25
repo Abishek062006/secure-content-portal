@@ -1,13 +1,15 @@
 package com.secureportal.api;
 
 import com.secureportal.api.dto.CourseDto;
+import com.secureportal.api.dto.CourseOutlineDto;
 import com.secureportal.audit.AuditService;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.content.dto.EditForm;
 import com.secureportal.course.Course;
 import com.secureportal.course.CourseRepository;
 import com.secureportal.course.CourseService;
-import com.secureportal.course.dto.CourseUploadForm;
+import com.secureportal.course.CourseStatus;
+import com.secureportal.course.dto.CourseCreateForm;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
 import jakarta.validation.Valid;
@@ -41,31 +43,35 @@ public class AdminCourseApiController {
     private final CourseService courseService;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final CourseOutlineAssembler assembler;
 
     public AdminCourseApiController(CourseRepository courseRepository, CourseService courseService,
-                                    UserRepository userRepository, AuditService auditService) {
+                                    UserRepository userRepository, AuditService auditService,
+                                    CourseOutlineAssembler assembler) {
         this.courseRepository = courseRepository;
         this.courseService = courseService;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.assembler = assembler;
     }
 
     @GetMapping
     public List<CourseDto> list() {
-        return courseRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
-                .map(CourseDto::forAdmin)
-                .toList();
+        return assembler.adminCourses(courseRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")));
+    }
+
+    @GetMapping("/{id}")
+    public CourseOutlineDto outline(@PathVariable UUID id) {
+        return assembler.adminOutline(courseService.find(id));
     }
 
     @PostMapping
-    public CourseDto create(@Valid @ModelAttribute CourseUploadForm form,
-                            @AuthenticationPrincipal AppPrincipal principal) {
-        User uploadedBy = userRepository.findById(principal.getUserId())
+    public CourseDto create(@Valid @ModelAttribute CourseCreateForm form, @AuthenticationPrincipal AppPrincipal principal) {
+        User createdBy = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new IllegalStateException("Signed-in user not found: " + principal.getUserId()));
-
-        Course created = courseService.create(form, uploadedBy);
-        auditService.log(principal.getEmail(), "COURSE_UPLOAD", created.getId(), "\"" + created.getTitle() + "\"");
-        return CourseDto.forAdmin(created);
+        Course created = courseService.create(form, createdBy);
+        auditService.log(principal.getEmail(), "COURSE_CREATE", created.getId(), "\"" + created.getTitle() + "\"");
+        return assembler.adminCourse(created);
     }
 
     @PutMapping("/{id}")
@@ -73,23 +79,29 @@ public class AdminCourseApiController {
                             @AuthenticationPrincipal AppPrincipal principal) {
         Course updated = courseService.update(id, form);
         auditService.log(principal.getEmail(), "COURSE_EDIT", id, "\"" + updated.getTitle() + "\"");
-        return CourseDto.forAdmin(updated);
+        return assembler.adminCourse(updated);
     }
 
     @PostMapping("/{id}/thumbnail")
     public CourseDto replaceThumbnail(@PathVariable UUID id, @RequestParam("file") MultipartFile file,
                                       @AuthenticationPrincipal AppPrincipal principal) {
         Course updated = courseService.replaceThumbnail(id, file);
-        auditService.log(principal.getEmail(), "COURSE_EDIT", id, "thumbnail of \"" + updated.getTitle() + "\"");
-        return CourseDto.forAdmin(updated);
+        auditService.log(principal.getEmail(), "COURSE_EDIT", id, "cover of \"" + updated.getTitle() + "\"");
+        return assembler.adminCourse(updated);
     }
 
-    @PostMapping("/{id}/transcript")
-    public CourseDto replaceTranscript(@PathVariable UUID id, @RequestParam("file") MultipartFile file,
-                                       @AuthenticationPrincipal AppPrincipal principal) {
-        Course updated = courseService.replaceTranscript(id, file);
-        auditService.log(principal.getEmail(), "COURSE_EDIT", id, "transcript of \"" + updated.getTitle() + "\"");
-        return CourseDto.forAdmin(updated);
+    @PostMapping("/{id}/publish")
+    public CourseDto publish(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
+        Course course = courseService.setStatus(id, CourseStatus.PUBLISHED);
+        auditService.log(principal.getEmail(), "COURSE_PUBLISH", id, "\"" + course.getTitle() + "\"");
+        return assembler.adminCourse(course);
+    }
+
+    @PostMapping("/{id}/unpublish")
+    public CourseDto unpublish(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
+        Course course = courseService.setStatus(id, CourseStatus.DRAFT);
+        auditService.log(principal.getEmail(), "COURSE_UNPUBLISH", id, "\"" + course.getTitle() + "\"");
+        return assembler.adminCourse(course);
     }
 
     @DeleteMapping("/{id}")

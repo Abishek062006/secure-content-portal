@@ -3,6 +3,8 @@ package com.secureportal.course;
 import com.secureportal.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -28,29 +30,15 @@ public class Course {
     @Column(length = 80)
     private String category;
 
-    @Column(name = "video_key", nullable = false, unique = true, length = 512)
-    private String videoKey;
-
-    @Column(name = "video_filename")
-    private String videoFilename;
-
-    @Column(name = "video_mime", nullable = false, length = 128)
-    private String videoMime;
-
-    @Column(name = "video_size", nullable = false)
-    private long videoSize;
-
     @Column(name = "thumbnail_key", unique = true, length = 512)
     private String thumbnailKey;
 
     @Column(name = "thumbnail_mime", length = 128)
     private String thumbnailMime;
 
-    @Column(name = "transcript_key", unique = true, length = 512)
-    private String transcriptKey;
-
-    @Column(name = "transcript_filename")
-    private String transcriptFilename;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private CourseStatus status = CourseStatus.DRAFT;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "uploaded_by", nullable = false)
@@ -72,15 +60,10 @@ public class Course {
         // for JPA
     }
 
-    public Course(String title, String description, String category, String videoKey, String videoFilename,
-                  String videoMime, long videoSize, User uploadedBy) {
+    public Course(String title, String description, String category, User uploadedBy) {
         this.title = title;
         this.description = description;
         this.category = category;
-        this.videoKey = videoKey;
-        this.videoFilename = videoFilename;
-        this.videoMime = videoMime;
-        this.videoSize = videoSize;
         this.uploadedBy = uploadedBy;
     }
 
@@ -112,22 +95,6 @@ public class Course {
         this.category = category;
     }
 
-    public String getVideoKey() {
-        return videoKey;
-    }
-
-    public String getVideoFilename() {
-        return videoFilename;
-    }
-
-    public String getVideoMime() {
-        return videoMime;
-    }
-
-    public long getVideoSize() {
-        return videoSize;
-    }
-
     public String getThumbnailKey() {
         return thumbnailKey;
     }
@@ -141,17 +108,12 @@ public class Course {
         this.thumbnailMime = mime;
     }
 
-    public String getTranscriptKey() {
-        return transcriptKey;
+    public CourseStatus getStatus() {
+        return status;
     }
 
-    public String getTranscriptFilename() {
-        return transcriptFilename;
-    }
-
-    public void setTranscript(String key, String filename) {
-        this.transcriptKey = key;
-        this.transcriptFilename = filename;
+    public void setStatus(CourseStatus status) {
+        this.status = status;
     }
 
     public User getUploadedBy() {
@@ -178,13 +140,4 @@ public class Course {
         return lastViewedAt;
     }
 
-    public String getVideoSizeLabel() {
-        if (videoSize < 1024 * 1024) {
-            return String.format("%.0f KB", videoSize / 1024.0);
-        }
-        if (videoSize < 1024L * 1024 * 1024) {
-            return String.format("%.1f MB", videoSize / (1024.0 * 1024.0));
-        }
-        return String.format("%.2f GB", videoSize / (1024.0 * 1024.0 * 1024.0));
-    }
 }

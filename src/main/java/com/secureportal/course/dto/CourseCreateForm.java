@@ -1,11 +1,10 @@
 package com.secureportal.course.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.web.multipart.MultipartFile;
 
-public class CourseUploadForm {
+public class CourseCreateForm {
 
     @NotBlank(message = "Title is required")
     @Size(max = 200, message = "Title must be 200 characters or fewer")
@@ -17,12 +16,7 @@ public class CourseUploadForm {
     @Size(max = 80, message = "Category must be 80 characters or fewer")
     private String category;
 
-    @NotNull(message = "Choose a video to upload")
-    private MultipartFile video;
-
     private MultipartFile thumbnail;
-
-    private MultipartFile transcript;
 
     public String getTitle() {
         return title;
@@ -48,27 +42,11 @@ public class CourseUploadForm {
         this.category = category;
     }
 
-    public MultipartFile getVideo() {
-        return video;
-    }
-
-    public void setVideo(MultipartFile video) {
-        this.video = video;
-    }
-
     public MultipartFile getThumbnail() {
         return thumbnail;
     }
 
     public void setThumbnail(MultipartFile thumbnail) {
         this.thumbnail = thumbnail;
-    }
-
-    public MultipartFile getTranscript() {
-        return transcript;
-    }
-
-    public void setTranscript(MultipartFile transcript) {
-        this.transcript = transcript;
     }
 }

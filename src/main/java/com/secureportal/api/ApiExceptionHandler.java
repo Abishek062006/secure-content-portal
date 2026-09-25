@@ -3,6 +3,10 @@ package com.secureportal.api;
 import com.secureportal.common.UploadException;
 import com.secureportal.content.ContentNotFoundException;
 import com.secureportal.course.CourseNotFoundException;
+import com.secureportal.course.CourseStructureException;
+import com.secureportal.course.EnrollmentRequiredException;
+import com.secureportal.course.LessonNotFoundException;
+import com.secureportal.course.ModuleNotFoundException;
 import com.secureportal.user.UserManagementException;
 import com.secureportal.user.UserNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -24,6 +28,21 @@ public class ApiExceptionHandler {
     @ExceptionHandler(CourseNotFoundException.class)
     public ResponseEntity<ApiError> handleCourseNotFound(CourseNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler({ModuleNotFoundException.class, LessonNotFoundException.class})
+    public ResponseEntity<ApiError> handleStructureNotFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(CourseStructureException.class)
+    public ResponseEntity<ApiError> handleCourseStructure(CourseStructureException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(EnrollmentRequiredException.class)
+    public ResponseEntity<ApiError> handleEnrollmentRequired(EnrollmentRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
     }
 
     @ExceptionHandler(UserNotFoundException.class)

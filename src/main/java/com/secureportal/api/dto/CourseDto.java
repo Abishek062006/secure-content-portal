@@ -6,8 +6,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One shape for viewers and admins. {@code viewCount}/{@code lastViewedAt}
- * are only filled by {@link #forAdmin}, since view stats are admin-only.
+ * One shape for learners and admins. {@code enrolled}/{@code progressPercent}
+ * are only filled for learners; {@code viewCount}/{@code lastViewedAt} only for admins.
  */
 public record CourseDto(
         UUID id,
@@ -15,40 +15,31 @@ public record CourseDto(
         String description,
         String category,
         String thumbnailUrl,
-        boolean hasTranscript,
-        String videoSizeLabel,
+        String status,
+        long moduleCount,
+        long lessonCount,
         Instant createdAt,
         Instant updatedAt,
-        String videoFilename,
-        String transcriptFilename,
+        Boolean enrolled,
+        Integer progressPercent,
         Long viewCount,
         Instant lastViewedAt
 ) {
-    public static CourseDto forViewer(Course course) {
-        return build(course, false);
+    public static CourseDto forLearner(Course course, long moduleCount, long lessonCount,
+                                       boolean enrolled, int progressPercent) {
+        return build(course, moduleCount, lessonCount, enrolled, progressPercent, null, null);
     }
 
-    public static CourseDto forAdmin(Course course) {
-        return build(course, true);
+    public static CourseDto forAdmin(Course course, long moduleCount, long lessonCount) {
+        return build(course, moduleCount, lessonCount, null, null, course.getViewCount(), course.getLastViewedAt());
     }
 
-    private static CourseDto build(Course course, boolean admin) {
+    private static CourseDto build(Course course, long moduleCount, long lessonCount, Boolean enrolled,
+                                   Integer progressPercent, Long viewCount, Instant lastViewedAt) {
         String thumbnailUrl = course.getThumbnailKey() == null ? null
                 : "/api/courses/" + course.getId() + "/thumbnail?v=" + course.getUpdatedAt().toEpochMilli();
-        return new CourseDto(
-                course.getId(),
-                course.getTitle(),
-                course.getDescription(),
-                course.getCategory(),
-                thumbnailUrl,
-                course.getTranscriptKey() != null,
-                course.getVideoSizeLabel(),
-                course.getCreatedAt(),
-                course.getUpdatedAt(),
-                admin ? course.getVideoFilename() : null,
-                admin ? course.getTranscriptFilename() : null,
-                admin ? course.getViewCount() : null,
-                admin ? course.getLastViewedAt() : null
-        );
+        return new CourseDto(course.getId(), course.getTitle(), course.getDescription(), course.getCategory(),
+                thumbnailUrl, course.getStatus().name(), moduleCount, lessonCount, course.getCreatedAt(),
+                course.getUpdatedAt(), enrolled, progressPercent, viewCount, lastViewedAt);
     }
 }
