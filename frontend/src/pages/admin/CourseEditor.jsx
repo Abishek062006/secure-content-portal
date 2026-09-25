@@ -102,6 +102,7 @@ export default function CourseEditor() {
         <h1>{course.title}</h1>
         <div className="row-actions">
           <span className={`badge status-${course.status.toLowerCase()}`}>{published ? 'Published' : 'Draft'}</span>
+          <Link className="btn" to={`/admin/courses/${id}/questions`}>Question bank</Link>
           <Link className="btn" to={`/courses/${id}`}>Preview</Link>
           <button type="button" className="btn btn-primary"
                   onClick={() => swallow(run(() => api.post(`/api/admin/courses/${id}/${published ? 'unpublish' : 'publish'}`),

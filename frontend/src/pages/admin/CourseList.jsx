@@ -92,6 +92,7 @@ export default function CourseList() {
                   <td>{formatDate(course.createdAt)}</td>
                   <td className="row-actions">
                     <Link className="btn" to={`/admin/courses/${course.id}/edit`}>Edit</Link>
+                    <Link className="btn" to={`/admin/courses/${course.id}/questions`}>Questions</Link>
                     <Link className="btn" to={`/courses/${course.id}`}>Preview</Link>
                     <button type="button" className="btn btn-danger-outline" onClick={() => setPendingDelete(course)}>
                       Delete

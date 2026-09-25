@@ -43,8 +43,11 @@ else below was chosen deliberately, not defaulted to.
   admins build and reorder the outline, add a cover image, and publish it (new courses start as drafts)
 - Learners browse the catalog, enroll for free, watch through the signed-ticket, watermarked player with a
   click-to-seek transcript, and see progress: completed lessons, resume position, and percent complete
-- Planned next: an AI-generated question bank with difficulty levels, per-module quizzes and timed
-  assessments, then a LinkedIn-style feed for promoting courses
+- A **question bank** per course: questions belong to a lesson, carry a difficulty (easy/medium/hard) and an
+  explanation. Admins generate them from a lesson's transcript with AI, type them in, or import a CSV, then
+  review, edit and approve. AI questions start as drafts; hand-written and imported ones are approved.
+- Planned next: per-module quizzes and timed assessments built from the bank, then a LinkedIn-style feed
+  for promoting courses
 
 **Admins** (seeded via an email allow-list, not self-service)
 - Upload video/PDF/HTML with title, description, category
@@ -180,6 +183,23 @@ mvn test
 `AccessControlTest` and `CourseFlowTest` boot the full app against your local MySQL database (same as
 running the app), so they need `.env` and `.env.local` sourced. `FileValidatorTest` and `StreamTicketServiceTest` are plain unit
 tests with no external dependencies.
+
+### AI question generation
+
+Generation calls any OpenAI-compatible chat endpoint, so the provider is only configuration. Groq's free tier
+works: create a key at console.groq.com, then add this to `.env.local` (pick a current model name from your
+provider's model list):
+
+```bash
+AI_API_KEY="your-key"
+AI_MODEL="a-current-model-name"
+# AI_BASE_URL defaults to Groq (https://api.groq.com/openai/v1); set it to use Gemini, OpenRouter, Ollama, ...
+```
+
+Without `AI_MODEL` the rest of the app works and the Generate button explains that AI isn't configured.
+Rate limits (HTTP 429) are retried automatically. A CSV import needs the columns `question, difficulty,
+option1, option2, option3, option4, correct` (correct is 1-4 or A-D) and an optional `explanation`; the
+question bank page offers a template.
 
 ## Environment variables
 

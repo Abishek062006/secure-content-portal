@@ -16,6 +16,7 @@ import EditContent from './pages/admin/EditContent';
 import CourseList from './pages/admin/CourseList';
 import NewCourse from './pages/admin/NewCourse';
 import CourseEditor from './pages/admin/CourseEditor';
+import QuestionBank from './pages/admin/QuestionBank';
 import Users from './pages/admin/Users';
 import AuditLog from './pages/admin/AuditLog';
 
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/admin/courses" element={<CourseList />} />
           <Route path="/admin/courses/new" element={<NewCourse />} />
           <Route path="/admin/courses/:id/edit" element={<CourseEditor />} />
+          <Route path="/admin/courses/:id/questions" element={<QuestionBank />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/audit" element={<AuditLog />} />
         </Route>

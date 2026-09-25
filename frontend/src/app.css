@@ -1619,3 +1619,140 @@ a {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------- Admin: question bank ---------- */
+
+.qb-toolbar {
+  margin-bottom: 18px;
+}
+
+.qb-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.qb-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--ink-mid);
+}
+
+.qb-count input {
+  width: 72px;
+}
+
+.qb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.question-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-xs);
+}
+
+.question-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.question-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.question-text {
+  margin: 0 0 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.question-options {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.question-options li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.question-options li.correct {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.option-letter {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.option-tick {
+  margin-left: auto;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.option-row input[type="text"] {
+  flex: 1;
+}
+
+.badge.difficulty-easy {
+  background: #e3f5e8;
+  color: #1d6b34;
+}
+
+.badge.difficulty-medium {
+  background: #fff4d6;
+  color: #8a6100;
+}
+
+.badge.difficulty-hard {
+  background: #fdecea;
+  color: #b3261e;
+}
+
+.import-errors {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
