@@ -8,7 +8,7 @@ Built for an internship screening assignment. Java Spring Boot was a hard requir
 else below was chosen deliberately, not defaulted to.
 
 **Live app:** https://secure-content-portal.vercel.app (React frontend — talks to the API below)
-**API:** AWS Elastic Beanstalk (Docker, `eu-north-1`), proxied through Vercel — see [Deployment](#deployment)
+**API:** runs locally (`./run-local.sh`) — the hosted backend has been retired, see [Deployment](#deployment)
 **Repo:** https://github.com/Abishek062006/secure-content-portal
 
 ---
@@ -64,7 +64,7 @@ else below was chosen deliberately, not defaulted to.
 | PDF rendering | Apache PDFBox, 90 DPI | Renders pages to images server-side — see [Content protection](#content-protection--whats-real-what-a-deterrent). DPI kept modest since every render (even a cache hit) still redoes an in-memory decode/watermark/re-encode on a small single-core instance |
 | File-type detection | Apache Tika | Magic-byte sniffing — never trusts the filename extension or the browser's `Content-Type` header |
 | HTML sanitizing | jsoup | Strips scripts/forms/event handlers at upload time |
-| Backend hosting | AWS Elastic Beanstalk (Docker on `t3.micro`, single instance) | Builds the same Dockerfile the repo already had — no separate deploy config needed. Moved off Render mid-project because Render's free tier sleeps after 15 min idle and cold-starts 30–60s on the next request; EB's free-tier instance runs continuously instead |
+| Backend hosting | Runs locally | The hosted backend (Render, then AWS Elastic Beanstalk) has been retired; Neon and Supabase stay live and the API runs from `./run-local.sh`. The Dockerfile still builds the same image if a host is wanted again |
 | Frontend hosting | [Vercel](https://vercel.com) free tier | Zero-config Vite build, instant deploys on push |
 
 ## Architecture
@@ -76,10 +76,10 @@ flowchart TB
     subgraph Vercel["Vercel — React SPA + rewrite proxy"]
         direction TB
         Spa["Library / viewers / admin pages<br/>fetch() with credentials: 'include'"]
-        Proxy["vercel.json rewrites:<br/>/api/**, /oauth2/**, /login/oauth2/**, /logout<br/>→ proxied server-to-server to AWS"]
+        Proxy["vercel.json rewrites:<br/>/api/**, /oauth2/**, /login/oauth2/**, /logout<br/>→ proxied server-to-server to the backend"]
     end
 
-    subgraph AWS["AWS Elastic Beanstalk — Spring Boot REST API"]
+    subgraph API["Spring Boot REST API"]
         direction TB
         Sec["Spring Security<br/>Google OIDC → role from our own DB"]
         Api["/api/admin/** controllers<br/>hasRole(ADMIN) + CSRF"]
@@ -116,7 +116,7 @@ everything through Vercel's own rewrites means the browser only ever talks to `v
 forwards to the backend server-to-server, so the session cookie ends up scoped to Vercel's own
 origin and every API call is same-origin from the browser's point of view. `frontend/vercel.json`
 holds the rewrite rules; `VITE_API_URL` is intentionally empty in production so the frontend calls
-relative paths. This also means the backend can move — Render to AWS, or anywhere else — by
+relative paths. This also means the backend can move — Render to AWS to a laptop, or anywhere else — by
 changing only the destination URLs in `vercel.json`; nothing about Google OAuth or the frontend
 needs to know or care.
 
@@ -194,29 +194,32 @@ The frontend has its own, much smaller set: `VITE_API_URL`, the backend's origin
 
 ## Deployment
 
-| Piece | Service | Free tier |
+The backend is **not currently hosted**: it runs locally with `./run-local.sh` against live Neon and
+Supabase, and the React app runs with `npm run dev`. The Vercel frontend deployment still exists, but its
+`frontend/vercel.json` rewrites point at a backend that has been shut down, so the hosted site can't sign
+anyone in until a backend is hosted again.
+
+| Piece | Service | Notes |
 |---|---|---|
-| API | AWS Elastic Beanstalk (Docker, `t3.micro`, single instance, `eu-north-1`) | 750 instance-hours/month free for 12 months on a new AWS account; no sleep/cold-start |
-| Frontend | Vercel | Static build, no sleep/cold-start |
+| API | Local (`./run-local.sh`) | Previously Render, then AWS Elastic Beanstalk `t3.micro` — both retired |
+| Frontend | Vercel (or `npm run dev` locally) | Static build, no sleep/cold-start |
 | Database | Neon Postgres | Auto-resumes in <1s when idle |
-| File storage | Supabase Storage | 1GB, 50MB per-file cap |
+| File storage | Supabase Storage (or local disk with the `local` profile) | 1GB, 50MB per-file cap on Supabase |
 | OAuth | Google Cloud | Free, no verification needed for the non-sensitive scopes used here |
 
 The Dockerfile is a two-stage build (`maven:3.9-eclipse-temurin-21` to compile,
 `eclipse-temurin:21-jre-alpine` to run as a non-root user) and skips tests during the image build —
 `AccessControlTest` needs a real Postgres connection the build step doesn't have, and tests are
-a dev-time check, not a deploy-time gate. EB's Docker platform builds this same Dockerfile directly
-from an uploaded source zip and auto-detects the exposed port from `EXPOSE 8080` — no extra deploy
-config needed. On Vercel, set the project's Root Directory to `frontend/` and leave `VITE_API_URL`
-**unset** in the dashboard — the committed `frontend/.env.production` sets it to empty intentionally,
-and a dashboard value would silently override that (see gotcha #2 below).
+a dev-time check, not a deploy-time gate. Any Docker host can build it directly; it listens on 8080. On
+Vercel, set the project's Root Directory to `frontend/` and leave `VITE_API_URL` **unset** in the
+dashboard — the committed `frontend/.env.production` sets it to empty intentionally, and a dashboard
+value would silently override that (see gotcha #2 below).
 
-**Why AWS instead of Render:** the project started on Render's free tier, which works but sleeps
-after 15 minutes of idle and cold-starts 30–60s on the next request. It was migrated mid-project to
-an AWS Elastic Beanstalk `t3.micro` instance (Single instance environment type, so no load balancer
-— keeps it inside the free tier) once that cold-start became the main complaint. File storage stayed
-on Supabase throughout; only the compute layer moved. The migration needed no changes to Google
-OAuth config or to Vercel's dashboard — see the proxy rationale above for why.
+**Hosting history, and why it moved twice:** the API started on Render's free tier, which sleeps after
+15 minutes idle and cold-starts in 30–60s. It moved to an AWS Elastic Beanstalk `t3.micro` to avoid that,
+then off AWS again to run locally while the project grows into a learning platform. File storage stayed on
+Supabase and the database on Neon throughout; only the compute layer moved, and because of the proxy it
+never needed any change to the Google OAuth config.
 
 **Deployment-specific gotchas worth knowing — all hit for real while building this:**
 
@@ -241,18 +244,13 @@ OAuth config or to Vercel's dashboard — see the proxy rationale above for why.
    or a redirect-chain quirk to interfere with. See the class Javadoc for the full story; this is the
    single most subtle thing in the whole project and worth reading if OAuth-behind-a-proxy ever comes
    up again.
-4. Vercel and the backend (Render before, AWS now) are genuinely different registrable domains at
+4. Vercel and the backend (Render, then AWS, now local) are genuinely different registrable domains at
    the DNS level, so the session cookie is still `SameSite=None; Secure` in production
    (`application-prod.yml`) as a defensive default — but because of gotcha #3 and the proxy in #2's
    fix, the cookie is actually *set* while the browser is talking to `vercel.app` (proxied), so it
    ends up scoped there rather than to the backend, and every later API call is same-origin from the
    browser's perspective regardless. `APP_FRONTEND_URL` on the backend must still exactly match the
    deployed Vercel origin, for CORS (kept as defense-in-depth) and as the post-login redirect target.
-
-**No cold starts on AWS:** Render's free tier slept after 15 minutes of no traffic and took 30–60
-seconds to wake on the next request — a known, accepted trade-off at the time, not a bug. That's
-the main thing the AWS migration fixed: the EB `t3.micro` instance runs continuously within the
-free tier, so there's no sleep/wake cycle to wait on anymore.
 
 ## Content protection — what's real, what's a deterrent
 
