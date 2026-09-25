@@ -1,5 +1,7 @@
 package com.secureportal.api;
 
+import com.secureportal.ai.AiException;
+import com.secureportal.ai.AiNotConfiguredException;
 import com.secureportal.common.UploadException;
 import com.secureportal.content.ContentNotFoundException;
 import com.secureportal.course.CourseNotFoundException;
@@ -7,6 +9,9 @@ import com.secureportal.course.CourseStructureException;
 import com.secureportal.course.EnrollmentRequiredException;
 import com.secureportal.course.LessonNotFoundException;
 import com.secureportal.course.ModuleNotFoundException;
+import com.secureportal.quiz.InvalidQuestionException;
+import com.secureportal.quiz.QuestionGenerationException;
+import com.secureportal.quiz.QuestionNotFoundException;
 import com.secureportal.user.UserManagementException;
 import com.secureportal.user.UserNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -43,6 +48,26 @@ public class ApiExceptionHandler {
     @ExceptionHandler(EnrollmentRequiredException.class)
     public ResponseEntity<ApiError> handleEnrollmentRequired(EnrollmentRequiredException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(QuestionNotFoundException.class)
+    public ResponseEntity<ApiError> handleQuestionNotFound(QuestionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler({InvalidQuestionException.class, QuestionGenerationException.class})
+    public ResponseEntity<ApiError> handleBadQuestion(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AiNotConfiguredException.class)
+    public ResponseEntity<ApiError> handleAiNotConfigured(AiNotConfiguredException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AiException.class)
+    public ResponseEntity<ApiError> handleAi(AiException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ApiError(ex.getMessage()));
     }
 
     @ExceptionHandler(UserNotFoundException.class)
