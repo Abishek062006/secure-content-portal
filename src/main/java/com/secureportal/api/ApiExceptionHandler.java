@@ -15,6 +15,8 @@ import com.secureportal.course.CourseStructureException;
 import com.secureportal.course.EnrollmentRequiredException;
 import com.secureportal.course.LessonNotFoundException;
 import com.secureportal.course.ModuleNotFoundException;
+import com.secureportal.feed.InvalidPostException;
+import com.secureportal.feed.PostNotFoundException;
 import com.secureportal.quiz.InvalidQuestionException;
 import com.secureportal.quiz.QuestionGenerationException;
 import com.secureportal.quiz.QuestionNotFoundException;
@@ -48,6 +50,16 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(CourseStructureException.class)
     public ResponseEntity<ApiError> handleCourseStructure(CourseStructureException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(PostNotFoundException.class)
+    public ResponseEntity<ApiError> handlePostNotFound(PostNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidPostException.class)
+    public ResponseEntity<ApiError> handleInvalidPost(InvalidPostException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
     }
 

@@ -54,7 +54,11 @@ else below was chosen deliberately, not defaulted to.
   A certificate is earned by completing every lesson and passing every graded assessment (quizzes are practice
   and never required). It is issued once, rendered as a PDF on the server, and carries an ID that anyone can
   check at `/verify/<ID>` without signing in (the check shows only name, course and date).
-- Planned next: a LinkedIn-style feed for promoting courses
+- **Feed.** Admins post text with an optional image, pin posts, schedule them for later, or attach a published
+  course to make a promo post with an Enroll button ("Promote this course" on the course editor pre-fills one).
+  Learners react (like / celebrate / insightful, one each, changeable), comment, and copy a share link. Authors
+  can delete their own comments and admins can delete any. Scheduled posts are invisible to learners until
+  their time.
 
 **Admins** (seeded via an email allow-list, not self-service)
 - Upload video/PDF/HTML with title, description, category
