@@ -42,7 +42,7 @@ function Metric({ label, value, note }) {
   );
 }
 
-export default function Analytics() {
+export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [series, setSeries] = useState('enrollments');
@@ -51,7 +51,7 @@ export default function Analytics() {
     api.get('/api/admin/analytics').then(setData).catch((e) => setError(e.message));
   }, []);
 
-  if (!data) return <div className="container"><Alert error={error} />{!error && <p className="muted">Loading analytics…</p>}</div>;
+  if (!data) return <div className="container"><Alert error={error} />{!error && <p className="muted">Loading the dashboard…</p>}</div>;
 
   const { totals, funnel, quiz, content, community, topCourses, recent } = data;
   const steps = [
@@ -67,7 +67,7 @@ export default function Analytics() {
     <div className="an-page">
       <header className="an-head">
         <div>
-          <h1>Analytics</h1>
+          <h1>Dashboard</h1>
           <p>How learners are using the platform, over the last 30 days.</p>
         </div>
       </header>

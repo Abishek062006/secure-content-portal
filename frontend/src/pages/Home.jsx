@@ -23,9 +23,9 @@ const FEATURES = [
 export default function Home() {
   const { user, loading } = useAuth();
 
-  // Signed-in members land on the course catalog; the welcome page is only for visitors.
+  // Signed-in members land on the course catalog and admins on their dashboard; the welcome page is only for visitors.
   if (loading) return null;
-  if (user) return <Navigate to="/courses" replace />;
+  if (user) return <Navigate to={user.admin ? '/admin/dashboard' : '/courses'} replace />;
 
   if (!user) {
     return (

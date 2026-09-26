@@ -78,7 +78,35 @@ export default function Courses() {
   }, [courses, learning]);
 
   // "R S Abishek" should greet as Abishek: use the longest part of the name.
+  const isAdmin = Boolean(user?.admin);
   const firstName = (user?.displayName || '').split(/\s+/).sort((a, b) => b.length - a.length)[0] || '';
+
+  if (isAdmin) {
+    // Admins only browse and preview: a search box and the whole catalog, without recommendations.
+    const list = search.trim() ? results : [...courses].sort((a, b) => a.title.localeCompare(b.title));
+    return (
+      <div className="catalog">
+        <div className="container-wide catalog-body">
+          <header className="welcome">
+            <div className="welcome-text">
+              <h1>Courses</h1>
+              <p>Search and preview the published courses as learners see them.</p>
+            </div>
+            <label className="catalog-search">
+              <Icon name="search" size={18} />
+              <input type="search" placeholder="Search courses" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </label>
+          </header>
+          {!loading && list.length === 0 && (
+            <div className="empty-state"><p>{search.trim() ? 'No courses match your search.' : 'No courses have been published yet.'}</p></div>
+          )}
+          <div className="cat-grid" style={{ marginTop: 28 }}>
+            {list.map((c) => <CatalogCard key={c.id} course={c} admin />)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="catalog">

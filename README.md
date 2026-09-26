@@ -61,8 +61,8 @@ else below was chosen deliberately, not defaulted to.
   weighted by popularity), **Popular courses** (most enrollments), **More courses to explore** (the rest, ordered by
   popularity with a steady daily shuffle) and, for domains with three or more courses, **Top courses in <domain>**.
   My learning has a dark header with tabs (All, In progress, Completed, Certifications), a summary and progress
-  cards; in the menu it sits last, after Feed.
-- **Admin analytics.** `/admin/analytics` shows learners, enrollments, completion rate and certificates with
+  cards; in the menu it sits last, after Feed. Admins get a plain Courses page (search and preview) instead of the recommendation rows.
+- **Admin dashboard.** Admins land on `/admin/dashboard`, which shows learners, enrollments, completion rate and certificates with
   monthly change, a 30-day activity chart (enrollments, new learners, quiz attempts, posts), quiz pass rate and
   average score, the learner journey (enrolled, started, finished, certified), top courses with completion,
   content and community totals, and recent admin activity. Numbers come from `GET /api/admin/analytics`.
