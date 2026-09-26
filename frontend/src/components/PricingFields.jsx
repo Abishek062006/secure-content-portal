@@ -72,8 +72,12 @@ export default function PricingFields({ value, onChange, disabled }) {
               Discount: <strong>{percent === 0 ? 'none' : `${percent}% off`}</strong>
               {percent > 0 && price > 0 && ` (learners pay ₹${rupees.format(preview.finalPriceRupees)} instead of ₹${rupees.format(price)})`}
             </label>
-            <input id="discount" className="level-slider" type="range" min={0} max={100} step={5} value={percent}
-                   onChange={(e) => set({ percent: Number(e.target.value) })} />
+            <div className="count-row">
+              <input id="discount" className="level-slider" type="range" min={0} max={100} step={1} value={percent}
+                     onChange={(e) => set({ percent: Number(e.target.value) })} />
+              <input type="number" min={0} max={100} step={1} value={percent} aria-label="Discount percent"
+                     onChange={(e) => set({ percent: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} />
+            </div>
             <div className="level-ticks reuse-ticks" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
           </div>
 
