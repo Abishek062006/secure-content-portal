@@ -196,6 +196,9 @@ public class CourseStructureService {
         }
         try (StorageObject object = storageService.get(lesson.getTranscriptKey(), null, null)) {
             return VttParser.parse(new String(object.content().readAllBytes(), StandardCharsets.UTF_8));
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            // The transcript file is gone from storage; the lesson should still open, just without a transcript.
+            return List.of();
         } catch (IOException e) {
             throw new IllegalStateException("Could not read transcript for lesson " + lesson.getId(), e);
         }
