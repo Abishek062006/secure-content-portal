@@ -24,7 +24,9 @@ public record CourseDto(
         Integer progressPercent,
         Long viewCount,
         Instant lastViewedAt,
-        Pricing pricing
+        Pricing pricing,
+        Long enrollmentCount,
+        String instructorName
 ) {
     /** {@code finalPriceRupees} is what a learner pays now; it differs from {@code priceRupees} while a discount is active. */
     public record Pricing(int priceRupees, boolean free, int discountPercent, Instant discountStart, Instant discountEnd,
@@ -38,20 +40,21 @@ public record CourseDto(
     }
 
     public static CourseDto forLearner(Course course, long moduleCount, long lessonCount,
-                                       boolean enrolled, int progressPercent) {
-        return build(course, moduleCount, lessonCount, enrolled, progressPercent, null, null);
+                                       boolean enrolled, int progressPercent, long enrollmentCount, String instructorName) {
+        return build(course, moduleCount, lessonCount, enrolled, progressPercent, null, null, enrollmentCount, instructorName);
     }
 
-    public static CourseDto forAdmin(Course course, long moduleCount, long lessonCount) {
-        return build(course, moduleCount, lessonCount, null, null, course.getViewCount(), course.getLastViewedAt());
+    public static CourseDto forAdmin(Course course, long moduleCount, long lessonCount, String instructorName) {
+        return build(course, moduleCount, lessonCount, null, null, course.getViewCount(), course.getLastViewedAt(), null, instructorName);
     }
 
     private static CourseDto build(Course course, long moduleCount, long lessonCount, Boolean enrolled,
-                                   Integer progressPercent, Long viewCount, Instant lastViewedAt) {
+                                   Integer progressPercent, Long viewCount, Instant lastViewedAt, Long enrollmentCount,
+                                   String instructorName) {
         String thumbnailUrl = course.getThumbnailKey() == null ? null
                 : "/api/courses/" + course.getId() + "/thumbnail?v=" + course.getUpdatedAt().toEpochMilli();
         return new CourseDto(course.getId(), course.getTitle(), course.getDescription(), course.getCategory(),
                 thumbnailUrl, course.getStatus().name(), moduleCount, lessonCount, course.getCreatedAt(),
-                course.getUpdatedAt(), enrolled, progressPercent, viewCount, lastViewedAt, Pricing.of(course));
+                course.getUpdatedAt(), enrolled, progressPercent, viewCount, lastViewedAt, Pricing.of(course), enrollmentCount, instructorName);
     }
 }

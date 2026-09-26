@@ -45,12 +45,16 @@ public class CourseOutlineAssembler {
     private final AttemptRepository attemptRepository;
     private final AttemptService attemptService;
     private final com.secureportal.course.MaterialService materialService;
+    private final com.secureportal.course.EnrollmentRepository enrollmentRepository;
+    private final com.secureportal.user.UserRepository userRepository;
 
     public CourseOutlineAssembler(CourseStructureService structureService, LearningService learningService,
                                   CourseModuleRepository moduleRepository, LessonRepository lessonRepository,
                                   AssessmentService assessmentService, AssessmentAssembler assessmentAssembler,
                                   AssessmentAccess assessmentAccess, AttemptRepository attemptRepository,
-                                  AttemptService attemptService, com.secureportal.course.MaterialService materialService) {
+                                  AttemptService attemptService, com.secureportal.course.MaterialService materialService,
+                                  com.secureportal.course.EnrollmentRepository enrollmentRepository,
+                                  com.secureportal.user.UserRepository userRepository) {
         this.structureService = structureService;
         this.learningService = learningService;
         this.moduleRepository = moduleRepository;
@@ -61,18 +65,34 @@ public class CourseOutlineAssembler {
         this.attemptRepository = attemptRepository;
         this.attemptService = attemptService;
         this.materialService = materialService;
+        this.enrollmentRepository = enrollmentRepository;
+        this.userRepository = userRepository;
+    }
+
+    /** The instructor is whoever created the course; looked up by id so no lazy proxy is touched. */
+    private Map<Long, String> instructors(java.util.Collection<Course> courses) {
+        Map<Long, String> names = new HashMap<>();
+        userRepository.findAllById(courses.stream().map(c -> c.getUploadedBy().getId()).collect(Collectors.toSet()))
+                .forEach(u -> names.put(u.getId(), u.getDisplayName()));
+        return names;
+    }
+
+    private String instructor(Course course) {
+        return instructors(List.of(course)).get(course.getUploadedBy().getId());
     }
 
     public CourseDto adminCourse(Course course) {
         return CourseDto.forAdmin(course, moduleRepository.countByCourseId(course.getId()),
-                lessonRepository.countByCourseId(course.getId()));
+                lessonRepository.countByCourseId(course.getId()), instructor(course));
     }
 
     public List<CourseDto> adminCourses(List<Course> courses) {
         Map<UUID, Long> modules = counts(moduleRepository.countModulesPerCourse());
         Map<UUID, Long> lessons = counts(lessonRepository.countLessonsPerCourse());
+        Map<Long, String> names = instructors(courses);
         return courses.stream()
-                .map(c -> CourseDto.forAdmin(c, modules.getOrDefault(c.getId(), 0L), lessons.getOrDefault(c.getId(), 0L)))
+                .map(c -> CourseDto.forAdmin(c, modules.getOrDefault(c.getId(), 0L), lessons.getOrDefault(c.getId(), 0L),
+                        names.get(c.getUploadedBy().getId())))
                 .toList();
     }
 
@@ -81,10 +101,13 @@ public class CourseOutlineAssembler {
         Map<UUID, Long> modules = counts(moduleRepository.countModulesPerCourse());
         Map<UUID, Long> lessons = counts(lessonRepository.countLessonsPerCourse());
         Map<UUID, Long> completed = counts(completedPerCourse);
+        Map<UUID, Long> enrollments = counts(enrollmentRepository.countEnrollmentsPerCourse());
+        Map<Long, String> names = instructors(courses);
         return courses.stream().map(c -> CourseDto.forLearner(c,
                 modules.getOrDefault(c.getId(), 0L), lessons.getOrDefault(c.getId(), 0L),
                 enrolledCourseIds.contains(c.getId()),
-                LearningService.percent(completed.getOrDefault(c.getId(), 0L), lessons.getOrDefault(c.getId(), 0L)))).toList();
+                LearningService.percent(completed.getOrDefault(c.getId(), 0L), lessons.getOrDefault(c.getId(), 0L)),
+                enrollments.getOrDefault(c.getId(), 0L), names.get(c.getUploadedBy().getId()))).toList();
     }
 
     public CourseOutlineDto adminOutline(Course course) {
@@ -105,7 +128,7 @@ public class CourseOutlineAssembler {
         long done = ordered.stream().filter(l -> progress.containsKey(l.getId()) && progress.get(l.getId()).isCompleted()).count();
         int percent = LearningService.percent(done, ordered.size());
         CourseDto dto = CourseDto.forLearner(course, moduleRepository.countByCourseId(courseId), ordered.size(),
-                enrollment != null, percent);
+                enrollment != null, percent, enrollmentRepository.countByCourseId(courseId), instructor(course));
 
         List<Assessment> assessments = assessmentService.forCourse(courseId);
         Map<UUID, Assessment> byId = assessments.stream().collect(Collectors.toMap(Assessment::getId, a -> a));
