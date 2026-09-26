@@ -19,8 +19,6 @@ function Section({ title, link, children }) {
   );
 }
 
-const sameSet = (a, b) => a.length === b.length && a.every((c) => b.some((d) => d.id === c.id));
-
 export default function Courses() {
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);
@@ -28,7 +26,6 @@ export default function Courses() {
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
 
   useEffect(() => {
     api.get('/api/courses').then(setCourses).catch(() => setCourses([])).finally(() => setLoading(false));
@@ -36,52 +33,55 @@ export default function Courses() {
     api.get('/api/profile').then(setMe).catch(() => setMe(null));
   }, []);
 
-  const categories = useMemo(
-    () => [...new Set(courses.map((c) => (c.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-    [courses],
-  );
-
-  const filtering = search.trim() !== '' || category !== '';
+  const filtering = search.trim() !== '';
   const results = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return courses.filter((c) => (!category || c.category === category)
-      && (!query || [c.title, c.description, c.category, c.instructorName].some((v) => (v || '').toLowerCase().includes(query))));
-  }, [courses, search, category]);
+    return courses.filter((c) => !query || [c.title, c.description, c.category, c.instructorName].some((v) => (v || '').toLowerCase().includes(query)));
+  }, [courses, search]);
 
   const inProgress = learning.filter((i) => i.course.progressPercent < 100);
 
-  // Rows of the home view; a row that would only repeat one already shown is left out.
+  // The home view: courses picked for this learner, what everyone is taking, then the rest by popularity and by domain.
   const rows = useMemo(() => {
-    const candidates = [];
-    const popular = [...courses].filter((c) => c.enrollmentCount > 0).sort((a, b) => b.enrollmentCount - a.enrollmentCount);
-    if (popular.length) candidates.push({ title: 'Trending courses', courses: popular });
-    candidates.push({ title: 'New courses', courses: [...courses].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
-    const free = courses.filter((c) => c.pricing?.free);
-    if (free.length) candidates.push({ title: 'Free courses', courses: free });
-    const discounted = courses.filter((c) => c.pricing?.discountActive);
-    if (discounted.length) candidates.push({ title: 'Limited-time offers', courses: discounted });
-    categories.slice(0, 5).forEach((name) => candidates.push({ title: `Top courses in ${name}`, courses: courses.filter((c) => c.category === name) }));
-    const shown = [];
-    return candidates.filter((row) => {
-      if (shown.some((s) => sameSet(s.courses, row.courses))) return false;
-      shown.push(row);
-      return true;
-    });
-  }, [courses, categories]);
+    const enrolledIds = new Set(learning.map((i) => i.course.id));
+    const interests = new Set(learning.map((i) => i.course.category).filter(Boolean));
+    const topCount = Math.max(1, ...courses.map((c) => c.enrollmentCount || 0));
+    // A steady per-day shuffle so "explore" isn't the same order every visit but doesn't jump around on re-render.
+    const day = new Date().toISOString().slice(0, 10);
+    const jitter = (id) => [...`${id}${day}`].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 1000, 7) / 1000;
 
-  const firstName = (user?.displayName || '').split(' ')[0];
+    const recommended = courses
+      .filter((c) => !enrolledIds.has(c.id))
+      .map((c) => ({ c, score: (interests.has(c.category) ? 2 : 0) + (c.enrollmentCount || 0) / topCount + jitter(c.id) * 0.4 }))
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.c);
+    const popular = [...courses].filter((c) => (c.enrollmentCount || 0) > 0).sort((a, b) => b.enrollmentCount - a.enrollmentCount);
+    const shown = new Set([...recommended.slice(0, 10), ...popular.slice(0, 10)].map((c) => c.id));
+    const explore = courses
+      .filter((c) => !shown.has(c.id))
+      .map((c) => ({ c, score: (c.enrollmentCount || 0) / topCount + jitter(c.id) }))
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.c);
+
+    const out = [];
+    if (recommended.length) out.push({ title: 'Recommended for you', courses: recommended });
+    if (popular.length) out.push({ title: 'Popular courses', courses: popular });
+    if (explore.length) out.push({ title: 'More courses to explore', courses: explore });
+    const byDomain = {};
+    courses.forEach((c) => { if (c.category) (byDomain[c.category] = byDomain[c.category] || []).push(c); });
+    Object.entries(byDomain)
+      .filter(([, list]) => list.length >= 3)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 3)
+      .forEach(([name, list]) => out.push({ title: `Top courses in ${name}`, courses: [...list].sort((a, b) => (b.enrollmentCount || 0) - (a.enrollmentCount || 0)) }));
+    return out;
+  }, [courses, learning]);
+
+  // "R S Abishek" should greet as Abishek: use the longest part of the name.
+  const firstName = (user?.displayName || '').split(/\s+/).sort((a, b) => b.length - a.length)[0] || '';
 
   return (
     <div className="catalog">
-      <div className="cat-strip" role="tablist" aria-label="Categories">
-        <div className="cat-strip-inner">
-          <button type="button" role="tab" aria-selected={category === ''} className={category === '' ? 'active' : ''} onClick={() => setCategory('')}>All courses</button>
-          {categories.map((name) => (
-            <button key={name} type="button" role="tab" aria-selected={category === name} className={category === name ? 'active' : ''} onClick={() => setCategory(name)}>{name}</button>
-          ))}
-        </div>
-      </div>
-
       <div className="container-wide catalog-body">
         <header className="welcome">
           <Avatar name={user?.displayName} url={me?.avatarUrl} userId={user?.id} size={64} />
@@ -100,7 +100,7 @@ export default function Courses() {
         )}
 
         {filtering ? (
-          <Section title={`${results.length} course${results.length === 1 ? '' : 's'}${category ? ` in ${category}` : ''}`}>
+          <Section title={`${results.length} course${results.length === 1 ? '' : 's'} found`}>
             {results.length === 0
               ? <div className="empty-state"><p>No courses match your search.</p></div>
               : <div className="cat-grid">{results.map((c) => <CatalogCard key={c.id} course={c} admin={user?.admin} />)}</div>}

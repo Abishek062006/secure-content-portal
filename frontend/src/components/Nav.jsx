@@ -23,11 +23,12 @@ export default function Nav() {
       {user && (
         <div className="nav-links">
           <NavLink to="/courses">Courses</NavLink>
-          {!user.admin && <NavLink to="/my-learning">My learning</NavLink>}
           <NavLink to="/feed">Feed</NavLink>
+          {user.admin && <NavLink to="/admin/analytics">Analytics</NavLink>}
           {user.admin && <NavLink to="/admin/courses">Manage courses</NavLink>}
           {user.admin && <NavLink to="/admin/users">Users</NavLink>}
           {user.admin && <NavLink to="/admin/audit">Audit log</NavLink>}
+          {!user.admin && <NavLink to="/my-learning">My learning</NavLink>}
         </div>
       )}
 

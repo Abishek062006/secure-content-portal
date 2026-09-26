@@ -56,11 +56,16 @@ else below was chosen deliberately, not defaulted to.
   or Hard: pick Hard and all of them are hard) and takes up to 100 at a time. Questions can be saved as *final
   assessment only*. A final assessment has a slider for what share of its questions is recycled from the course's
   regular questions versus new final-only ones; if one kind runs short, the other fills the gap.
-- **Course catalog and My learning.** Signing in lands on the catalog: a category strip, a welcome header with
-  search, "Continue learning", and rows such as Trending, New, Free, Limited-time offers and Top courses per
-  category (rows that would repeat the same courses are skipped). My learning has a dark header with tabs (All,
-  In progress, Completed, Certifications), a summary of enrolled/in-progress/completed/certificates, and progress
-  cards. "Popular" appears on courses with three or more learners.
+- **Course catalog and My learning.** Signing in lands on the catalog: a welcome header with search, "Let's start
+  learning" (courses in progress), then **Recommended for you** (courses in domains the learner already studies,
+  weighted by popularity), **Popular courses** (most enrollments), **More courses to explore** (the rest, ordered by
+  popularity with a steady daily shuffle) and, for domains with three or more courses, **Top courses in <domain>**.
+  My learning has a dark header with tabs (All, In progress, Completed, Certifications), a summary and progress
+  cards; in the menu it sits last, after Feed.
+- **Admin analytics.** `/admin/analytics` shows learners, enrollments, completion rate and certificates with
+  monthly change, a 30-day activity chart (enrollments, new learners, quiz attempts, posts), quiz pass rate and
+  average score, the learner journey (enrolled, started, finished, certified), top courses with completion,
+  content and community totals, and recent admin activity. Numbers come from `GET /api/admin/analytics`.
 - **Module materials.** Each module can carry extra study material: PDFs, web pages, small videos (up to 500 MB),
   Word/PowerPoint/Excel/text/CSV/ZIP files, and links. The admin ticks per item whether learners may download it.
   View-only PDFs, web pages and videos open inside the portal with the same protections as library content

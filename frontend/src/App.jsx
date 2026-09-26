@@ -16,6 +16,7 @@ import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
 import CourseList from './pages/admin/CourseList';
+import Analytics from './pages/admin/Analytics';
 import NewCourse from './pages/admin/NewCourse';
 import CourseEditor from './pages/admin/CourseEditor';
 import QuestionBank from './pages/admin/QuestionBank';
@@ -47,6 +48,7 @@ export default function App() {
         </Route>
 
         <Route element={<AdminRoute />}>
+          <Route path="/admin/analytics" element={<Analytics />} />
           <Route path="/admin/courses" element={<CourseList />} />
           <Route path="/admin/courses/new" element={<NewCourse />} />
           <Route path="/admin/courses/:id/edit" element={<CourseEditor />} />
