@@ -9,10 +9,10 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** A learner's registration for a hackathon. There is at most one per learner and hackathon (unique in the database). */
+/** A learner's saved hackathon. There is at most one per learner and hackathon (unique in the database). */
 @Entity
-@Table(name = "hackathon_registrations")
-public class HackathonRegistration {
+@Table(name = "hackathon_saves")
+public class HackathonSave {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,13 +24,10 @@ public class HackathonRegistration {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "points_claimed", nullable = false)
-    private int pointsClaimed;
+    @Column(name = "saved_at", nullable = false)
+    private Instant savedAt = Instant.now();
 
-    @Column(name = "registered_at", nullable = false)
-    private Instant registeredAt = Instant.now();
-
-    protected HackathonRegistration() {
+    protected HackathonSave() {
         // for JPA
     }
 
@@ -42,11 +39,7 @@ public class HackathonRegistration {
         return userId;
     }
 
-    public int getPointsClaimed() {
-        return pointsClaimed;
-    }
-
-    public Instant getRegisteredAt() {
-        return registeredAt;
+    public Instant getSavedAt() {
+        return savedAt;
     }
 }

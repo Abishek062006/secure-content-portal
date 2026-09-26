@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** An external hackathon an admin lists for learners. Learners register through the organiser's own link. */
+/** An external hackathon an admin lists for learners. Learners register on the organiser's own site and can save the listing here. */
 @Entity
 @Table(name = "hackathons")
 public class Hackathon {
@@ -60,9 +60,6 @@ public class Hackathon {
     @Column(nullable = false, length = 20)
     private String status;
 
-    @Column(name = "points_reward", nullable = false)
-    private int pointsReward;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -76,7 +73,7 @@ public class Hackathon {
     /** Everything an admin can set, already validated by {@link HackathonService}. */
     public record Details(String title, String organizer, String description, String bannerUrl, String stream, HackathonMode mode,
                           String location, String prizePool, String registrationUrl, Instant registrationDeadline,
-                          Instant eventStartDate, Instant eventEndDate, boolean featured, HackathonStatus status, int pointsReward) {
+                          Instant eventStartDate, Instant eventEndDate, boolean featured, HackathonStatus status) {
     }
 
     public Hackathon(Details details) {
@@ -98,12 +95,11 @@ public class Hackathon {
         this.eventEndDate = details.eventEndDate();
         this.featured = details.featured();
         this.status = details.status().name();
-        this.pointsReward = details.pointsReward();
         this.updatedAt = Instant.now();
     }
 
-    /** Whether learners may still register: not finished, and the deadline (if any) hasn't passed. */
-    public boolean acceptsRegistrations(Instant now) {
+    /** Whether the organiser is still taking registrations: not finished, and the deadline (if any) hasn't passed. */
+    public boolean registrationOpen(Instant now) {
         return !HackathonStatus.COMPLETED.name().equals(status) && (registrationDeadline == null || !now.isAfter(registrationDeadline));
     }
 
@@ -167,7 +163,4 @@ public class Hackathon {
         return status;
     }
 
-    public int getPointsReward() {
-        return pointsReward;
-    }
 }

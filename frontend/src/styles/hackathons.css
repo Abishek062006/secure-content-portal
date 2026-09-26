@@ -1,0 +1,78 @@
+/* Hackathon listings: the learner cards and the admin form. */
+
+.hack-filters { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 18px 0 22px; }
+.hack-filters .board-toggle { margin-top: 0; }
+
+.hack-reminders {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+.hack-reminders ul { margin: 4px 0 0; padding-left: 18px; font-size: 0.88rem; }
+
+.hack-section { margin: 34px 0 14px; font-size: 1.05rem; color: var(--ink-mid); }
+
+.hack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+.hack-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.hack-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.hack-card.closed { opacity: 0.75; }
+.hack-banner { width: 100%; aspect-ratio: 16 / 7; object-fit: cover; background: var(--surface-alt); }
+.hack-body { display: flex; flex-direction: column; gap: 8px; padding: 18px 20px 20px; flex: 1; }
+.hack-body h3 { margin: 4px 0 0; font-size: 1.1rem; letter-spacing: -0.01em; }
+.hack-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.hack-organizer { margin: 0; color: var(--ink-mid); font-size: 0.88rem; }
+.hack-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-mid);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hack-facts { margin: 4px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.hack-facts div { display: flex; gap: 12px; font-size: 0.86rem; }
+.hack-facts dt { display: inline-flex; align-items: center; gap: 6px; width: 78px; flex: none; color: var(--ink-soft); }
+.hack-facts dd { margin: 0; color: var(--ink); }
+.hack-deadline { margin: 2px 0 0; font-size: 0.82rem; font-weight: 600; color: var(--accent-deep); }
+.hack-deadline.over { color: var(--ink-soft); }
+.hack-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; }
+.hack-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Admin form */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field input[type="datetime-local"] {
+  font: inherit;
+  padding: 10px 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+.field input[type="datetime-local"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 4px var(--accent-wash);
+}
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.row-actions { display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+}

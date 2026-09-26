@@ -40,6 +40,7 @@ export default function Nav() {
             <>
               <NavLink to="/admin/dashboard">Dashboard</NavLink>
               <NavLink to="/admin/courses">Manage Courses</NavLink>
+              <NavLink to="/admin/hackathons">Hackathons</NavLink>
               <NavLink to="/admin/users">Users</NavLink>
               <NavLink to="/admin/audit">Audit Log</NavLink>
             </>
@@ -48,6 +49,7 @@ export default function Nav() {
               <NavLink to="/courses">Courses</NavLink>
               <NavLink to="/feed">Feed</NavLink>
               <NavLink to="/my-learning">My Learning</NavLink>
+              <NavLink to="/hackathons">Hackathons</NavLink>
               <NavLink to="/leaderboard">Leaderboard</NavLink>
             </>
           )}

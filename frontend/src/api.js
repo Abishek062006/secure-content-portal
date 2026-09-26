@@ -115,4 +115,31 @@ export const api = {
   getBadges: () => request('/api/gamification/badges'),
   getUserBadges: (userId) => request(`/api/gamification/users/${userId}/badges`),
   getMyPointHistory: () => request('/api/points/history'),
+
+  // Hackathons
+  getHackathons: (mode = 'all', saved = false) =>
+    request(`/api/hackathons?mode=${encodeURIComponent(mode)}&saved=${saved}`),
+  saveHackathon: (id) => api.put(`/api/hackathons/${id}/save`, {}),
+  unsaveHackathon: (id) => api.del(`/api/hackathons/${id}/save`),
+  getAdminHackathons: () => request('/api/admin/hackathons'),
+  createAdminHackathon: (data) => api.post('/api/admin/hackathons', data),
+  updateAdminHackathon: (id, data) => api.put(`/api/admin/hackathons/${id}`, data),
+  deleteAdminHackathon: (id) => api.del(`/api/admin/hackathons/${id}`),
+  /** Fetches the .ics file with the session cookie, then hands it to the browser as a download. */
+  async downloadHackathonCalendar(id) {
+    const response = await fetch(`${API_BASE}/api/hackathons/${id}/calendar.ics`, { credentials: 'include' });
+    if (!response.ok) {
+      let message = 'Could not create the calendar file.';
+      try { message = (await response.json()).error || message; } catch { /* keep the generic message */ }
+      throw new Error(message);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hackathon-${id}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
 };

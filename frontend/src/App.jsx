@@ -7,6 +7,8 @@ import Courses from './pages/Courses';
 import CourseView from './pages/CourseView';
 import LessonView from './pages/LessonView';
 import Leaderboard from './pages/Leaderboard';
+import Hackathons from './pages/Hackathons';
+import AdminHackathons from './pages/admin/AdminHackathons';
 import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
 import AttemptView from './pages/AttemptView';
@@ -47,6 +49,7 @@ export default function App() {
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/hackathons" element={<Hackathons />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseView />} />
           <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />
@@ -62,6 +65,7 @@ export default function App() {
           <Route path="/admin/courses/:id/edit" element={<CourseEditor />} />
           <Route path="/admin/courses/:id/questions" element={<QuestionBank />} />
           <Route path="/admin/courses/:id/results" element={<AssessmentResults />} />
+          <Route path="/admin/hackathons" element={<AdminHackathons />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/audit" element={<AuditLog />} />
         </Route>

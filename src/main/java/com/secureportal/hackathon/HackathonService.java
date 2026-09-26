@@ -1,8 +1,6 @@
 package com.secureportal.hackathon;
 
 import com.secureportal.audit.AuditService;
-import com.secureportal.gamification.GamificationService;
-import com.secureportal.gamification.PointAction;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,54 +9,51 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-/** The hackathons admins list and the learners who register for them. Registering pays out its points exactly once. */
+/** The external hackathons admins list, and the ones learners save. Learners register on the organiser's own site. */
 @Service
 public class HackathonService {
 
     static final int MAX_LISTED = 200;
-    static final int DEFAULT_POINTS = 25;
-    static final int MAX_POINTS = 200;
 
     private final HackathonRepository hackathons;
-    private final HackathonRegistrationRepository registrations;
-    private final GamificationService gamification;
+    private final HackathonSaveRepository saves;
     private final AuditService audit;
 
-    public HackathonService(HackathonRepository hackathons, HackathonRegistrationRepository registrations,
-                            GamificationService gamification, AuditService audit) {
+    public HackathonService(HackathonRepository hackathons, HackathonSaveRepository saves, AuditService audit) {
         this.hackathons = hackathons;
-        this.registrations = registrations;
-        this.gamification = gamification;
+        this.saves = saves;
         this.audit = audit;
     }
 
     /** What an admin submits. Text is validated and tidied by the service; nothing here is trusted. */
     public record Input(String title, String organizer, String description, String bannerUrl, String stream, String mode,
                         String location, String prizePool, String registrationUrl, Instant registrationDeadline,
-                        Instant eventStartDate, Instant eventEndDate, boolean featured, String status, Integer pointsReward) {
+                        Instant eventStartDate, Instant eventEndDate, boolean featured, String status) {
     }
 
-    public record View(Hackathon hackathon, long participants, boolean registered) {
-    }
-
-    public record Registration(boolean alreadyRegistered, int pointsEarned, String registrationUrl) {
+    public record View(Hackathon hackathon, boolean saved, boolean registrationOpen) {
     }
 
     // ---- Reading ------------------------------------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<View> list(String stream, String mode, Long viewerId) {
+    public List<View> list(String stream, String mode, boolean onlySaved, Long viewerId) {
+        if (onlySaved) {
+            return viewerId == null ? List.of() : views(hackathons.savedBy(viewerId, PageRequest.of(0, MAX_LISTED)), viewerId);
+        }
         String streamFilter = stream == null || stream.isBlank() || stream.equalsIgnoreCase("all") ? null : stream.strip();
         String modeFilter = mode == null || mode.isBlank() || mode.equalsIgnoreCase("all") ? null
                 : HackathonMode.parse(mode).map(Enum::name).orElse("?");
-        List<Hackathon> found = hackathons.search(streamFilter, modeFilter, PageRequest.of(0, MAX_LISTED));
-        return views(found, viewerId);
+        return views(hackathons.search(streamFilter, modeFilter, PageRequest.of(0, MAX_LISTED)), viewerId);
+    }
+
+    @Transactional(readOnly = true)
+    public Hackathon find(Long id) {
+        return hackathons.findById(id).orElseThrow(HackathonNotFoundException::new);
     }
 
     private List<View> views(List<Hackathon> found, Long viewerId) {
@@ -66,27 +61,25 @@ public class HackathonService {
             return List.of();
         }
         List<Long> ids = found.stream().map(Hackathon::getId).toList();
-        Map<Long, Long> counts = new HashMap<>();
-        registrations.countByHackathons(ids).forEach(r -> counts.put(((Number) r[0]).longValue(), ((Number) r[1]).longValue()));
-        Set<Long> mine = viewerId == null ? Set.of() : new HashSet<>(registrations.registeredAmong(viewerId, ids));
-        return found.stream().map(h -> new View(h, counts.getOrDefault(h.getId(), 0L), mine.contains(h.getId()))).toList();
+        Set<Long> mine = viewerId == null ? Set.of() : new HashSet<>(saves.savedAmong(viewerId, ids));
+        Instant now = Instant.now();
+        return found.stream().map(h -> new View(h, mine.contains(h.getId()), h.registrationOpen(now))).toList();
     }
 
-    // ---- Registering --------------------------------------------------------------------------------------------------
+    // ---- Saving -------------------------------------------------------------------------------------------------------
+
+    /** Saving is idempotent: saving twice leaves one save. */
+    @Transactional
+    public void save(Long userId, Long hackathonId) {
+        if (!hackathons.existsById(hackathonId)) {
+            throw new HackathonNotFoundException();
+        }
+        saves.saveOnce(hackathonId, userId);
+    }
 
     @Transactional
-    public Registration register(Long userId, Long hackathonId) {
-        Hackathon hackathon = hackathons.findById(hackathonId).orElseThrow(HackathonNotFoundException::new);
-        if (!hackathon.acceptsRegistrations(Instant.now())) {
-            throw new HackathonClosedException();
-        }
-        int points = hackathon.getPointsReward();
-        if (registrations.registerOnce(hackathonId, userId, points) == 0) {
-            return new Registration(true, 0, hackathon.getRegistrationUrl());
-        }
-        boolean paid = points > 0 && gamification.award(userId, PointAction.HACKATHON_REGISTER, points,
-                "Registered for hackathon: " + hackathon.getTitle(), hackathon.getStream(), hackathonId.toString());
-        return new Registration(false, paid ? points : 0, hackathon.getRegistrationUrl());
+    public void unsave(Long userId, Long hackathonId) {
+        saves.remove(hackathonId, userId);
     }
 
     // ---- Admin --------------------------------------------------------------------------------------------------------
@@ -95,7 +88,7 @@ public class HackathonService {
     public View create(Input input, String adminEmail) {
         Hackathon created = hackathons.save(new Hackathon(validate(input)));
         audit.log(adminEmail, "HACKATHON_CREATE", null, "Listed hackathon \"" + created.getTitle() + "\"");
-        return new View(created, 0, false);
+        return new View(created, false, created.registrationOpen(Instant.now()));
     }
 
     @Transactional
@@ -121,10 +114,6 @@ public class HackathonService {
                 .orElseThrow(() -> new InvalidHackathonException("Choose Online, Offline or Hybrid for the mode."));
         HackathonStatus status = HackathonStatus.parse(in.status())
                 .orElseThrow(() -> new InvalidHackathonException("Choose Upcoming, Active or Completed for the status."));
-        int points = in.pointsReward() == null ? DEFAULT_POINTS : in.pointsReward();
-        if (points < 0 || points > MAX_POINTS) {
-            throw new InvalidHackathonException("The XP reward must be between 0 and " + MAX_POINTS + ".");
-        }
         if (in.eventStartDate() != null && in.eventEndDate() != null && in.eventEndDate().isBefore(in.eventStartDate())) {
             throw new InvalidHackathonException("The event can't end before it starts.");
         }
@@ -139,7 +128,7 @@ public class HackathonService {
                 optional(in.prizePool(), 100, "The prize pool"),
                 requiredHttpsUrl(in.registrationUrl(), 1000, "The registration link"),
                 in.registrationDeadline(), in.eventStartDate(), in.eventEndDate(),
-                in.featured(), status, points);
+                in.featured(), status);
     }
 
     private static String required(String value, int max, String label) {
