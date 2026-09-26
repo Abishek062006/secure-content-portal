@@ -69,6 +69,9 @@ public class CertificateApiController {
     /** Every course the learner is enrolled in, with progress, where to resume and any certificate. */
     @GetMapping("/api/me/learning")
     public List<LearningItem> myLearning(@AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            return List.of();
+        }
         Long userId = principal.getUserId();
         Map<UUID, Enrollment> enrollments = new HashMap<>();
         enrollmentRepository.findByUserId(userId).forEach(e -> enrollments.put(e.getCourseId(), e));
@@ -89,6 +92,9 @@ public class CertificateApiController {
 
     @GetMapping("/api/courses/{id}/certificate")
     public CertificateStatus status(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            throw new com.secureportal.course.AdminNotALearnerException();
+        }
         Course course = learningService.visibleCourse(id, principal.isAdmin());
         requireEnrolled(principal, course);
         return certificateService.find(principal.getUserId(), id)
@@ -101,6 +107,9 @@ public class CertificateApiController {
 
     @PostMapping("/api/courses/{id}/certificate")
     public CertificateDto claim(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            throw new com.secureportal.course.AdminNotALearnerException();
+        }
         Course course = learningService.visibleCourse(id, principal.isAdmin());
         requireEnrolled(principal, course);
         return CertificateDto.of(certificateService.claim(principal.getUserId(), principal.getDisplayName(), course));

@@ -40,6 +40,9 @@ public class AssessmentApiController {
     /** Starts an attempt — or hands back the one already in progress, so a refresh never costs an attempt. */
     @PostMapping("/assessments/{assessmentId}/attempts")
     public AttemptDto start(@PathVariable UUID assessmentId, @AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            throw new com.secureportal.course.AdminNotALearnerException();
+        }
         return assembler.attempt(attemptService.start(assessmentId, principal.getUserId(), principal.isAdmin()));
     }
 

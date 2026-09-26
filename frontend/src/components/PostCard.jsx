@@ -217,8 +217,8 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
             <h3>{post.course.title}</h3>
             {post.course.description && <p>{post.course.description}</p>}
             <PriceTag pricing={post.course.pricing} />
-            {post.course.enrolled ? (
-              <Link className="btn" to={`/courses/${post.course.id}`}>Go to course</Link>
+            {post.course.enrolled || user?.admin ? (
+              <Link className="btn" to={`/courses/${post.course.id}`}>{user?.admin ? 'View course' : 'Go to course'}</Link>
             ) : (
               <button type="button" className="btn btn-primary" onClick={enroll} disabled={enrolling}>
                 {enrolling ? 'Enrolling…' : post.course.pricing?.free === false ? 'Enroll' : 'Enroll for free'}

@@ -104,6 +104,9 @@ public class CourseApiController {
 
     @PostMapping("/{id}/enroll")
     public CourseOutlineDto enroll(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            throw new com.secureportal.course.AdminNotALearnerException();
+        }
         Course course = learningService.visibleCourse(id, principal.isAdmin());
         learningService.enroll(principal.getUserId(), course);
         return assembler.learnerOutline(course, principal.getUserId(), principal.isAdmin());
@@ -176,10 +179,11 @@ public class CourseApiController {
                                          @AuthenticationPrincipal AppPrincipal principal) {
         learningService.visibleCourse(courseId, principal.isAdmin());
         Lesson lesson = learningService.lessonOf(courseId, lessonId);
+        if (principal.isAdmin()) {
+            // Admins may preview lessons, but nothing about it is tracked.
+            return new ProgressResponse(false, 0);
+        }
         if (learningService.enrollment(principal.getUserId(), courseId).isEmpty()) {
-            if (principal.isAdmin()) {
-                return new ProgressResponse(false, 0);
-            }
             throw new EnrollmentRequiredException();
         }
         learningService.saveProgress(principal.getUserId(), lesson, body.positionSeconds(), body.completed());

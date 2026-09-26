@@ -89,8 +89,10 @@ export default function CourseView() {
 
           {resumeLessonId && canOpen ? (
             <Link className="btn btn-primary btn-lg" to={`/courses/${course.id}/lessons/${resumeLessonId}`}>
-              {progressPercent > 0 ? 'Continue' : 'Start course'}
+              {user?.admin ? 'Preview course' : progressPercent > 0 ? 'Continue' : 'Start course'}
             </Link>
+          ) : user?.admin ? (
+            <p className="field-hint">You're viewing this as an admin. Admins preview courses; learners enroll and earn certificates.</p>
           ) : (
             <button type="button" className="btn btn-primary btn-lg" onClick={enroll} disabled={enrolling || !resumeLessonId}>
               {enrolling ? 'Enrolling…' : course.pricing?.free === false ? 'Enroll' : 'Enroll — it’s free'}
@@ -147,7 +149,7 @@ export default function CourseView() {
               </div>
             )}
             {module.assessment && (
-              <AssessmentRow courseId={course.id} assessment={module.assessment} canOpen={canOpen} />
+              <AssessmentRow courseId={course.id} assessment={module.assessment} canOpen={enrolled} />
             )}
           </section>
         );
@@ -156,7 +158,7 @@ export default function CourseView() {
       {finalAssessment && (
         <section className="outline-module">
           <h2>Final assessment</h2>
-          <AssessmentRow courseId={course.id} assessment={finalAssessment} canOpen={canOpen} />
+          <AssessmentRow courseId={course.id} assessment={finalAssessment} canOpen={enrolled} />
         </section>
       )}
 

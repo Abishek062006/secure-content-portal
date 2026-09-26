@@ -265,7 +265,7 @@ export default function Profile() {
         {entryList('EDUCATION', profile.education)}
       </Section>
 
-      <Section title="Licenses & certifications" empty={profile.certificates.length === 0 ? 'Certificates you earn from courses on this portal appear here automatically.' : null} mine={false}>
+      {!(mine && user?.admin) && <Section title="Licenses & certifications" empty={profile.certificates.length === 0 ? 'Certificates you earn from courses on this portal appear here automatically.' : null} mine={false}>
         <ul className="entry-list">
           {profile.certificates.map((c) => (
             <li key={c.id}>
@@ -279,7 +279,7 @@ export default function Profile() {
             </li>
           ))}
         </ul>
-      </Section>
+      </Section>}
 
       <Section title="Skills" mine={mine} onAdd={() => setModal({ type: 'entry', kind: 'SKILL' })} addLabel="Add skill"
                empty={profile.skills.length === 0 ? 'Add skills people can recognise you for.' : null}>

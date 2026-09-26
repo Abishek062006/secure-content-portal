@@ -10,7 +10,7 @@
  * softer glassmorphic redesign of the rest of the UI.
  */
 export function Logo({ size = 32, ...props }) {
-  return <img src="/logo.png" alt="GradientNovaAI" width={size} height={size} className="brand-logo" {...props} />;
+  return <img src="/logo.svg" alt="GradientNovaAI" width={size} height={size} className="brand-logo" {...props} />;
 }
 
 export function VideoIcon(props) {

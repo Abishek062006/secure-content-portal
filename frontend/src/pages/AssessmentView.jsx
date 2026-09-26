@@ -53,7 +53,7 @@ export default function AssessmentView() {
     return <div className="container"><p className="field-error">This assessment doesn't exist.</p></div>;
   }
 
-  const canStart = (outline.enrolled || user?.admin) && ['AVAILABLE', 'IN_PROGRESS', 'PASSED'].includes(assessment.status)
+  const canStart = outline.enrolled && ['AVAILABLE', 'IN_PROGRESS', 'PASSED'].includes(assessment.status)
     && !(assessment.attemptsLeft === 0 && assessment.status !== 'IN_PROGRESS');
   const graded = assessment.type === 'ASSESSMENT';
 

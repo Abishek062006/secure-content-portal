@@ -73,6 +73,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.course.AdminNotALearnerException.class)
+    public ResponseEntity<ApiError> handleAdminNotALearner(com.secureportal.course.AdminNotALearnerException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(PostNotFoundException.class)
     public ResponseEntity<ApiError> handlePostNotFound(PostNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
