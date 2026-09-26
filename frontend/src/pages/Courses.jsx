@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { API_BASE, api } from '../api';
+import PriceTag from '../components/PriceTag';
 import { VideoIcon } from '../components/Icons';
 
 function plural(n, word) {
@@ -64,6 +65,7 @@ export default function Courses() {
               <div className="content-card-body">
                 <h2>{course.title}</h2>
                 {course.description && <p>{course.description}</p>}
+                <PriceTag pricing={course.pricing} compact />
                 <div className="content-card-meta">
                   {course.category && <span className="badge">{course.category}</span>}
                   <span>{plural(course.moduleCount, 'module')} · {plural(course.lessonCount, 'lesson')}</span>

@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
+import PriceTag from './PriceTag';
 
+/** Emoji artwork: Twemoji (CC-BY 4.0), stored in /public/reactions. */
 const REACTIONS = [
-  { type: 'LIKE', label: 'Like', emoji: '👍' },
-  { type: 'CELEBRATE', label: 'Celebrate', emoji: '🎉' },
-  { type: 'INSIGHTFUL', label: 'Insightful', emoji: '💡' },
+  { type: 'LIKE', label: 'Like', color: '#378fe9' },
+  { type: 'CELEBRATE', label: 'Celebrate', color: '#6dae4f' },
+  { type: 'SUPPORT', label: 'Support', color: '#9b6dc6' },
+  { type: 'LOVE', label: 'Love', color: '#df704d' },
+  { type: 'INSIGHTFUL', label: 'Insightful', color: '#f5b84c' },
+  { type: 'FUNNY', label: 'Funny', color: '#33aebb' },
 ];
+const BY_TYPE = Object.fromEntries(REACTIONS.map((r) => [r.type, r]));
+const icon = (type) => `/reactions/${type.toLowerCase()}.svg`;
 
 function ago(iso) {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -21,6 +28,14 @@ function ago(iso) {
 function Avatar({ name, url }) {
   return url ? <img className="avatar" src={url} alt="" /> : <span className="avatar">{(name || '?').slice(0, 1).toUpperCase()}</span>;
 }
+
+const Svg = ({ children }) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
+       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+const ThumbIcon = () => <Svg><path d="M7 11v9H4v-9h3zM7 11l4-8c1.5 0 2.5 1 2.5 2.5V9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7" /></Svg>;
+const CommentIcon = () => <Svg><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z" /></Svg>;
+const ShareIcon = () => <Svg><path d="M22 3 11 14M22 3l-7 19-4-8-8-4 19-7z" /></Svg>;
 
 function Comments({ postId, onCount }) {
   const [comments, setComments] = useState(null);
@@ -77,6 +92,43 @@ function Comments({ postId, onCount }) {
   );
 }
 
+/** The Like button: click to like or undo; hover, focus or press-and-hold opens the row of reactions. */
+function ReactionButton({ mine, disabled, onPick }) {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef(null);
+  const holdTimer = useRef(null);
+  const held = useRef(false);
+
+  const show = () => { clearTimeout(closeTimer.current); setOpen(true); };
+  const hide = () => { clearTimeout(closeTimer.current); closeTimer.current = setTimeout(() => setOpen(false), 250); };
+  useEffect(() => () => { clearTimeout(closeTimer.current); clearTimeout(holdTimer.current); }, []);
+
+  const current = mine ? BY_TYPE[mine] : null;
+  return (
+    <div className="react-wrap" onMouseEnter={disabled ? undefined : show} onMouseLeave={hide} onFocus={disabled ? undefined : show} onBlur={hide}>
+      {open && (
+        <div className="reaction-picker" role="menu">
+          {REACTIONS.map((r) => (
+            <button key={r.type} type="button" role="menuitem" className="reaction-option" aria-label={r.label}
+                    onClick={() => { setOpen(false); onPick(r.type); }}>
+              <img src={icon(r.type)} alt="" />
+              <span className="reaction-tip">{r.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" className={`action-btn${current ? ' active' : ''}`} disabled={disabled}
+              style={current ? { color: current.color } : undefined}
+              onTouchStart={() => { held.current = false; holdTimer.current = setTimeout(() => { held.current = true; setOpen(true); }, 400); }}
+              onTouchEnd={() => clearTimeout(holdTimer.current)}
+              onClick={(e) => { if (held.current) { held.current = false; e.preventDefault(); return; } onPick(current ? current.type : 'LIKE'); }}>
+        {current ? <img className="action-emoji" src={icon(current.type)} alt="" /> : <ThumbIcon />}
+        {current ? current.label : 'Like'}
+      </button>
+    </div>
+  );
+}
+
 export default function PostCard({ initial, onDelete, onTogglePin }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -85,6 +137,7 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
   const [copied, setCopied] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
 
+  /** Picking your current reaction again removes it; picking another switches to it. */
   async function react(type) {
     const updated = post.myReaction === type
       ? await api.del(`/api/posts/${post.id}/reaction`)
@@ -110,6 +163,8 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
     });
   }
 
+  const topReactions = REACTIONS.filter((r) => post.reactions[r.type]).sort((a, b) => post.reactions[b.type] - post.reactions[a.type]).slice(0, 3);
+
   return (
     <article className={`post-card${post.pinned ? ' pinned' : ''}`} id={`post-${post.id}`}>
       <header className="post-head">
@@ -133,6 +188,10 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
 
       <p className="post-body">{post.body}</p>
       {post.imageUrl && <img className="post-image" src={`${API_BASE}${post.imageUrl}`} alt="" loading="lazy" />}
+      {post.videoUrl && (
+        <video className="post-video" controls playsInline preload="metadata" controlsList="nodownload"
+               onContextMenu={(e) => e.preventDefault()} src={`${API_BASE}${post.videoUrl}`} />
+      )}
 
       {post.course && (
         <div className="promo-card">
@@ -141,11 +200,12 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
             {post.course.category && <span className="badge">{post.course.category}</span>}
             <h3>{post.course.title}</h3>
             {post.course.description && <p>{post.course.description}</p>}
+            <PriceTag pricing={post.course.pricing} />
             {post.course.enrolled ? (
               <Link className="btn" to={`/courses/${post.course.id}`}>Go to course</Link>
             ) : (
               <button type="button" className="btn btn-primary" onClick={enroll} disabled={enrolling}>
-                {enrolling ? 'Enrolling…' : 'Enroll for free'}
+                {enrolling ? 'Enrolling…' : post.course.pricing?.free === false ? 'Enroll' : 'Enroll for free'}
               </button>
             )}
           </div>
@@ -153,13 +213,15 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
       )}
 
       {(post.reactionTotal > 0 || post.commentCount > 0) && (
-        <div className="post-stats muted">
-          <span>
-            {REACTIONS.filter((r) => post.reactions[r.type]).map((r) => r.emoji).join(' ')}
-            {post.reactionTotal > 0 && ` ${post.reactionTotal}`}
+        <div className="post-stats">
+          <span className="stat-reactions">
+            <span className="emoji-stack">
+              {topReactions.map((r) => <img key={r.type} src={icon(r.type)} alt={r.label} title={r.label} />)}
+            </span>
+            {post.reactionTotal > 0 && <span>{post.reactionTotal}</span>}
           </span>
           {post.commentCount > 0 && (
-            <button type="button" className="link-button" onClick={() => setShowComments(true)}>
+            <button type="button" className="link-button muted-link" onClick={() => setShowComments(true)}>
               {post.commentCount} comment{post.commentCount === 1 ? '' : 's'}
             </button>
           )}
@@ -167,17 +229,12 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
       )}
 
       <div className="post-actions">
-        {REACTIONS.map((r) => (
-          <button key={r.type} type="button" className={`react-btn${post.myReaction === r.type ? ' active' : ''}`}
-                  onClick={() => react(r.type)} disabled={post.scheduled}>
-            {r.emoji} {r.label}
-          </button>
-        ))}
-        <button type="button" className="react-btn" onClick={() => setShowComments((v) => !v)} disabled={post.scheduled}>
-          💬 Comment
+        <ReactionButton mine={post.myReaction} disabled={post.scheduled} onPick={react} />
+        <button type="button" className="action-btn" onClick={() => setShowComments((v) => !v)} disabled={post.scheduled}>
+          <CommentIcon /> Comment
         </button>
-        <button type="button" className="react-btn" onClick={share} disabled={post.scheduled}>
-          {copied ? '✓ Link copied' : '🔗 Share'}
+        <button type="button" className="action-btn" onClick={share} disabled={post.scheduled}>
+          <ShareIcon /> {copied ? 'Link copied' : 'Share'}
         </button>
       </div>
 

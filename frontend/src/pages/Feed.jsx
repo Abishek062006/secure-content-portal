@@ -9,7 +9,8 @@ import PostCard from '../components/PostCard';
 function Composer({ courses, presetCourseId, onCreated }) {
   const [body, setBody] = useState(presetCourseId ? 'New course is live! ' : '');
   const [courseId, setCourseId] = useState(presetCourseId || '');
-  const [image, setImage] = useState(null);
+  const [media, setMedia] = useState(null);
+  const [progress, setProgress] = useState(0);
   const [pinned, setPinned] = useState(false);
   const [publishAt, setPublishAt] = useState('');
   const [busy, setBusy] = useState(false);
@@ -24,12 +25,13 @@ function Composer({ courses, presetCourseId, onCreated }) {
       form.append('body', body);
       form.append('pinned', pinned);
       if (courseId) form.append('courseId', courseId);
-      if (image) form.append('image', image);
+      if (media) form.append(media.type.startsWith('video/') ? 'video' : 'image', media);
       if (publishAt) form.append('publishAt', new Date(publishAt).toISOString());
-      const created = await api.upload('/api/admin/posts', form);
+      setProgress(0);
+      const created = await api.uploadWithProgress('/api/admin/posts', form, setProgress);
       setBody('');
       setCourseId('');
-      setImage(null);
+      setMedia(null);
       setPinned(false);
       setPublishAt('');
       e.target.reset();
@@ -50,7 +52,11 @@ function Composer({ courses, presetCourseId, onCreated }) {
           <option value="">No course attached</option>
           {courses.map((c) => <option key={c.id} value={c.id}>Promote: {c.title}</option>)}
         </select>
-        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImage(e.target.files[0] || null)} />
+        <label className="attach-preview">
+          Photo or video (video up to 500 MB)
+          <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
+                 onChange={(e) => setMedia(e.target.files[0] || null)} />
+        </label>
       </div>
       <div className="composer-row">
         <label><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} /> Pin to top</label>
@@ -59,6 +65,12 @@ function Composer({ courses, presetCourseId, onCreated }) {
           {busy ? 'Posting…' : publishAt ? 'Schedule' : 'Post'}
         </button>
       </div>
+      {busy && media && (
+        <div className="progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+          <div className="progress-bar" style={{ width: `${progress * 100}%` }} />
+          <span className="progress-label">{progress < 1 ? `Uploading… ${Math.round(progress * 100)}%` : 'Saving…'}</span>
+        </div>
+      )}
       {error && <p className="form-error">{error}</p>}
     </form>
   );

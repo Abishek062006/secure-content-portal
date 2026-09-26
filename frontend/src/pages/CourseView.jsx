@@ -4,6 +4,7 @@ import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
 import AssessmentRow from '../components/AssessmentRow';
+import PriceTag from '../components/PriceTag';
 import CertificateCard from '../components/CertificateCard';
 
 export default function CourseView() {
@@ -69,6 +70,7 @@ export default function CourseView() {
           {course.category && <span className="badge">{course.category}</span>}
           <h1>{course.title}</h1>
           {course.description && <p className="field-hint">{course.description}</p>}
+          <PriceTag pricing={course.pricing} />
           <p className="field-hint">
             {course.moduleCount} module{course.moduleCount === 1 ? '' : 's'} · {course.lessonCount} lesson
             {course.lessonCount === 1 ? '' : 's'}
@@ -89,7 +91,7 @@ export default function CourseView() {
             </Link>
           ) : (
             <button type="button" className="btn btn-primary btn-lg" onClick={enroll} disabled={enrolling || !resumeLessonId}>
-              {enrolling ? 'Enrolling…' : 'Enroll — it’s free'}
+              {enrolling ? 'Enrolling…' : course.pricing?.free === false ? 'Enroll' : 'Enroll — it’s free'}
             </button>
           )}
         </div>

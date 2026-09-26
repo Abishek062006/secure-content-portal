@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import SetupGuide from './course-editor/SetupGuide';
 import CoverPicker from '../../components/CoverPicker';
+import PricingFields, { pricingFromCourse, pricingPayload } from '../../components/PricingFields';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { API_BASE, api } from '../../api';
 import Alert from '../../components/Alert';
@@ -19,6 +20,7 @@ export default function CourseEditor() {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [newModuleTitle, setNewModuleTitle] = useState('');
   const [sectioned, setSectioned] = useState(false);
+  const [pricing, setPricing] = useState(null);
 
   const [questions, setQuestions] = useState([]);
 
@@ -31,7 +33,10 @@ export default function CourseEditor() {
 
   useEffect(() => {
     load()
-      .then((res) => setForm({ title: res.course.title, description: res.course.description || '', category: res.course.category || '' }))
+      .then((res) => {
+        setForm({ title: res.course.title, description: res.course.description || '', category: res.course.category || '' });
+        setPricing(pricingFromCourse(res.course));
+      })
       .catch((err) => setErrorMessage(err.message));
   }, [load]);
 
@@ -175,6 +180,16 @@ export default function CourseEditor() {
           <button type="submit" className="btn btn-primary">Save details</button>
         </div>
       </form>
+
+      {pricing && (
+        <form className="form-panel pricing-panel" onSubmit={(e) => {
+          e.preventDefault();
+          swallow(run(() => api.put(`/api/admin/courses/${id}/pricing`, pricingPayload(pricing)), 'Price saved.'));
+        }}>
+          <PricingFields value={pricing} onChange={setPricing} />
+          <div className="form-actions"><button type="submit" className="btn btn-primary">Save price</button></div>
+        </form>
+      )}
 
       <SetupGuide id={id} modules={modules} finalAssessment={outline.finalAssessment} published={published} flat={flat} />
 

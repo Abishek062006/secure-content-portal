@@ -54,6 +54,14 @@ else below was chosen deliberately, not defaulted to.
   or Hard: pick Hard and all of them are hard) and takes up to 100 at a time. Questions can be saved as *final
   assessment only*. A final assessment has a slider for what share of its questions is recycled from the course's
   regular questions versus new final-only ones; if one kind runs short, the other fills the gap.
+- **Pricing.** A course is free or paid (whole rupees). A paid course can have a percentage discount, set with a
+  slider, that runs for a period: while it is on, learners see the original price struck out, the discounted price,
+  the percentage and when the offer ends. Payments are **not** connected yet, so a price is displayed but enrolling
+  still doesn't charge anything.
+- **Feed reactions and videos.** Six reactions (like, celebrate, support, love, insightful, funny) chosen from a
+  row that pops up over the Like button. Posts can carry a photo or a video (up to 500 MB, streamed with the same
+  session-bound tickets as lessons). Reaction artwork is [Twemoji](https://github.com/jdecked/twemoji), graphics
+  licensed CC-BY 4.0, stored in `frontend/public/reactions/`.
 - **My learning and certificates.** "My learning" lists enrolled courses with progress and a Continue button.
   A certificate is earned by completing every lesson and passing every graded assessment (quizzes are practice
   and never required). It is issued once, rendered as a PDF on the server, and carries an ID that anyone can

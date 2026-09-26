@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import Alert from '../../components/Alert';
 import CoverPicker from '../../components/CoverPicker';
+import PricingFields, { pricingPayload } from '../../components/PricingFields';
 
 const MAX_VIDEO_BYTES = 5 * 1024 ** 3;
 
@@ -27,6 +28,7 @@ export default function NewCourse() {
   const [progress, setProgress] = useState(0);
   const [coverFile, setCoverFile] = useState(null);
   const [videos, setVideos] = useState([]);
+  const [pricing, setPricing] = useState({ paid: false, price: '', percent: 0, start: '', end: '' });
 
   function addVideos(fileList) {
     setErrorMessage(null);
@@ -68,6 +70,11 @@ export default function NewCourse() {
     details.set('description', form.description.value);
     details.set('category', form.category.value);
     if (coverFile) details.set('thumbnail', coverFile);
+    const price = pricingPayload(pricing);
+    details.set('priceRupees', price.priceRupees);
+    details.set('discountPercent', price.discountPercent);
+    if (price.discountStart) details.set('discountStart', price.discountStart);
+    if (price.discountEnd) details.set('discountEnd', price.discountEnd);
 
     let course;
     try {
@@ -135,6 +142,10 @@ export default function NewCourse() {
             <label htmlFor="category">Category</label>
             <input id="category" name="category" type="text" maxLength={80} placeholder="e.g. Programming" disabled={submitting} />
           </div>
+        </div>
+
+        <div className="course-form-videos">
+          <PricingFields value={pricing} onChange={setPricing} disabled={submitting} />
         </div>
 
         <div className="course-form-videos">
