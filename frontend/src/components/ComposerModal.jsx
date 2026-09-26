@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Modal from './Modal';
 import Avatar from './Avatar';
+import Icon from './Icon';
 
 const MODES = {
   post: { title: 'Create a post', placeholder: 'What do you want to talk about?' },
@@ -105,7 +106,7 @@ export default function ComposerModal({ open, mode, me, courses, presetCourseId,
         {preview && (
           <div className="composer-preview">
             {media.type.startsWith('video/') ? <video src={preview} controls /> : <img src={preview} alt="" />}
-            <button type="button" className="btn btn-icon" aria-label="Remove attachment" onClick={() => setMedia(null)}>✕</button>
+            <button type="button" className="btn btn-icon" aria-label="Remove attachment" onClick={() => setMedia(null)}><Icon name="x" size={16} /></button>
           </div>
         )}
 
@@ -134,11 +135,11 @@ export default function ComposerModal({ open, mode, me, courses, presetCourseId,
             {!media && mode !== 'certificate' && (
               <>
                 <label className="tool-btn" title="Add a photo">
-                  🖼️ <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { setMedia(e.target.files[0] || null); e.target.value = ''; }} />
+                  <Icon name="image" size={22} /> <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { setMedia(e.target.files[0] || null); e.target.value = ''; }} />
                 </label>
                 {!article && (
                   <label className="tool-btn" title="Add a video (up to 500 MB)">
-                    🎬 <input type="file" hidden accept="video/mp4,video/webm" onChange={(e) => { setMedia(e.target.files[0] || null); e.target.value = ''; }} />
+                    <Icon name="video" size={22} /> <input type="file" hidden accept="video/mp4,video/webm" onChange={(e) => { setMedia(e.target.files[0] || null); e.target.value = ''; }} />
                   </label>
                 )}
               </>

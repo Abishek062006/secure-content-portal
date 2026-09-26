@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import Icon from './Icon';
 
 /** A native <dialog> modal: closes on Escape or a click on the backdrop. */
 export default function Modal({ open, title, onClose, children, wide }) {
@@ -18,7 +19,7 @@ export default function Modal({ open, title, onClose, children, wide }) {
         <>
           <header className="modal-head">
             <h2>{title}</h2>
-            <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>✕</button>
+            <button type="button" className="modal-close" aria-label="Close" onClick={onClose}><Icon name="x" size={20} /></button>
           </header>
           <div className="modal-body">{children}</div>
         </>

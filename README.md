@@ -66,7 +66,7 @@ else below was chosen deliberately, not defaulted to.
   "Start a post", recommended courses).
 - **Feed reactions and videos.** Six reactions (like, celebrate, support, love, insightful, funny) chosen from a
   row that pops up over the Like button. Posts can carry a photo or a video (up to 500 MB, streamed with the same
-  session-bound tickets as lessons). Reaction artwork is [Twemoji](https://github.com/jdecked/twemoji), graphics
+  session-bound tickets as lessons). Interface icons are [Lucide](https://lucide.dev) (ISC license), inlined in `components/Icon.jsx`. Reaction artwork is [Twemoji](https://github.com/jdecked/twemoji), graphics
   licensed CC-BY 4.0, stored in `frontend/public/reactions/`.
 - **My learning and certificates.** "My learning" lists enrolled courses with progress and a Continue button.
   A certificate is earned by completing every lesson and passing every graded assessment (quizzes are practice

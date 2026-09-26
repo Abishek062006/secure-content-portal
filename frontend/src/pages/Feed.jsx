@@ -4,12 +4,12 @@ import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
 import Avatar from '../components/Avatar';
+import Icon from '../components/Icon';
 import ComposerModal from '../components/ComposerModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import PostCard from '../components/PostCard';
 import PriceTag from '../components/PriceTag';
 import ProfileCard from '../components/ProfileCard';
-import useSocialBackground from '../lib/useLinkedInBackground';
 import { mediaUrl } from '../lib/media';
 
 function RecommendedCourses({ courses }) {
@@ -22,7 +22,7 @@ function RecommendedCourses({ courses }) {
           <li key={course.id}>
             {course.thumbnailUrl
               ? <img className="side-thumb" src={mediaUrl(course.thumbnailUrl)} alt="" />
-              : <span className="side-thumb side-thumb-empty">▶</span>}
+              : <span className="side-thumb side-thumb-empty"><Icon name="play" size={18} /></span>}
             <div>
               <Link to={`/courses/${course.id}`} className="side-link">{course.title}</Link>
               <div className="muted">{course.lessonCount} lesson{course.lessonCount === 1 ? '' : 's'}</div>
@@ -37,7 +37,6 @@ function RecommendedCourses({ courses }) {
 }
 
 export default function Feed() {
-  useSocialBackground();
   const { user } = useAuth();
   const [params] = useSearchParams();
   const [me, setMe] = useState(null);
@@ -126,10 +125,10 @@ export default function Feed() {
             <button type="button" className="start-post-input" onClick={() => open('post')}>Start a post</button>
           </div>
           <div className="start-post-actions">
-            <button type="button" onClick={() => open('post')}><span className="sp-icon sp-video">▶</span> Video</button>
-            <button type="button" onClick={() => open('post')}><span className="sp-icon sp-photo">🖼</span> Photo</button>
-            <button type="button" onClick={() => open('certificate')}><span className="sp-icon sp-cert">🎓</span> Certificate</button>
-            <button type="button" onClick={() => open('article')}><span className="sp-icon sp-article">≣</span> Write article</button>
+            <button type="button" onClick={() => open('post')}><Icon name="video" className="sp-icon" /> Video</button>
+            <button type="button" onClick={() => open('post')}><Icon name="image" className="sp-icon" /> Photo</button>
+            <button type="button" onClick={() => open('certificate')}><Icon name="award" className="sp-icon" /> Certificate</button>
+            <button type="button" onClick={() => open('article')}><Icon name="file-text" className="sp-icon" /> Write article</button>
           </div>
         </section>
 

@@ -4,6 +4,7 @@ import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import PriceTag from './PriceTag';
 import Avatar from './Avatar';
+import Icon from './Icon';
 
 /** Emoji artwork: Twemoji (CC-BY 4.0), stored in /public/reactions. */
 const REACTIONS = [
@@ -28,13 +29,9 @@ function ago(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-const Svg = ({ children }) => (
-  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
-       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
-const ThumbIcon = () => <Svg><path d="M7 11v9H4v-9h3zM7 11l4-8c1.5 0 2.5 1 2.5 2.5V9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7" /></Svg>;
-const CommentIcon = () => <Svg><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z" /></Svg>;
-const ShareIcon = () => <Svg><path d="M22 3 11 14M22 3l-7 19-4-8-8-4 19-7z" /></Svg>;
+const ThumbIcon = () => <Icon name="thumbs-up" />;
+const CommentIcon = () => <Icon name="message-circle" />;
+const ShareIcon = () => <Icon name="send" />;
 
 function Comments({ postId, onCount }) {
   const [comments, setComments] = useState(null);
@@ -174,7 +171,7 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
           {post.authorHeadline && <div className="muted author-headline">{post.authorHeadline}</div>}
           <div className="muted">
             {post.scheduled ? `Scheduled for ${new Date(post.publishAt).toLocaleString()}` : ago(post.publishAt)}
-            {post.pinned && ' · 📌 Pinned'}
+            {post.pinned && <span className="pinned-tag"> · <Icon name="pin" size={12} /> Pinned</span>}
           </div>
         </div>
         <div className="post-admin">
@@ -197,7 +194,7 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
 
       {post.certificate && (
         <div className="cert-share">
-          <div className="cert-badge" aria-hidden="true">🎓</div>
+          <div className="cert-badge" aria-hidden="true"><Icon name="award" size={28} /></div>
           <div>
             <strong>{post.certificate.courseTitle}</strong>
             <div className="muted">Issued {new Date(post.certificate.issuedAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</div>

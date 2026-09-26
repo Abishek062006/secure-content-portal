@@ -4,10 +4,10 @@ import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
 import Avatar from '../components/Avatar';
+import Icon from '../components/Icon';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Modal from '../components/Modal';
 import PostCard from '../components/PostCard';
-import useSocialBackground from '../lib/useLinkedInBackground';
 import { mediaUrl } from '../lib/media';
 
 const KIND_LABEL = {
@@ -108,7 +108,7 @@ function Section({ title, mine, onAdd, addLabel, children, empty }) {
     <section className="profile-section">
       <header>
         <h2>{title}</h2>
-        {mine && <button type="button" className="icon-link" onClick={onAdd} aria-label={addLabel}>＋</button>}
+        {mine && <button type="button" className="icon-link" onClick={onAdd} aria-label={addLabel}><Icon name="plus" size={22} /></button>}
       </header>
       {empty ? <p className="muted">{mine ? empty : 'Nothing added yet.'}</p> : children}
     </section>
@@ -116,7 +116,6 @@ function Section({ title, mine, onAdd, addLabel, children, empty }) {
 }
 
 export default function Profile() {
-  useSocialBackground();
   const { id } = useParams();
   const { user } = useAuth();
   const userId = id ? Number(id) : user?.id;
@@ -195,7 +194,7 @@ export default function Profile() {
     <ul className="entry-list">
       {list.map((entry) => (
         <li key={entry.id}>
-          <div className="entry-icon" aria-hidden="true">{kind === 'EDUCATION' ? '🎓' : '💼'}</div>
+          <div className="entry-icon" aria-hidden="true"><Icon name={kind === 'EDUCATION' ? 'graduation-cap' : 'briefcase'} size={24} /></div>
           <div className="entry-body">
             <strong>{entry.title}</strong>
             {entry.subtitle && <div>{entry.subtitle}</div>}
@@ -221,7 +220,7 @@ export default function Profile() {
         <div className="profile-banner" style={profile.bannerUrl ? { backgroundImage: `url(${mediaUrl(profile.bannerUrl)})` } : undefined}>
           {mine && (
             <div className="banner-tools">
-              <label className="tool-pill">📷 {profile.bannerUrl ? 'Change cover' : 'Add cover'}
+              <label className="tool-pill"><Icon name="camera" size={16} /> {profile.bannerUrl ? 'Change cover' : 'Add cover'}
                 <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { pickImage('banner', e.target.files[0]); e.target.value = ''; }} />
               </label>
               {profile.bannerUrl && <button type="button" className="tool-pill" onClick={() => removeImage('banner')}>Remove</button>}
@@ -270,7 +269,7 @@ export default function Profile() {
         <ul className="entry-list">
           {profile.certificates.map((c) => (
             <li key={c.id}>
-              <div className="entry-icon" aria-hidden="true">🏅</div>
+              <div className="entry-icon" aria-hidden="true"><Icon name="award" size={24} /></div>
               <div className="entry-body">
                 <strong>{c.courseTitle}</strong>
                 <div>Secure Content Portal</div>
@@ -287,7 +286,7 @@ export default function Profile() {
         <ul className="skill-list">
           {profile.skills.map((s) => (
             <li key={s.id}>{s.title}
-              {mine && <button type="button" className="skill-x" aria-label={`Remove ${s.title}`} onClick={() => setToDelete(s)}>✕</button>}
+              {mine && <button type="button" className="skill-x" aria-label={`Remove ${s.title}`} onClick={() => setToDelete(s)}><Icon name="x" size={14} /></button>}
             </li>
           ))}
         </ul>
