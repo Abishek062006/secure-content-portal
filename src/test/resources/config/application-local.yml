@@ -6,6 +6,12 @@ spring:
 
 # Tests expect fresh numbers and fire many requests as one user, so the cache and the limiter are off unless a test turns them on.
 app:
+  # Whatever is in .env.local, tests use MySQL sessions and the in-process job runner; several cached test contexts
+  # sharing one RabbitMQ queue would consume each other's jobs. BrokersIntegrationTest switches both on for itself.
+  redis:
+    enabled: false
+  queue:
+    enabled: false
   cache:
     analytics-seconds: 0
   rate-limit:
