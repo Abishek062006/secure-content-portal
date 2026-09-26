@@ -4,6 +4,10 @@ package com.secureportal.interview;
 public class InterviewLimitException extends RuntimeException {
 
     public InterviewLimitException(int perDay) {
-        super("You've reached today's limit of " + perDay + " mock interviews. Try again tomorrow.");
+        this(perDay, "mock interviews");
+    }
+
+    public InterviewLimitException(int perDay, String what) {
+        super("You've reached today's limit of " + perDay + " " + what + ". Try again tomorrow.");
     }
 }

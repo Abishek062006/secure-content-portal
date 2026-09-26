@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import Alert from '../components/Alert';
 import Icon from '../components/Icon';
+import VoiceAnswer from '../components/interview/VoiceAnswer';
 import { CATEGORY, READINESS, RUBRIC, goalLabel, rubricAverages } from '../lib/interview';
 
 const MIN_ANSWER = 10;
@@ -115,6 +116,8 @@ function Running({ session, questions, reload }) {
           <h1>{next.questionText}</h1>
           <textarea ref={boxRef} rows={9} maxLength={MAX_ANSWER} value={answer} onChange={(e) => setAnswer(e.target.value)}
                     placeholder="Answer as you would in the room. Explain your reasoning." aria-label="Your answer" />
+          <VoiceAnswer disabled={busy} onError={setError}
+                       onText={(text) => setAnswer((current) => (current.trim() ? `${current.trim()} ${text}` : text).slice(0, MAX_ANSWER))} />
           <div className="interview-answer-foot">
             <span className="field-hint">{answer.length}/{MAX_ANSWER}</span>
             <button type="submit" className="btn btn-primary btn-lg" disabled={busy || tooShort}>

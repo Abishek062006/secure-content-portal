@@ -110,6 +110,8 @@ ai:
   api-key: ${AI_API_KEY:}
   model: ${AI_MODEL:}
   timeout-seconds: 120
+  # Speech-to-text for spoken interview answers, on the same provider and key.
+  transcription-model: ${AI_TRANSCRIPTION_MODEL:whisper-large-v3-turbo}
   json-mode: ${AI_JSON_MODE:true}
 
 storage:

@@ -151,6 +151,13 @@ export const api = {
   completeInterview: (id) => api.post(`/api/interviews/sessions/${id}/complete`),
   getInterviewHistory: () => request('/api/interviews/history'),
   getInterviewQuota: () => request('/api/interviews/quota'),
+  transcribeAnswer: (blob, durationSeconds) => {
+    const form = new FormData();
+    form.append('audio', blob, 'answer');
+    form.append('consent', 'true');
+    form.append('durationSeconds', String(durationSeconds));
+    return api.upload('/api/interviews/transcribe', form);
+  },
   getResume: () => request('/api/interviews/resume'),
   uploadResume: (file, consent) => {
     const form = new FormData();

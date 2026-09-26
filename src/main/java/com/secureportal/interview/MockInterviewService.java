@@ -50,12 +50,13 @@ public class MockInterviewService {
     private final UserRepository users;
     private final CourseRepository courses;
     private final ResumeService resumes;
+    private final VoiceService voice;
     private final InterviewAi ai;
     private final GamificationService gamification;
     private final TransactionTemplate tx;
 
     public MockInterviewService(MockInterviewSessionRepository sessions, MockInterviewQuestionRepository questions,
-                                UserRepository users, CourseRepository courses, ResumeService resumes, InterviewAi ai,
+                                UserRepository users, CourseRepository courses, ResumeService resumes, VoiceService voice, InterviewAi ai,
                                 GamificationService gamification,
                                 PlatformTransactionManager transactionManager) {
         this.sessions = sessions;
@@ -63,6 +64,7 @@ public class MockInterviewService {
         this.users = users;
         this.courses = courses;
         this.resumes = resumes;
+        this.voice = voice;
         this.ai = ai;
         this.gamification = gamification;
         this.tx = new TransactionTemplate(transactionManager);
@@ -82,7 +84,7 @@ public class MockInterviewService {
                                String courseId, boolean useResume) {
     }
 
-    public record Quota(long used, int limit) {
+    public record Quota(long used, int limit, int voiceUsed, int voiceLimit) {
     }
 
     // ---- Starting -----------------------------------------------------------------------------------------------------
@@ -195,7 +197,9 @@ public class MockInterviewService {
     }
 
     public Quota quota(Long userId) {
-        return new Quota(sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)), MAX_PER_DAY);
+        VoiceService.Usage spoken = voice.usage(userId);
+        return new Quota(sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)), MAX_PER_DAY,
+                spoken.used(), spoken.limit());
     }
 
     // ---- Reading ------------------------------------------------------------------------------------------------------

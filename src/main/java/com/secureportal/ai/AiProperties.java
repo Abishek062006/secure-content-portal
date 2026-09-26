@@ -18,11 +18,28 @@ public class AiProperties {
 
     private int timeoutSeconds = 120;
 
+    /** The speech-to-text model used for spoken interview answers, on the same provider and key. */
+    private String transcriptionModel = "whisper-large-v3-turbo";
+
     /** Asks the provider for strict JSON output; turn off for a provider that rejects the parameter. */
     private boolean jsonMode = true;
 
     public boolean isConfigured() {
         return baseUrl != null && !baseUrl.isBlank() && model != null && !model.isBlank();
+    }
+
+    /** Speech-to-text needs a key: the local providers that run without one don't offer it. */
+    public boolean isTranscriptionConfigured() {
+        return baseUrl != null && !baseUrl.isBlank() && apiKey != null && !apiKey.isBlank()
+                && transcriptionModel != null && !transcriptionModel.isBlank();
+    }
+
+    public String getTranscriptionModel() {
+        return transcriptionModel;
+    }
+
+    public void setTranscriptionModel(String transcriptionModel) {
+        this.transcriptionModel = transcriptionModel;
     }
 
     public String getBaseUrl() {

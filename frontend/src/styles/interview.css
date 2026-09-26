@@ -114,3 +114,16 @@
 .resume-preview summary { cursor: pointer; color: var(--accent); }
 .resume-preview pre { white-space: pre-wrap; margin: 8px 0 0; padding: 12px; border-radius: var(--radius-sm); background: var(--surface-alt); color: var(--ink-mid); font: inherit; }
 .resume-actions { display: flex; gap: 8px; }
+
+/* Voice answers */
+.voice { margin-top: 12px; }
+.voice-controls { display: flex; align-items: center; gap: 12px; }
+.voice-button { display: inline-flex; align-items: center; gap: 8px; }
+.voice-button.recording { border-color: var(--danger); color: var(--danger); background: var(--danger-wash); }
+.voice-button.recording svg { animation: voice-pulse 1.2s ease-in-out infinite; }
+.voice-clock { font-variant-numeric: tabular-nums; color: var(--ink-mid); }
+.voice-consent { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-alt); }
+.voice-consent p { flex-basis: 100%; margin: 0; font-size: 0.88rem; color: var(--ink-mid); }
+.voice-notes { margin: 8px 0 0; }
+@keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .voice-button.recording svg { animation: none; } }
