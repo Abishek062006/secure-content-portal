@@ -1,44 +1,87 @@
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon from '../components/Icon';
-import { Logo } from '../components/Icons';
 
-const FEATURES = [
-  { icon: 'video', title: 'Video courses, organised', body: 'Lessons grouped into modules, with transcripts you can read along with and a resume point that remembers where you stopped.' },
-  { icon: 'sparkles', title: 'Quizzes written from the lecture', body: 'Questions are drawn from the transcript itself, at the difficulty your instructor chooses, so practice matches what was taught.' },
-  { icon: 'timer', title: 'Timed assessments', body: 'Pass marks, time limits and attempt limits, graded on the server, so a result means something.' },
-  { icon: 'award', title: 'Certificates you can verify', body: 'Finish a course and earn a certificate with a credential ID anyone can check, then share it on your profile.' },
-  { icon: 'message-circle', title: 'A community feed', body: 'Post updates and articles, react, comment, and follow what other learners are building.' },
-  { icon: 'shield-check', title: 'Protected by design', body: 'Content is streamed with session-locked links and watermarked, and your role is decided on the server, never in the browser.' },
+const LESSONS = [
+  { title: 'Introduction', state: 'done' },
+  { title: 'Variables and types', state: 'done' },
+  { title: 'Lists', state: 'now' },
+  { title: 'Loops', state: 'todo' },
+  { title: 'Module quiz', state: 'todo' },
 ];
 
-const STEPS = [
-  { n: '1', title: 'Sign in with Google', body: 'No new password. One click and your profile is ready.' },
-  { n: '2', title: 'Enroll and learn', body: 'Watch lessons, open the materials, and take the quizzes as you go.' },
-  { n: '3', title: 'Get certified', body: 'Pass the assessments, claim your certificate, and show it off.' },
-];
-
-function HeroPreview() {
+function AppWindow() {
   return (
-    <div className="land-preview" aria-hidden="true">
-      <div className="lp-card lp-course">
-        <div className="lp-cover"><Icon name="play" size={30} strokeWidth={1.6} /></div>
-        <div className="lp-body">
-          <strong>Python in 30 Minutes</strong>
-          <span>Module 2 · Lists and loops</span>
-          <div className="lp-bar"><div style={{ width: '64%' }} /></div>
-          <div className="lp-row"><span>64% complete</span><em>Continue</em></div>
+    <div className="ap-window" aria-hidden="true">
+      <div className="ap-window-bar"><i /><i /><i /><span>Python in 30 Minutes</span></div>
+      <div className="ap-window-body">
+        <div className="ap-player">
+          <div className="ap-play"><Icon name="play" size={30} strokeWidth={1.8} /></div>
+          <div className="ap-timeline"><div style={{ width: '38%' }} /></div>
+          <span className="ap-caption">3. Lists</span>
         </div>
+        <ul className="ap-lessons">
+          {LESSONS.map((l) => (
+            <li key={l.title} className={l.state}>
+              <span className="ap-dot">{l.state === 'done' && <Icon name="check" size={11} strokeWidth={3} />}</span>
+              {l.title}
+            </li>
+          ))}
+        </ul>
       </div>
-      <div className="lp-card lp-quiz">
-        <span className="lp-tag"><Icon name="sparkles" size={13} /> From the transcript</span>
-        <p>Which symbol starts a comment in Python?</p>
-        <div className="lp-option">// double slash</div>
-        <div className="lp-option on"><Icon name="check" size={14} strokeWidth={2.6} /> # hash</div>
+    </div>
+  );
+}
+
+function TranscriptToQuestion() {
+  return (
+    <div className="ap-pair" aria-hidden="true">
+      <div className="ap-sheet ap-transcript">
+        <span className="ap-sheet-label">Transcript</span>
+        <p><b>5:52</b> Strings are arrays of characters, so you can index into them.</p>
+        <p className="hl"><b>6:08</b> If a is "hello world", a[1] is the second character.</p>
+        <p><b>6:21</b> Indexing starts at zero, not one.</p>
       </div>
-      <div className="lp-card lp-cert">
-        <div className="lp-cert-icon"><Icon name="award" size={22} /></div>
-        <div><strong>Certificate earned</strong><span>Credential ID ABCD-EFGH-JKLM</span></div>
+      <div className="ap-arrow"><Icon name="arrow-right" size={22} strokeWidth={1.6} /></div>
+      <div className="ap-sheet ap-question">
+        <span className="ap-sheet-label">Hard · from 6:08</span>
+        <p className="q">Given a = "hello world", what does print(a[1]) show?</p>
+        <div className="opt">o</div>
+        <div className="opt on"><Icon name="check" size={14} strokeWidth={2.8} /> e</div>
+        <div className="opt">l</div>
+      </div>
+    </div>
+  );
+}
+
+function Certificate() {
+  return (
+    <div className="ap-cert" aria-hidden="true">
+      <span className="ap-cert-brand">GRADIENTNOVAAI</span>
+      <h4>Certificate of Completion</h4>
+      <span className="ap-cert-small">This certifies that</span>
+      <strong>Abishek R S</strong>
+      <span className="ap-cert-small">has completed</span>
+      <em>Python in 30 Minutes</em>
+      <div className="ap-cert-id">Credential ID · ABCD-EFGH-JKLM</div>
+    </div>
+  );
+}
+
+function FeedPost() {
+  return (
+    <div className="ap-post" aria-hidden="true">
+      <div className="ap-post-head">
+        <span className="ap-avatar">A</span>
+        <div><strong>Abishek R S</strong><span>Student · 2h</span></div>
+      </div>
+      <p>Just finished Python in 30 Minutes. On to the next one.</p>
+      <div className="ap-post-cert"><b>Python in 30 Minutes</b><span>Credential ID ABCD-EFGH-JKLM</span></div>
+      <div className="ap-reacts">
+        <span className="stack">
+          <img src="/reactions/like.svg" alt="" /><img src="/reactions/celebrate.svg" alt="" /><img src="/reactions/love.svg" alt="" />
+        </span>
+        <span>24 reactions</span>
       </div>
     </div>
   );
@@ -52,77 +95,67 @@ export default function Home() {
   if (user) return <Navigate to={user.admin ? '/admin/dashboard' : '/courses'} replace />;
 
   return (
-    <div className="land">
-      <section className="land-hero">
-        <div className="land-hero-copy">
-          <span className="land-eyebrow"><Logo size={20} /> GradientNovaAI</span>
-          <h1>Learn it. Prove it.<br /><span className="grad">Share it.</span></h1>
-          <p>Video courses with quizzes generated from the lectures themselves, timed assessments, certificates you can verify, and a community to learn alongside.</p>
-          <div className="land-cta">
-            <Link className="btn btn-primary btn-lg" to="/login">Get started <Icon name="arrow-right" size={18} /></Link>
-            <a className="btn btn-lg" href="#how">How it works</a>
-          </div>
-          <p className="land-note">Free to join with your Google account.</p>
+    <div className="ap">
+      <section className="ap-hero">
+        <h1>Learn from the lecture.<br />Prove it with a certificate.</h1>
+        <p>GradientNovaAI turns recorded lectures into courses, with quizzes, assessments and certificates.</p>
+        <div className="ap-actions">
+          <Link className="ap-btn" to="/login">Get started</Link>
+          <a className="ap-link" href="#how">How it works <Icon name="chevron-right" size={18} /></a>
         </div>
-        <HeroPreview />
+        <AppWindow />
       </section>
 
-      <section className="land-section" id="features">
-        <h2>Everything you need to actually finish a course</h2>
-        <p className="land-lead">Built around how people really learn: watch, practise, get tested, and be recognised.</p>
-        <div className="land-grid">
-          {FEATURES.map((f) => (
-            <article className="land-feature" key={f.title}>
-              <div className="land-icon"><Icon name={f.icon} size={22} /></div>
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
-            </article>
-          ))}
+      <section className="ap-story" id="how">
+        <div className="ap-story-text">
+          <span className="ap-kicker">Practice</span>
+          <h2>Questions that come from the lecture.</h2>
+          <p>Upload a recording and its transcript. Ask for as many questions as you like, at the difficulty you choose, and approve the ones you want. Learners are quizzed on what was actually taught.</p>
         </div>
+        <TranscriptToQuestion />
       </section>
 
-      <section className="land-section land-how" id="how">
-        <h2>How it works</h2>
-        <div className="land-steps">
-          {STEPS.map((s) => (
-            <div className="land-step" key={s.n}>
-              <span className="land-step-n">{s.n}</span>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-            </div>
-          ))}
+      <section className="ap-story flip">
+        <div className="ap-story-text">
+          <span className="ap-kicker">Proof</span>
+          <h2>Finish. Get certified.</h2>
+          <p>Pass the assessments and claim a certificate with its own credential ID. Anyone can check it, and it sits on your profile for people to see.</p>
         </div>
+        <Certificate />
       </section>
 
-      <section className="land-teach">
-        <div>
-          <span className="land-eyebrow dark"><Icon name="upload" size={16} /> For instructors</span>
-          <h2>Upload a lecture. Get a course.</h2>
-          <p>Drop in a recording and its transcript. Generate quiz questions in the difficulty you want, review them, set the pass mark, and publish. Then watch learners progress on your dashboard.</p>
-          <ul>
-            <li><Icon name="check" size={16} strokeWidth={2.6} /> Questions drafted by AI, approved by you</li>
-            <li><Icon name="check" size={16} strokeWidth={2.6} /> Materials with view-only or download control</li>
-            <li><Icon name="check" size={16} strokeWidth={2.6} /> Completion, quiz and engagement analytics</li>
-          </ul>
+      <section className="ap-story">
+        <div className="ap-story-text">
+          <span className="ap-kicker">Community</span>
+          <h2>Learn in good company.</h2>
+          <p>Share updates and articles, react and comment, and post the certificates you earn. A feed for people who are learning the same things.</p>
         </div>
-        <div className="land-teach-card" aria-hidden="true">
-          <span className="lt-example">Example dashboard</span>
-          <div className="lt-row"><span>Learners</span><strong>1,248</strong></div>
-          <div className="lt-row"><span>Completion rate</span><strong>68%</strong></div>
-          <div className="lt-bars"><i style={{ height: '38%' }} /><i style={{ height: '52%' }} /><i style={{ height: '46%' }} /><i style={{ height: '70%' }} /><i style={{ height: '64%' }} /><i style={{ height: '88%' }} /></div>
+        <FeedPost />
+      </section>
+
+      <section className="ap-dark">
+        <span className="ap-kicker light">For instructors</span>
+        <h2>Upload a lecture.<br />Get a course.</h2>
+        <p>Add a recording and its transcript, review the questions, set the pass mark and publish. Then follow how learners are doing on your dashboard.</p>
+        <div className="ap-figures" aria-hidden="true">
+          <div><strong>Drafted by AI</strong><span>approved by you</span></div>
+          <div><strong>View or download</strong><span>your choice, per file</span></div>
+          <div><strong>One dashboard</strong><span>for every course</span></div>
         </div>
       </section>
 
-      <section className="land-final">
-        <h2>Ready to start learning?</h2>
-        <p>Sign in with Google and pick your first course.</p>
-        <Link className="btn btn-primary btn-lg" to="/login">Get started <Icon name="arrow-right" size={18} /></Link>
+      <section className="ap-trust">
+        <div><h3>Sign in with Google.</h3><p>No new password to remember or lose.</p></div>
+        <div><h3>Content stays protected.</h3><p>Streamed with session-locked links and watermarked to the viewer.</p></div>
+        <div><h3>Graded on the server.</h3><p>Questions, timers and scores never depend on the browser.</p></div>
       </section>
 
-      <footer className="land-footer">
-        <span><Logo size={18} /> GradientNovaAI</span>
-        <span>Learn, practise and share your progress.</span>
-      </footer>
+      <section className="ap-final">
+        <h2>Start learning.</h2>
+        <Link className="ap-btn" to="/login">Get started</Link>
+      </section>
+
+      <footer className="ap-footer">GradientNovaAI</footer>
     </div>
   );
 }
