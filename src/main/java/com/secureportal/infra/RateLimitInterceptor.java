@@ -30,7 +30,15 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             new Rule(HttpMethod.PUT, "/api/posts/*/reaction", "react", 60),
             new Rule(HttpMethod.POST, "/api/courses/*/enroll", "enroll", 30),
             new Rule(HttpMethod.POST, "/api/assessments/*/attempts", "attempt", 20),
-            new Rule(HttpMethod.PUT, "/api/attempts/*/answers", "answer", 240));
+            new Rule(HttpMethod.PUT, "/api/attempts/*/answers", "answer", 240),
+            // Each interview step calls the AI, so these are the tightest limits in the app.
+            new Rule(HttpMethod.POST, "/api/interviews/start", "interview-start", 5),
+            new Rule(HttpMethod.POST, "/api/interviews/sessions/*/answer", "interview-answer", 12),
+            new Rule(HttpMethod.POST, "/api/interviews/sessions/*/complete", "interview-complete", 10),
+            new Rule(HttpMethod.POST, "/api/gamification/check-in", "check-in", 10),
+            new Rule(HttpMethod.POST, "/api/hackathons/*/register", "hackathon-register", 20),
+            new Rule(HttpMethod.POST, "/api/admin/gamification/adjust", "xp-adjust", 30),
+            new Rule(HttpMethod.GET, "/api/gamification/leaderboard", "leaderboard", 60));
 
     private static final List<String> EXEMPT = List.of("/api/stream/**", "/api/course-stream/**", "/api/post-stream/**",
             "/api/material/**", "/api/pdf/**", "/api/html/**", "/api/**/thumbnail", "/api/posts/*/image",

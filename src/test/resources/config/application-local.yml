@@ -14,6 +14,7 @@ app:
     enabled: false
   cache:
     analytics-seconds: 0
+    leaderboard-seconds: 0
   rate-limit:
     enabled: false
 

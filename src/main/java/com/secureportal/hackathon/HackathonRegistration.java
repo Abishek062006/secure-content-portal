@@ -1,49 +1,52 @@
 package com.secureportal.hackathon;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.Instant;
 
+/** A learner's registration for a hackathon. There is at most one per learner and hackathon (unique in the database). */
 @Entity
-@Table(name = "hackathon_registrations", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"hackathonId", "userId"})
-})
+@Table(name = "hackathon_registrations")
 public class HackathonRegistration {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "hackathon_id", nullable = false)
     private Long hackathonId;
 
-    @Column(nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    private Instant registeredAt = Instant.now();
-
+    @Column(name = "points_claimed", nullable = false)
     private int pointsClaimed;
 
-    public HackathonRegistration() {}
+    @Column(name = "registered_at", nullable = false)
+    private Instant registeredAt = Instant.now();
 
-    public HackathonRegistration(Long hackathonId, Long userId, int pointsClaimed) {
-        this.hackathonId = hackathonId;
-        this.userId = userId;
-        this.registeredAt = Instant.now();
-        this.pointsClaimed = pointsClaimed;
+    protected HackathonRegistration() {
+        // for JPA
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getHackathonId() {
+        return hackathonId;
+    }
 
-    public Long getHackathonId() { return hackathonId; }
-    public void setHackathonId(Long hackathonId) { this.hackathonId = hackathonId; }
+    public Long getUserId() {
+        return userId;
+    }
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public int getPointsClaimed() {
+        return pointsClaimed;
+    }
 
-    public Instant getRegisteredAt() { return registeredAt; }
-    public void setRegisteredAt(Instant registeredAt) { this.registeredAt = registeredAt; }
-
-    public int getPointsClaimed() { return pointsClaimed; }
-    public void setPointsClaimed(int pointsClaimed) { this.pointsClaimed = pointsClaimed; }
+    public Instant getRegisteredAt() {
+        return registeredAt;
+    }
 }

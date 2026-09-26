@@ -1,88 +1,132 @@
 package com.secureportal.interview;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.Instant;
 
+/** One question of an interview, with the learner's answer and the AI's assessment once it has been answered. */
 @Entity
 @Table(name = "mock_interview_questions")
 public class MockInterviewQuestion {
+
+    public static final int NOT_ANSWERED = -1;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "session_id", nullable = false)
     private Long sessionId;
 
+    @Column(name = "question_index", nullable = false)
     private int questionIndex;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(name = "question_text", nullable = false, columnDefinition = "TEXT")
     private String questionText;
 
-    private String category; // "TECHNICAL", "SYSTEM_DESIGN", "BEHAVIORAL", "PROBLEM_SOLVING"
+    @Column(length = 30)
+    private String category;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "learner_answer", columnDefinition = "TEXT")
     private String learnerAnswer;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "ai_feedback", columnDefinition = "TEXT")
     private String aiFeedback;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "key_strengths", columnDefinition = "TEXT")
     private String keyStrengths;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "areas_to_improve", columnDefinition = "TEXT")
     private String areasToImprove;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "ideal_answer", columnDefinition = "TEXT")
     private String idealAnswer;
 
-    private int score = -1; // -1 if un-answered, 0 - 10 once answered
+    @Column(nullable = false)
+    private int score = NOT_ANSWERED;
 
+    @Column(name = "answered_at")
     private Instant answeredAt;
 
-    public MockInterviewQuestion() {}
+    protected MockInterviewQuestion() {
+        // for JPA
+    }
 
-    public MockInterviewQuestion(Long sessionId, int questionIndex, String questionText, String category) {
+    public MockInterviewQuestion(Long sessionId, int questionIndex, String questionText, QuestionCategory category) {
         this.sessionId = sessionId;
         this.questionIndex = questionIndex;
         this.questionText = questionText;
-        this.category = category;
-        this.score = -1;
+        this.category = category.name();
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    /** The AI's assessment of one answer, already checked and clamped by {@link InterviewAi}. */
+    public record Evaluation(int score, String feedback, String strengths, String improvements, String idealAnswer) {
+    }
 
-    public Long getSessionId() { return sessionId; }
-    public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
+    public boolean isAnswered() {
+        return answeredAt != null;
+    }
 
-    public int getQuestionIndex() { return questionIndex; }
-    public void setQuestionIndex(int questionIndex) { this.questionIndex = questionIndex; }
+    public void recordAnswer(String answer, Evaluation evaluation) {
+        this.learnerAnswer = answer;
+        this.score = evaluation.score();
+        this.aiFeedback = evaluation.feedback();
+        this.keyStrengths = evaluation.strengths();
+        this.areasToImprove = evaluation.improvements();
+        this.idealAnswer = evaluation.idealAnswer();
+        this.answeredAt = Instant.now();
+    }
 
-    public String getQuestionText() { return questionText; }
-    public void setQuestionText(String questionText) { this.questionText = questionText; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public Long getSessionId() {
+        return sessionId;
+    }
 
-    public String getLearnerAnswer() { return learnerAnswer; }
-    public void setLearnerAnswer(String learnerAnswer) { this.learnerAnswer = learnerAnswer; }
+    public int getQuestionIndex() {
+        return questionIndex;
+    }
 
-    public String getAiFeedback() { return aiFeedback; }
-    public void setAiFeedback(String aiFeedback) { this.aiFeedback = aiFeedback; }
+    public String getQuestionText() {
+        return questionText;
+    }
 
-    public String getKeyStrengths() { return keyStrengths; }
-    public void setKeyStrengths(String keyStrengths) { this.keyStrengths = keyStrengths; }
+    public String getCategory() {
+        return category;
+    }
 
-    public String getAreasToImprove() { return areasToImprove; }
-    public void setAreasToImprove(String areasToImprove) { this.areasToImprove = areasToImprove; }
+    public String getLearnerAnswer() {
+        return learnerAnswer;
+    }
 
-    public String getIdealAnswer() { return idealAnswer; }
-    public void setIdealAnswer(String idealAnswer) { this.idealAnswer = idealAnswer; }
+    public String getAiFeedback() {
+        return aiFeedback;
+    }
 
-    public int getScore() { return score; }
-    public void setScore(int score) { this.score = score; }
+    public String getKeyStrengths() {
+        return keyStrengths;
+    }
 
-    public Instant getAnsweredAt() { return answeredAt; }
-    public void setAnsweredAt(Instant answeredAt) { this.answeredAt = answeredAt; }
+    public String getAreasToImprove() {
+        return areasToImprove;
+    }
+
+    public String getIdealAnswer() {
+        return idealAnswer;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public Instant getAnsweredAt() {
+        return answeredAt;
+    }
 }

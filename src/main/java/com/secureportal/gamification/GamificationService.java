@@ -1,12 +1,15 @@
 package com.secureportal.gamification;
 
 import com.secureportal.audit.AuditService;
-import com.secureportal.user.Role;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -15,558 +18,279 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
+/**
+ * Points, streaks and badges. Every award is idempotent: it is tied to what earned it (a lesson, a quiz, a course, a day, a
+ * hackathon, an interview) and the database refuses a second one, so retaking a quiz, re-completing a lesson or firing the same
+ * request twice can never pay out twice. Points only ever change through atomic SQL, never by read-modify-write. The hooks the
+ * learning flows call run in their own transaction, so a failure here can never undo a learner's progress or quiz result.
+ */
 @Service
 public class GamificationService {
 
-    private final UserGamificationRepository gamificationRepository;
-    private final BadgeRepository badgeRepository;
-    private final UserBadgeRepository userBadgeRepository;
-    private final PointTransactionRepository transactionRepository;
-    private final UserRepository userRepository;
-    private final PointRuleRepository pointRuleRepository;
-    private final AuditService auditService;
-    private final com.secureportal.course.CourseRepository courseRepository;
+    private static final Logger log = LoggerFactory.getLogger(GamificationService.class);
 
-    public GamificationService(UserGamificationRepository gamificationRepository,
-                               BadgeRepository badgeRepository,
-                               UserBadgeRepository userBadgeRepository,
-                               PointTransactionRepository transactionRepository,
-                               UserRepository userRepository,
-                               PointRuleRepository pointRuleRepository,
-                               AuditService auditService,
-                               com.secureportal.course.CourseRepository courseRepository) {
-        this.gamificationRepository = gamificationRepository;
-        this.badgeRepository = badgeRepository;
-        this.userBadgeRepository = userBadgeRepository;
-        this.transactionRepository = transactionRepository;
-        this.userRepository = userRepository;
-        this.pointRuleRepository = pointRuleRepository;
-        this.auditService = auditService;
-        this.courseRepository = courseRepository;
+    static final int MAX_ADJUSTMENT = 10_000;
+    static final int MAX_RULE_POINTS = 1_000;
+    static final int MIN_REASON = 3;
+    static final int MAX_REASON = 200;
+
+    private static final Pattern WEB_STREAM = Pattern.compile("\\b(web|engineering|code|coding)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern AI_STREAM = Pattern.compile("\\b(ai|ml|data)\\b", Pattern.CASE_INSENSITIVE);
+
+    private final UserGamificationRepository gamification;
+    private final BadgeRepository badges;
+    private final UserBadgeRepository userBadges;
+    private final PointTransactionRepository ledger;
+    private final PointRuleRepository rules;
+    private final UserRepository users;
+    private final AuditService audit;
+
+    public GamificationService(UserGamificationRepository gamification, BadgeRepository badges, UserBadgeRepository userBadges,
+                               PointTransactionRepository ledger, PointRuleRepository rules, UserRepository users,
+                               AuditService audit) {
+        this.gamification = gamification;
+        this.badges = badges;
+        this.userBadges = userBadges;
+        this.ledger = ledger;
+        this.rules = rules;
+        this.users = users;
+        this.audit = audit;
     }
 
-    @Transactional
-    public UserGamification getOrCreateGamification(Long userId) {
-        return gamificationRepository.findById(userId).orElseGet(() -> {
-            UserGamification ug = new UserGamification(userId);
-            return gamificationRepository.save(ug);
-        });
+    // ---- Reading ------------------------------------------------------------------------------------------------------
+
+    public record Summary(int totalPoints, int currentStreak, int maxStreak, boolean checkedInToday, long unlockedBadges) {
     }
 
-    public record CheckInResult(int pointsEarned, int newStreak, boolean claimedToday, List<Badge> unlockedBadges) {}
-
-    public int getRulePoints(String actionType, int defaultPoints) {
-        return pointRuleRepository.findByActionType(actionType)
-                .map(PointRule::getPoints)
-                .orElse(defaultPoints);
+    /** A learner's own numbers. Reading never creates a row; someone with no activity yet is simply all zeros. */
+    @Transactional(readOnly = true)
+    public Summary summary(Long userId) {
+        UserGamification mine = gamification.findById(userId).orElse(null);
+        long unlocked = userBadges.countByUserId(userId);
+        if (mine == null) {
+            return new Summary(0, 0, 0, false, unlocked);
+        }
+        boolean today = today().equals(mine.getLastCheckinDate());
+        return new Summary(mine.getTotalPoints(), mine.getCurrentStreak(), mine.getMaxStreak(), today, unlocked);
     }
 
+    public record BadgeStatus(String id, String title, String description, String category, String icon, int pointsReward,
+                              String rarity, boolean unlocked, Instant unlockedAt) implements Serializable {
+    }
+
+    @Transactional(readOnly = true)
+    public List<BadgeStatus> badgesOf(Long userId) {
+        Map<String, Instant> unlockedAt = new HashMap<>();
+        userBadges.findByUserId(userId).forEach(ub -> unlockedAt.put(ub.getBadgeId(), ub.getUnlockedAt()));
+        return badges.findAll().stream()
+                .map(b -> new BadgeStatus(b.getId(), b.getTitle(), b.getDescription(), b.getCategory(), b.getIcon(),
+                        b.getPointsReward(), b.getRarity(), unlockedAt.containsKey(b.getId()), unlockedAt.get(b.getId())))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PointTransaction> historyOf(Long userId, int limit) {
+        return ledger.findByUserIdOrderByCreatedAtDescIdDesc(userId, org.springframework.data.domain.PageRequest.of(0, limit));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PointTransaction> history(Long userId, String actionType, String stream, int limit) {
+        return ledger.filter(userId, blankToNull(actionType), blankToNull(stream), org.springframework.data.domain.PageRequest.of(0, limit));
+    }
+
+    // ---- Earning ------------------------------------------------------------------------------------------------------
+
+    public record CheckInResult(int pointsEarned, int newStreak, boolean claimedToday, List<Badge> unlockedBadges) {
+    }
+
+    /** One check-in per learner per UTC day. The learner's row is locked, so a double click can't be paid twice. */
     @Transactional
     public CheckInResult checkIn(Long userId) {
-        UserGamification ug = getOrCreateGamification(userId);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        gamification.ensureRow(userId);
+        UserGamification mine = gamification.findForUpdate(userId).orElseThrow();
+        LocalDate today = today();
 
-        if (Objects.equals(ug.getLastCheckinDate(), today)) {
-            return new CheckInResult(0, ug.getCurrentStreak(), true, List.of());
+        if (today.equals(mine.getLastCheckinDate())) {
+            return new CheckInResult(0, mine.getCurrentStreak(), true, List.of());
         }
 
-        int newStreak = 1;
-        if (ug.getLastCheckinDate() != null) {
-            long daysBetween = ChronoUnit.DAYS.between(ug.getLastCheckinDate(), today);
-            if (daysBetween == 1) {
-                newStreak = ug.getCurrentStreak() + 1;
-            }
+        int streak = 1;
+        if (mine.getLastCheckinDate() != null && ChronoUnit.DAYS.between(mine.getLastCheckinDate(), today) == 1) {
+            streak = mine.getCurrentStreak() + 1;
         }
+        mine.setCurrentStreak(streak);
+        mine.setLastCheckinDate(today);
+        gamification.save(mine);
 
-        ug.setCurrentStreak(newStreak);
-        ug.setLastCheckinDate(today);
-        if (newStreak > ug.getMaxStreak()) {
-            ug.setMaxStreak(newStreak);
-        }
-
-        int basePoints = getRulePoints("DAILY_CHECKIN", 5);
-        int bonusPoints = 0;
-        if (newStreak % 7 == 0) {
-            bonusPoints = 25; // 7-day milestone
-        } else if (newStreak % 3 == 0) {
-            bonusPoints = 10; // 3-day bonus
-        }
-        int totalEarned = basePoints + bonusPoints;
-
-        ug.addPoints(totalEarned);
-        gamificationRepository.save(ug);
-
-        transactionRepository.save(new PointTransaction(
-                userId, totalEarned, "DAILY_CHECKIN",
-                "Daily Check-in (" + newStreak + " day streak)", null,
-                "DAILY_CHECKIN", today.toString()
-        ));
-
-        List<Badge> newlyUnlocked = new ArrayList<>();
-        if (newStreak >= 3) {
-            unlockBadgeInternal(userId, "STREAK_MASTER").ifPresent(newlyUnlocked::add);
-        }
-        if (newStreak >= 7) {
-            unlockBadgeInternal(userId, "STREAK_7").ifPresent(newlyUnlocked::add);
-        }
-        if (newStreak >= 30) {
-            unlockBadgeInternal(userId, "STREAK_30").ifPresent(newlyUnlocked::add);
-        }
-
-        return new CheckInResult(totalEarned, newStreak, false, newlyUnlocked);
-    }
-
-    @Transactional
-    public List<Badge> recordLessonCompletion(Long userId, String stream) {
-        return recordLessonCompletion(userId, null, stream);
-    }
-
-    @Transactional
-    public List<Badge> recordLessonCompletion(Long userId, String lessonId, String stream) {
-        if (lessonId != null && transactionRepository.existsByUserIdAndActionTypeAndSourceId(userId, "LESSON_COMPLETED", lessonId)) {
-            return List.of(); // Prevent duplicate XP for completing the same lesson
-        }
-
-        int points = getRulePoints("LESSON_COMPLETED", 10);
-        awardPointsWithSource(userId, points, "LESSON_COMPLETED", "Completed a video lesson", stream, "LESSON", lessonId);
+        int bonus = streak % 7 == 0 ? 25 : streak % 3 == 0 ? 10 : 0;
+        int earned = pointsFor(PointAction.DAILY_CHECKIN) + bonus;
+        awardOnce(userId, PointAction.DAILY_CHECKIN, earned, "Daily Check-in (" + streak + " day streak)", null,
+                "DAILY_CHECKIN", today.toString());
 
         List<Badge> unlocked = new ArrayList<>();
-        unlockBadgeInternal(userId, "FAST_LEARNER").ifPresent(unlocked::add);
+        if (streak >= 3) unlockBadge(userId, "STREAK_MASTER").ifPresent(unlocked::add);
+        if (streak >= 7) unlockBadge(userId, "STREAK_7").ifPresent(unlocked::add);
+        if (streak >= 30) unlockBadge(userId, "STREAK_30").ifPresent(unlocked::add);
+        return new CheckInResult(earned, streak, false, unlocked);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<Badge> recordLessonCompletion(Long userId, String lessonId, String stream) {
+        List<Badge> unlocked = new ArrayList<>();
+        if (awardOnce(userId, PointAction.LESSON_COMPLETED, pointsFor(PointAction.LESSON_COMPLETED),
+                "Completed a video lesson", stream, "LESSON", lessonId)) {
+            unlockBadge(userId, "FAST_LEARNER").ifPresent(unlocked::add);
+        }
         return unlocked;
     }
 
-    @Transactional
-    public List<Badge> recordQuizAttempt(Long userId, int score, boolean passed, String stream) {
-        return recordQuizAttempt(userId, null, score, passed, stream);
-    }
-
-    @Transactional
-    public List<Badge> recordQuizAttempt(Long userId, String quizId, int score, boolean passed, String stream) {
+    /** Points are for passing a quiz or assessment the first time; retakes never pay again. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<Badge> recordQuizAttempt(Long userId, String assessmentId, int score, boolean passed, String stream) {
         List<Badge> unlocked = new ArrayList<>();
         if (passed) {
-            if (quizId == null || !transactionRepository.existsByUserIdAndActionTypeAndSourceId(userId, "QUIZ_PASSED", quizId)) {
-                int points = getRulePoints("QUIZ_PASSED", 20);
-                awardPointsWithSource(userId, points, "QUIZ_PASSED", "Passed quiz with " + score + "% score", stream, "QUIZ", quizId);
+            awardOnce(userId, PointAction.QUIZ_PASSED, pointsFor(PointAction.QUIZ_PASSED), "Passed quiz with " + score + "% score",
+                    stream, "QUIZ", assessmentId);
+            if (ledger.countByUserIdAndActionType(userId, PointAction.QUIZ_PASSED.name()) >= 5) {
+                unlockBadge(userId, "QUIZ_MASTER").ifPresent(unlocked::add);
             }
-
-            long passedCountOverall = transactionRepository.countByUserIdAndActionType(userId, "QUIZ_PASSED");
-            if (passedCountOverall >= 5) {
-                unlockBadgeInternal(userId, "QUIZ_MASTER").ifPresent(unlocked::add);
+            Instant dayAgo = Instant.now().minus(24, ChronoUnit.HOURS);
+            if (ledger.countByUserIdAndActionTypeAndCreatedAtAfter(userId, PointAction.QUIZ_PASSED.name(), dayAgo) >= 3) {
+                unlockBadge(userId, "SPEED_DEMON").ifPresent(unlocked::add);
             }
         }
-
         if (score == 100) {
-            unlockBadgeInternal(userId, "QUIZ_ACE").ifPresent(unlocked::add);
+            unlockBadge(userId, "QUIZ_ACE").ifPresent(unlocked::add);
         }
-
-        Instant last24h = Instant.now().minus(24, ChronoUnit.HOURS);
-        long passedCount = transactionRepository.countByUserIdAndActionTypeAndCreatedAtAfter(userId, "QUIZ_PASSED", last24h);
-        if (passedCount >= 3) {
-            unlockBadgeInternal(userId, "SPEED_DEMON").ifPresent(unlocked::add);
-        }
-
         return unlocked;
     }
 
-    @Transactional
-    public List<Badge> recordCourseCompletion(Long userId, String stream) {
-        return recordCourseCompletion(userId, null, stream);
-    }
-
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<Badge> recordCourseCompletion(Long userId, String courseId, String stream) {
-        if (courseId != null && transactionRepository.existsByUserIdAndActionTypeAndSourceId(userId, "COURSE_COMPLETED", courseId)) {
-            return List.of(); // Prevent duplicate XP for completing the same course
-        }
-
-        int points = getRulePoints("COURSE_COMPLETED", 100);
-        awardPointsWithSource(userId, points, "COURSE_COMPLETED", "Completed full course", stream, "COURSE", courseId);
-
         List<Badge> unlocked = new ArrayList<>();
-        unlockBadgeInternal(userId, "COURSE_GRADUATE").ifPresent(unlocked::add);
-        unlockBadgeInternal(userId, "COURSE_STARTER").ifPresent(unlocked::add);
+        if (!awardOnce(userId, PointAction.COURSE_COMPLETED, pointsFor(PointAction.COURSE_COMPLETED), "Completed full course",
+                stream, "COURSE", courseId)) {
+            return unlocked;
+        }
+        unlockBadge(userId, "COURSE_GRADUATE").ifPresent(unlocked::add);
+        unlockBadge(userId, "COURSE_STARTER").ifPresent(unlocked::add);
 
         if (stream != null) {
-            long streamCoursesCompleted = transactionRepository.countByUserIdAndActionTypeAndStream(userId, "COURSE_COMPLETED", stream);
-            if (streamCoursesCompleted >= 2) {
-                unlockBadgeInternal(userId, "STREAM_SPECIALIST").ifPresent(unlocked::add);
+            if (ledger.countByUserIdAndActionTypeAndStream(userId, PointAction.COURSE_COMPLETED.name(), stream) >= 2) {
+                unlockBadge(userId, "STREAM_SPECIALIST").ifPresent(unlocked::add);
             }
-
-            String cleanStream = stream.toLowerCase();
-            if (cleanStream.contains("web") || cleanStream.contains("engineering") || cleanStream.contains("code")) {
-                unlockBadgeInternal(userId, "WEB_DEV_PIONEER").ifPresent(unlocked::add);
-            } else if (cleanStream.contains("ai") || cleanStream.contains("data") || cleanStream.contains("ml")) {
-                unlockBadgeInternal(userId, "AI_EXPLORER").ifPresent(unlocked::add);
+            if (WEB_STREAM.matcher(stream).find()) {
+                unlockBadge(userId, "WEB_DEV_PIONEER").ifPresent(unlocked::add);
+            } else if (AI_STREAM.matcher(stream).find()) {
+                unlockBadge(userId, "AI_EXPLORER").ifPresent(unlocked::add);
             }
         }
         return unlocked;
     }
 
+    /**
+     * Awards points for something that can only be rewarded once ({@code sourceId} says which thing). Returns whether this call
+     * paid out: false means it already had, and nothing changed.
+     */
     @Transactional
-    public void awardPoints(Long userId, int amount, String actionType, String description, String stream) {
-        awardPointsWithSource(userId, amount, actionType, description, stream, null, null);
+    public boolean award(Long userId, PointAction action, int amount, String description, String stream, String sourceId) {
+        return awardOnce(userId, action, amount, description, stream, action.name(), sourceId);
     }
 
-    @Transactional
-    public void awardPointsWithSource(Long userId, int amount, String actionType, String description, String stream, String sourceType, String sourceId) {
-        UserGamification ug = getOrCreateGamification(userId);
-        ug.addPoints(amount);
-        gamificationRepository.save(ug);
+    public int pointsFor(PointAction action) {
+        return rules.findByActionType(action.name()).map(PointRule::getPoints).orElse(action.defaultPoints());
+    }
 
-        transactionRepository.save(new PointTransaction(userId, amount, actionType, description, stream, sourceType, sourceId));
-
-        if (ug.getTotalPoints() >= 500) {
-            unlockBadgeInternal(userId, "XP_EXPLORER");
+    private boolean awardOnce(Long userId, PointAction action, int amount, String description, String stream,
+                              String sourceType, String sourceId) {
+        gamification.ensureRow(userId);
+        String dedupeKey = action.name() + ":" + sourceId;
+        if (ledger.insertOnce(userId, amount, action.name(), truncate(description, 255), stream, sourceType, sourceId, dedupeKey) == 0) {
+            return false;
         }
-    }
-
-    @Transactional
-    public void adjustPointsManual(Long userId, int amount, String reason, String adminEmail) {
-        if (reason == null || reason.trim().isEmpty()) {
-            throw new IllegalArgumentException("Reason is required for manual XP adjustment");
+        gamification.addPoints(userId, amount);
+        if (action != PointAction.BADGE_UNLOCKED
+                && gamification.findById(userId).map(UserGamification::getTotalPoints).orElse(0) >= 500) {
+            unlockBadge(userId, "XP_EXPLORER");
         }
-        if (amount == 0) {
-            throw new IllegalArgumentException("Adjustment amount cannot be zero");
-        }
-
-        UserGamification ug = getOrCreateGamification(userId);
-        ug.addPoints(amount);
-        gamificationRepository.save(ug);
-
-        String description = "Admin XP Adjustment: " + (amount > 0 ? "+" : "") + amount + " XP. Reason: " + reason;
-        transactionRepository.save(new PointTransaction(userId, amount, "MANUAL_ADJUSTMENT", description, null, "ADMIN", adminEmail));
-
-        auditService.log(adminEmail, "MANUAL_XP_ADJUSTMENT", null, "Adjusted " + amount + " XP for user ID " + userId + ". Reason: " + reason);
+        return true;
     }
 
-    @Transactional
-    public PointRule updatePointRule(String actionType, int newPoints, String adminEmail) {
-        if (newPoints < 0) {
-            throw new IllegalArgumentException("Points value cannot be negative");
-        }
-        PointRule rule = pointRuleRepository.findByActionType(actionType)
-                .orElseGet(() -> new PointRule(actionType, actionType, actionType, newPoints, "Custom rule"));
-
-        int oldPoints = rule.getPoints();
-        rule.setPoints(newPoints);
-        PointRule saved = pointRuleRepository.save(rule);
-
-        auditService.log(adminEmail, "UPDATE_POINT_RULE", null, "Updated XP rule [" + actionType + "] from " + oldPoints + " to " + newPoints + " XP");
-        return saved;
-    }
-
-    public List<PointRule> getAllPointRules() {
-        return pointRuleRepository.findAll();
-    }
-
-    public List<PointTransaction> getPointHistory(Long userId, String actionType, String stream) {
-        return transactionRepository.filterTransactions(userId, actionType, stream);
-    }
-
-    private Optional<Badge> unlockBadgeInternal(Long userId, String badgeId) {
-        if (userBadgeRepository.existsByUserIdAndBadgeId(userId, badgeId)) {
+    private Optional<Badge> unlockBadge(Long userId, String badgeId) {
+        if (userBadges.unlockOnce(userId, badgeId) == 0) {
             return Optional.empty();
         }
-
-        Optional<Badge> badgeOpt = badgeRepository.findById(badgeId);
-        if (badgeOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Badge badge = badgeOpt.get();
-        userBadgeRepository.save(new UserBadge(userId, badgeId));
-
+        Badge badge = badges.findById(badgeId).orElseThrow();
         if (badge.getPointsReward() > 0) {
-            UserGamification ug = getOrCreateGamification(userId);
-            ug.addPoints(badge.getPointsReward());
-            gamificationRepository.save(ug);
-
-            transactionRepository.save(new PointTransaction(
-                    userId, badge.getPointsReward(), "BADGE_UNLOCKED",
-                    "Unlocked badge: " + badge.getTitle(), null
-            ));
+            awardOnce(userId, PointAction.BADGE_UNLOCKED, badge.getPointsReward(), "Unlocked badge: " + badge.getTitle(), null,
+                    "BADGE", badgeId);
         }
-
         return Optional.of(badge);
     }
 
-    public record LeaderboardEntry(
-            int rank,
-            Long userId,
-            String displayName,
-            String pictureUrl,
-            int points,
-            int streak,
-            long badgeCount,
-            boolean isCurrentUser
-    ) {}
+    // ---- Admin --------------------------------------------------------------------------------------------------------
 
-    public record LeaderboardResponse(
-            String timeframe,
-            String stream,
-            List<LeaderboardEntry> podium,
-            List<LeaderboardEntry> rankings,
-            LeaderboardEntry currentUserRank,
-            long totalParticipants
-    ) {}
-
-    public LeaderboardResponse getLeaderboard(String timeframe, String streamFilter, Long currentUserId) {
-        String normalizedTimeframe = timeframe == null ? "all_time" : timeframe.toLowerCase();
-        String normalizedStream = (streamFilter == null || streamFilter.equalsIgnoreCase("all")) ? null : streamFilter;
-
-        List<LeaderboardEntry> allEntries = new ArrayList<>();
-
-        if ("all_time".equals(normalizedTimeframe) && normalizedStream == null) {
-            // Fast path for all time global
-            List<UserGamification> list = gamificationRepository.findAllByOrderByTotalPointsDesc();
-            Map<Long, User> userMap = getUserMap(list.stream().map(UserGamification::getUserId).toList());
-            Map<Long, Long> badgeCountMap = getBadgeCountMap();
-
-            int rank = 1;
-            for (UserGamification ug : list) {
-                User u = userMap.get(ug.getUserId());
-                if (u == null || u.getRole() == Role.ADMIN) continue;
-
-                allEntries.add(new LeaderboardEntry(
-                        rank++,
-                        ug.getUserId(),
-                        u.getDisplayName(),
-                        u.getPictureUrl(),
-                        ug.getTotalPoints(),
-                        ug.getCurrentStreak(),
-                        badgeCountMap.getOrDefault(ug.getUserId(), 0L),
-                        Objects.equals(ug.getUserId(), currentUserId)
-                ));
-            }
-        } else {
-            // Aggregate from point transactions
-            Instant startDate = getStartDateForTimeframe(normalizedTimeframe);
-            List<Object[]> rawList = startDate == null
-                    ? transactionRepository.findLeaderboardAllTimeAndStream(normalizedStream)
-                    : transactionRepository.findLeaderboardByDateRangeAndStream(startDate, normalizedStream);
-
-            List<Long> userIds = rawList.stream().map(r -> (Long) r[0]).toList();
-            Map<Long, User> userMap = getUserMap(userIds);
-            Map<Long, UserGamification> gamificationMap = getGamificationMap(userIds);
-            Map<Long, Long> badgeCountMap = getBadgeCountMap();
-
-            int rank = 1;
-            for (Object[] row : rawList) {
-                Long uId = (Long) row[0];
-                Number totalPts = (Number) row[1];
-                User u = userMap.get(uId);
-                if (u == null || u.getRole() == Role.ADMIN) continue;
-
-                UserGamification ug = gamificationMap.get(uId);
-                int streak = ug != null ? ug.getCurrentStreak() : 0;
-
-                allEntries.add(new LeaderboardEntry(
-                        rank++,
-                        uId,
-                        u.getDisplayName(),
-                        u.getPictureUrl(),
-                        totalPts.intValue(),
-                        streak,
-                        badgeCountMap.getOrDefault(uId, 0L),
-                        Objects.equals(uId, currentUserId)
-                ));
-            }
+    /** A manual correction by an admin, always with a reason, always audited. Positive or negative, within a sane range. */
+    @Transactional
+    public void adjustPointsManual(Long userId, int amount, String reason, String adminEmail) {
+        String cleanReason = reason == null ? "" : reason.strip();
+        if (cleanReason.length() < MIN_REASON || cleanReason.length() > MAX_REASON) {
+            throw new InvalidGamificationRequestException("Give a reason of " + MIN_REASON + " to " + MAX_REASON + " characters.");
+        }
+        if (amount == 0 || Math.abs(amount) > MAX_ADJUSTMENT) {
+            throw new InvalidGamificationRequestException("The adjustment must be between 1 and " + MAX_ADJUSTMENT + " XP, up or down.");
+        }
+        User learner = userId == null ? null : users.findById(userId).orElse(null);
+        if (learner == null) {
+            throw new InvalidGamificationRequestException("That learner doesn't exist.");
+        }
+        if (learner.isAdmin()) {
+            throw new InvalidGamificationRequestException("Admins don't earn XP.");
         }
 
-        LeaderboardEntry currentUserRank = allEntries.stream()
-                .filter(e -> Objects.equals(e.userId(), currentUserId))
-                .findFirst()
-                .orElseGet(() -> {
-                    if (currentUserId == null) return null;
-                    User u = userRepository.findById(currentUserId).orElse(null);
-                    if (u == null || u.getRole() == Role.ADMIN) return null;
-                    UserGamification ug = getOrCreateGamification(currentUserId);
-                    long bCount = userBadgeRepository.countByUserId(currentUserId);
-                    long rank = gamificationRepository.findRankByPoints(ug.getTotalPoints());
-                    return new LeaderboardEntry(
-                            (int) rank,
-                            currentUserId,
-                            u.getDisplayName(),
-                            u.getPictureUrl(),
-                            ug.getTotalPoints(),
-                            ug.getCurrentStreak(),
-                            bCount,
-                            true
-                    );
-                });
-
-        List<LeaderboardEntry> podium = allEntries.stream().limit(3).toList();
-        List<LeaderboardEntry> rankings = allEntries.stream().skip(3).limit(50).toList();
-
-        return new LeaderboardResponse(
-                normalizedTimeframe,
-                streamFilter == null ? "all" : streamFilter,
-                podium,
-                rankings,
-                currentUserRank,
-                allEntries.size()
-        );
+        gamification.ensureRow(userId);
+        gamification.addPoints(userId, amount);
+        ledger.save(new PointTransaction(userId, amount, PointAction.MANUAL_ADJUSTMENT.name(),
+                "Admin XP adjustment: " + (amount > 0 ? "+" : "") + amount + " XP. Reason: " + cleanReason, null));
+        audit.log(adminEmail, "MANUAL_XP_ADJUSTMENT", null,
+                "Adjusted " + amount + " XP for " + learner.getEmail() + ". Reason: " + cleanReason);
     }
 
-    public record UserBadgeDto(
-            String id,
-            String title,
-            String description,
-            String category,
-            String icon,
-            int pointsReward,
-            String rarity,
-            boolean unlocked,
-            Instant unlockedAt
-    ) {}
-
-    public List<UserBadgeDto> getBadgesForUser(Long userId) {
-        List<Badge> allBadges = badgeRepository.findAll();
-        List<UserBadge> userBadges = userBadgeRepository.findByUserId(userId);
-        Map<String, Instant> unlockedMap = new HashMap<>();
-        for (UserBadge ub : userBadges) {
-            unlockedMap.put(ub.getBadgeId(), ub.getUnlockedAt());
-        }
-
-        return allBadges.stream().map(b -> new UserBadgeDto(
-                b.getId(),
-                b.getTitle(),
-                b.getDescription(),
-                b.getCategory(),
-                b.getIcon(),
-                b.getPointsReward(),
-                b.getRarity(),
-                unlockedMap.containsKey(b.getId()),
-                unlockedMap.get(b.getId())
-        )).toList();
+    @Transactional(readOnly = true)
+    public List<PointRule> pointRules() {
+        return rules.findAll();
     }
 
-    private Instant getStartDateForTimeframe(String timeframe) {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        return switch (timeframe) {
-            case "daily", "today" -> today.atStartOfDay(ZoneOffset.UTC).toInstant();
-            case "weekly", "this_week" -> today.with(java.time.DayOfWeek.MONDAY).atStartOfDay(ZoneOffset.UTC).toInstant();
-            case "monthly", "this_month" -> today.withDayOfMonth(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-            default -> null; // all_time
-        };
+    @Transactional
+    public PointRule updatePointRule(String actionType, int points, String adminEmail) {
+        PointAction action = PointAction.find(actionType).filter(PointAction::isPriceable)
+                .orElseThrow(() -> new InvalidGamificationRequestException("That isn't a rule you can change."));
+        if (points < 0 || points > MAX_RULE_POINTS) {
+            throw new InvalidGamificationRequestException("Points must be between 0 and " + MAX_RULE_POINTS + ".");
+        }
+        PointRule rule = rules.findByActionType(action.name())
+                .orElseGet(() -> new PointRule(action.name(), action.name(), action.name(), action.defaultPoints(), null));
+        int before = rule.getPoints();
+        rule.setPoints(points);
+        PointRule saved = rules.save(rule);
+        audit.log(adminEmail, "UPDATE_POINT_RULE", null, "Changed XP rule " + action.name() + " from " + before + " to " + points);
+        return saved;
     }
 
-    private Map<Long, User> getUserMap(List<Long> userIds) {
-        Map<Long, User> map = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            userRepository.findAllById(userIds).forEach(u -> map.put(u.getId(), u));
-        }
-        return map;
+    // ---- Helpers ------------------------------------------------------------------------------------------------------
+
+    private static LocalDate today() {
+        return LocalDate.now(ZoneOffset.UTC);
     }
 
-    private Map<Long, UserGamification> getGamificationMap(List<Long> userIds) {
-        Map<Long, UserGamification> map = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            gamificationRepository.findAllById(userIds).forEach(g -> map.put(g.getUserId(), g));
-        }
-        return map;
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 
-    private Map<Long, Long> getBadgeCountMap() {
-        Map<Long, Long> map = new HashMap<>();
-        for (UserBadge ub : userBadgeRepository.findAll()) {
-            map.put(ub.getUserId(), map.getOrDefault(ub.getUserId(), 0L) + 1);
-        }
-        return map;
-    }
-
-    public List<String> getActiveStreams() {
-        List<String> categories = courseRepository.findDistinctCategories();
-        if (categories == null || categories.isEmpty()) {
-            return List.of(
-                "Engineering & Web Dev",
-                "AI & Data Science",
-                "UI/UX & Design",
-                "Cloud & Infrastructure"
-            );
-        }
-        return categories;
-    }
-
-    public record AdminLeaderboardDetail(
-            int rank,
-            Long userId,
-            String displayName,
-            String email,
-            String pictureUrl,
-            String stream,
-            int points,
-            int streak,
-            long badgeCount,
-            long coursesCompleted,
-            long quizzesPassed
-    ) {}
-
-    public record AdminLeaderboardResponse(
-            long totalParticipants,
-            long activeLearners,
-            long totalXpAwarded,
-            long totalBadgesEarned,
-            double avgXpPerLearner,
-            List<AdminLeaderboardDetail> rankings
-    ) {}
-
-    public AdminLeaderboardResponse getAdminLeaderboard(String timeframe, String streamFilter) {
-        LeaderboardResponse res = getLeaderboard(timeframe, streamFilter, null);
-        List<LeaderboardEntry> all = new ArrayList<>();
-        all.addAll(res.podium());
-        all.addAll(res.rankings());
-
-        List<Long> userIds = all.stream().map(LeaderboardEntry::userId).toList();
-        Map<Long, User> userMap = getUserMap(userIds);
-        Map<Long, Long> coursesCompletedMap = new HashMap<>();
-        Map<Long, Long> quizzesPassedMap = new HashMap<>();
-
-        for (Long uId : userIds) {
-            coursesCompletedMap.put(uId, transactionRepository.countByUserIdAndActionType(uId, "COURSE_COMPLETED"));
-            quizzesPassedMap.put(uId, transactionRepository.countByUserIdAndActionType(uId, "QUIZ_PASSED"));
-        }
-
-        List<AdminLeaderboardDetail> adminRankings = new ArrayList<>();
-        long totalXp = 0;
-        long totalBadges = 0;
-        long activeLearners = 0;
-
-        for (LeaderboardEntry e : all) {
-            User u = userMap.get(e.userId());
-            String email = u != null ? u.getEmail() : "N/A";
-            totalXp += e.points();
-            totalBadges += e.badgeCount();
-            if (e.streak() > 0) activeLearners++;
-
-            adminRankings.add(new AdminLeaderboardDetail(
-                    e.rank(),
-                    e.userId(),
-                    e.displayName(),
-                    email,
-                    e.pictureUrl(),
-                    streamFilter == null ? "All Streams" : streamFilter,
-                    e.points(),
-                    e.streak(),
-                    e.badgeCount(),
-                    coursesCompletedMap.getOrDefault(e.userId(), 0L),
-                    quizzesPassedMap.getOrDefault(e.userId(), 0L)
-            ));
-        }
-
-        long totalParticipants = adminRankings.size();
-        double avgXp = totalParticipants > 0 ? (double) totalXp / totalParticipants : 0.0;
-
-        return new AdminLeaderboardResponse(
-                totalParticipants,
-                activeLearners,
-                totalXp,
-                totalBadges,
-                Math.round(avgXp * 10.0) / 10.0,
-                adminRankings
-        );
+    private static String truncate(String value, int max) {
+        return value == null || value.length() <= max ? value : value.substring(0, max);
     }
 }

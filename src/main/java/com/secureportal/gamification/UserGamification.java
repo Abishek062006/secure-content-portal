@@ -4,11 +4,18 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.LocalDate;
 import java.time.Instant;
 
+/**
+ * A learner's streak state. Points are deliberately never changed through this entity: they move only through the
+ * repository's atomic UPDATE, so two requests can't overwrite each other, and {@code @DynamicUpdate} keeps this entity's own
+ * saves from writing a stale total back.
+ */
 @Entity
+@DynamicUpdate
 @Table(name = "user_gamification")
 public class UserGamification {
 
@@ -47,10 +54,6 @@ public class UserGamification {
         return totalPoints;
     }
 
-    public void addPoints(int amount) {
-        this.totalPoints += amount;
-        this.updatedAt = Instant.now();
-    }
 
     public int getCurrentStreak() {
         return currentStreak;
@@ -68,9 +71,6 @@ public class UserGamification {
         return maxStreak;
     }
 
-    public void setMaxStreak(int maxStreak) {
-        this.maxStreak = maxStreak;
-    }
 
     public LocalDate getLastCheckinDate() {
         return lastCheckinDate;

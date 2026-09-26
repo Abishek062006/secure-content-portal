@@ -1,8 +1,15 @@
 package com.secureportal.interview;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.Instant;
 
+/** One mock interview a learner sits: a track, a stream and a difficulty, and a fixed set of questions. */
 @Entity
 @Table(name = "mock_interview_sessions")
 public class MockInterviewSession {
@@ -11,87 +18,135 @@ public class MockInterviewSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
-    private String track; // "STUDENT", "WORKING_PROFESSIONAL"
+    @Column(nullable = false, length = 30)
+    private String track;
 
-    @Column(nullable = false)
-    private String stream; // "Engineering & Web Dev", "AI & Data Science", etc.
+    @Column(nullable = false, length = 100)
+    private String stream;
 
-    @Column(nullable = false)
-    private String difficulty; // "EASY", "MEDIUM", "HARD"
+    @Column(nullable = false, length = 10)
+    private String difficulty;
 
-    private int totalQuestions = 3;
-    private int currentQuestionIndex = 0;
+    @Column(name = "total_questions", nullable = false)
+    private int totalQuestions;
 
-    private int overallScore = 0; // 0 - 100
-    private String readinessLevel = "PENDING"; // "EXCELLENT", "GOOD", "NEEDS_PRACTICE", "PENDING"
+    @Column(name = "current_question_index", nullable = false)
+    private int currentQuestionIndex;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "overall_score", nullable = false)
+    private int overallScore;
+
+    @Column(name = "readiness_level", nullable = false, length = 20)
+    private String readinessLevel = "PENDING";
+
+    @Column(name = "summary_feedback", columnDefinition = "TEXT")
     private String summaryFeedback;
 
-    @Column(nullable = false)
-    private String status = "IN_PROGRESS"; // "IN_PROGRESS", "COMPLETED", "ABANDONED"
+    @Column(nullable = false, length = 20)
+    private String status = InterviewStatus.IN_PROGRESS.name();
 
-    private int xpEarned = 50;
+    @Column(name = "xp_earned", nullable = false)
+    private int xpEarned;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    @Column(name = "completed_at")
     private Instant completedAt;
 
-    public MockInterviewSession() {}
-
-    public MockInterviewSession(Long userId, String track, String stream, String difficulty, int totalQuestions) {
-        this.userId = userId;
-        this.track = track;
-        this.stream = stream;
-        this.difficulty = difficulty;
-        this.totalQuestions = totalQuestions;
-        this.currentQuestionIndex = 0;
-        this.status = "IN_PROGRESS";
-        this.createdAt = Instant.now();
+    protected MockInterviewSession() {
+        // for JPA
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public MockInterviewSession(Long userId, InterviewTrack track, String stream, InterviewDifficulty difficulty, int totalQuestions) {
+        this.userId = userId;
+        this.track = track.name();
+        this.stream = stream;
+        this.difficulty = difficulty.name();
+        this.totalQuestions = totalQuestions;
+    }
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public boolean isInProgress() {
+        return InterviewStatus.IN_PROGRESS.name().equals(status);
+    }
 
-    public String getTrack() { return track; }
-    public void setTrack(String track) { this.track = track; }
+    public boolean isCompleted() {
+        return InterviewStatus.COMPLETED.name().equals(status);
+    }
 
-    public String getStream() { return stream; }
-    public void setStream(String stream) { this.stream = stream; }
+    public boolean isOwnedBy(Long learnerId) {
+        return userId.equals(learnerId);
+    }
 
-    public String getDifficulty() { return difficulty; }
-    public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
+    public void questionAnswered() {
+        currentQuestionIndex++;
+    }
 
-    public int getTotalQuestions() { return totalQuestions; }
-    public void setTotalQuestions(int totalQuestions) { this.totalQuestions = totalQuestions; }
+    public void complete(int score, String readiness, String summary, int xp) {
+        this.overallScore = score;
+        this.readinessLevel = readiness;
+        this.summaryFeedback = summary;
+        this.xpEarned = xp;
+        this.status = InterviewStatus.COMPLETED.name();
+        this.completedAt = Instant.now();
+    }
 
-    public int getCurrentQuestionIndex() { return currentQuestionIndex; }
-    public void setCurrentQuestionIndex(int currentQuestionIndex) { this.currentQuestionIndex = currentQuestionIndex; }
+    public Long getId() {
+        return id;
+    }
 
-    public int getOverallScore() { return overallScore; }
-    public void setOverallScore(int overallScore) { this.overallScore = overallScore; }
+    public Long getUserId() {
+        return userId;
+    }
 
-    public String getReadinessLevel() { return readinessLevel; }
-    public void setReadinessLevel(String readinessLevel) { this.readinessLevel = readinessLevel; }
+    public String getTrack() {
+        return track;
+    }
 
-    public String getSummaryFeedback() { return summaryFeedback; }
-    public void setSummaryFeedback(String summaryFeedback) { this.summaryFeedback = summaryFeedback; }
+    public String getStream() {
+        return stream;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getDifficulty() {
+        return difficulty;
+    }
 
-    public int getXpEarned() { return xpEarned; }
-    public void setXpEarned(int xpEarned) { this.xpEarned = xpEarned; }
+    public int getTotalQuestions() {
+        return totalQuestions;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public int getCurrentQuestionIndex() {
+        return currentQuestionIndex;
+    }
 
-    public Instant getCompletedAt() { return completedAt; }
-    public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
+    public int getOverallScore() {
+        return overallScore;
+    }
+
+    public String getReadinessLevel() {
+        return readinessLevel;
+    }
+
+    public String getSummaryFeedback() {
+        return summaryFeedback;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public int getXpEarned() {
+        return xpEarned;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
+    }
 }

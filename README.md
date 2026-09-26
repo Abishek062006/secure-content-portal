@@ -109,6 +109,26 @@ else below was chosen deliberately, not defaulted to.
   row that pops up over the Like button. Posts can carry a photo or a video (up to 500 MB, streamed with the same
   session-bound tickets as lessons). Interface icons are [Lucide](https://lucide.dev) (ISC license), inlined in `components/Icon.jsx`. Reaction artwork is [Twemoji](https://github.com/jdecked/twemoji), graphics
   licensed CC-BY 4.0, stored in `frontend/public/reactions/`.
+- **Points, streaks, badges and the leaderboard.** Learners earn XP for completing a lesson, passing a quiz or
+  assessment, finishing a course, a daily check-in (with streak bonuses), registering for a hackathon and finishing a mock
+  interview, and unlock badges along the way. Every award is tied to what earned it and the database refuses a second one
+  (`point_transactions.dedupe_key`), so retaking a quiz, completing a lesson twice or two simultaneous requests can never pay
+  twice. Points only change through atomic SQL, never below zero. The leaderboard (all time, today, this week or month,
+  optionally per stream) reads only the top of the board in one bounded query and caches it briefly
+  (`LEADERBOARD_CACHE_SECONDS`), so it costs the same with ten learners or a hundred thousand; **admins never appear in or
+  earn from it**. Admins can re-price the rules (0 to 1000 XP) and make audited manual adjustments (up to 10 000 XP either way,
+  a reason is required); every such change is written to the audit log.
+- **Hackathons.** Admins list external hackathons (title, stream, mode, prize, dates, an https registration link); learners
+  browse and filter them, and registering earns the hackathon's XP once and opens the organiser's link. Everything an admin
+  enters is validated (only `https://` links, enums for mode and status, length limits, sensible dates), registration closes when
+  a hackathon is completed or its deadline passes, and create, edit and delete are audited. There is no sample data.
+- **AI mock interviews.** A learner picks a track (student or working professional), a stream and a difficulty and gets three
+  questions (written by the AI, or drawn from a built-in bank when it is unavailable), answers each for AI feedback and a score
+  from 1 to 10, then finishes for an overall readiness score and XP. An interview is private to its learner (someone else's looks
+  like it doesn't exist), a question is answered once, an interview completes once and pays once, the AI is never called while a
+  database transaction is open, learner text reaches the model as marked-off data, and a failed AI evaluation is reported as an
+  error instead of being replaced with invented feedback. Each learner is limited to 15 interviews a day and the interview
+  endpoints have the app's tightest request limits. Admins see usage analytics and can open any interview.
 - **My learning and certificates.** "My learning" lists enrolled courses with progress and a Continue button.
   A certificate is earned by completing every lesson and passing every graded assessment (quizzes are practice
   and never required). It is issued once, rendered as a PDF on the server, and carries an ID that anyone can
@@ -486,6 +506,16 @@ of what actually stops a determined viewer versus what just discourages a casual
   because the frontend and API are on different domains (see [Deployment](#deployment)); `Lax`
   locally, where frontend and backend share the same registrable domain. No token is ever stored in
   localStorage or sessionStorage.
+- **Flyway owns the schema, and it is checked.** Hibernate runs with `ddl-auto: validate`, never `update` (which
+  quietly rewrites column sizes and hides a forgotten migration), and Flyway is not set to auto-repair: an applied migration
+  is never edited, a change is always a new `V<n>` file, and a checksum mismatch stops startup instead of being smoothed over.
+- **Nothing trusts the request body.** Requests bind to small validated records, never to database entities, and
+  responses are typed DTOs, so a client can't set fields it shouldn't (ids, timestamps, points) or read fields it shouldn't.
+  "Not found" and "not yours" give the same answer, so ids can't be probed. Failures map to proper 400/403/404/409/429
+  responses, not 500s.
+- **Anything that pays out or costs money is idempotent and rate-limited.** XP, badges, hackathon registrations, interview
+  completion and check-ins are once-only in the database itself, and the AI-backed and points endpoints have their own
+  per-user request limits (`RateLimitInterceptor`).
 
 ## Testing
 

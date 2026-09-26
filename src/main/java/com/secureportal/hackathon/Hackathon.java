@@ -1,8 +1,15 @@
 package com.secureportal.hackathon;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.time.Instant;
 
+/** An external hackathon an admin lists for learners. Learners register through the organiser's own link. */
 @Entity
 @Table(name = "hackathons")
 public class Hackathon {
@@ -11,116 +18,156 @@ public class Hackathon {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 200)
     private String title;
 
-    private String organizer = "GradientNova & Global Partners";
+    @Column(length = 200)
+    private String organizer;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "banner_url", length = 500)
     private String bannerUrl;
 
-    @Column(nullable = false)
-    private String stream; // e.g. "Engineering & Web Dev", "AI & Data Science", "Global"
+    @Column(nullable = false, length = 100)
+    private String stream;
 
-    @Column(nullable = false)
-    private String mode; // "ONLINE", "OFFLINE", "HYBRID"
+    @Column(nullable = false, length = 20)
+    private String mode;
 
+    @Column(length = 200)
     private String location;
 
+    @Column(name = "prize_pool", length = 100)
     private String prizePool;
 
-    @Column(nullable = false, length = 1000)
+    @Column(name = "registration_url", nullable = false, length = 1000)
     private String registrationUrl;
 
+    @Column(name = "registration_deadline")
     private Instant registrationDeadline;
+
+    @Column(name = "event_start_date")
     private Instant eventStartDate;
+
+    @Column(name = "event_end_date")
     private Instant eventEndDate;
 
+    @Column(nullable = false)
     private boolean featured;
 
-    @Column(nullable = false)
-    private String status; // "ACTIVE", "UPCOMING", "COMPLETED"
+    @Column(nullable = false, length = 20)
+    private String status;
 
-    private int pointsReward = 25;
+    @Column(name = "points_reward", nullable = false)
+    private int pointsReward;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
-    public Hackathon() {}
+    protected Hackathon() {
+        // for JPA
+    }
 
-    public Hackathon(String title, String organizer, String description, String bannerUrl, String stream, String mode, String location, String prizePool, String registrationUrl, Instant registrationDeadline, Instant eventStartDate, Instant eventEndDate, boolean featured, String status, int pointsReward) {
-        this.title = title;
-        this.organizer = (organizer != null && !organizer.isBlank()) ? organizer : "GradientNova & Global Partners";
-        this.description = description;
-        this.bannerUrl = bannerUrl;
-        this.stream = stream;
-        this.mode = mode;
-        this.location = location;
-        this.prizePool = prizePool;
-        this.registrationUrl = registrationUrl;
-        this.registrationDeadline = registrationDeadline;
-        this.eventStartDate = eventStartDate;
-        this.eventEndDate = eventEndDate;
-        this.featured = featured;
-        this.status = status;
-        this.pointsReward = pointsReward;
-        this.createdAt = Instant.now();
+    /** Everything an admin can set, already validated by {@link HackathonService}. */
+    public record Details(String title, String organizer, String description, String bannerUrl, String stream, HackathonMode mode,
+                          String location, String prizePool, String registrationUrl, Instant registrationDeadline,
+                          Instant eventStartDate, Instant eventEndDate, boolean featured, HackathonStatus status, int pointsReward) {
+    }
+
+    public Hackathon(Details details) {
+        apply(details);
+    }
+
+    public void apply(Details details) {
+        this.title = details.title();
+        this.organizer = details.organizer();
+        this.description = details.description();
+        this.bannerUrl = details.bannerUrl();
+        this.stream = details.stream();
+        this.mode = details.mode().name();
+        this.location = details.location();
+        this.prizePool = details.prizePool();
+        this.registrationUrl = details.registrationUrl();
+        this.registrationDeadline = details.registrationDeadline();
+        this.eventStartDate = details.eventStartDate();
+        this.eventEndDate = details.eventEndDate();
+        this.featured = details.featured();
+        this.status = details.status().name();
+        this.pointsReward = details.pointsReward();
         this.updatedAt = Instant.now();
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    /** Whether learners may still register: not finished, and the deadline (if any) hasn't passed. */
+    public boolean acceptsRegistrations(Instant now) {
+        return !HackathonStatus.COMPLETED.name().equals(status) && (registrationDeadline == null || !now.isAfter(registrationDeadline));
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getOrganizer() { return organizer; }
-    public void setOrganizer(String organizer) { this.organizer = organizer; }
+    public String getTitle() {
+        return title;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public String getOrganizer() {
+        return organizer;
+    }
 
-    public String getBannerUrl() { return bannerUrl; }
-    public void setBannerUrl(String bannerUrl) { this.bannerUrl = bannerUrl; }
+    public String getDescription() {
+        return description;
+    }
 
-    public String getStream() { return stream; }
-    public void setStream(String stream) { this.stream = stream; }
+    public String getBannerUrl() {
+        return bannerUrl;
+    }
 
-    public String getMode() { return mode; }
-    public void setMode(String mode) { this.mode = mode; }
+    public String getStream() {
+        return stream;
+    }
 
-    public String getLocation() { return location; }
-    public void setLocation(String location) { this.location = location; }
+    public String getMode() {
+        return mode;
+    }
 
-    public String getPrizePool() { return prizePool; }
-    public void setPrizePool(String prizePool) { this.prizePool = prizePool; }
+    public String getLocation() {
+        return location;
+    }
 
-    public String getRegistrationUrl() { return registrationUrl; }
-    public void setRegistrationUrl(String registrationUrl) { this.registrationUrl = registrationUrl; }
+    public String getPrizePool() {
+        return prizePool;
+    }
 
-    public Instant getRegistrationDeadline() { return registrationDeadline; }
-    public void setRegistrationDeadline(Instant registrationDeadline) { this.registrationDeadline = registrationDeadline; }
+    public String getRegistrationUrl() {
+        return registrationUrl;
+    }
 
-    public Instant getEventStartDate() { return eventStartDate; }
-    public void setEventStartDate(Instant eventStartDate) { this.eventStartDate = eventStartDate; }
+    public Instant getRegistrationDeadline() {
+        return registrationDeadline;
+    }
 
-    public Instant getEventEndDate() { return eventEndDate; }
-    public void setEventEndDate(Instant eventEndDate) { this.eventEndDate = eventEndDate; }
+    public Instant getEventStartDate() {
+        return eventStartDate;
+    }
 
-    public boolean isFeatured() { return featured; }
-    public void setFeatured(boolean featured) { this.featured = featured; }
+    public Instant getEventEndDate() {
+        return eventEndDate;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public boolean isFeatured() {
+        return featured;
+    }
 
-    public int getPointsReward() { return pointsReward; }
-    public void setPointsReward(int pointsReward) { this.pointsReward = pointsReward; }
+    public String getStatus() {
+        return status;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public int getPointsReward() {
+        return pointsReward;
+    }
 }

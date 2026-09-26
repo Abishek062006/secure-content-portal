@@ -99,6 +99,7 @@ app:
     enabled: ${RATE_LIMIT_ENABLED:true}
   cache:
     analytics-seconds: ${ANALYTICS_CACHE_SECONDS:60}
+    leaderboard-seconds: ${LEADERBOARD_CACHE_SECONDS:30}
 
 # Groq by default; any OpenAI-compatible provider works. Set AI_API_KEY and AI_MODEL to enable question generation.
 ai:

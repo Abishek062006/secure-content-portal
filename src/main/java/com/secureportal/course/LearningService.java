@@ -1,6 +1,8 @@
 package com.secureportal.course;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -11,6 +13,8 @@ import java.util.UUID;
 /** The learner's side: who can see a course, enrolling, and remembering where each learner is. */
 @Service
 public class LearningService {
+
+    private static final Logger log = LoggerFactory.getLogger(LearningService.class);
 
     private final CourseService courseService;
     private final LessonRepository lessonRepository;
@@ -84,17 +88,20 @@ public class LearningService {
         }
 
         if (completed && !wasCompleted) {
-            String category = null;
-            try {
-                Course course = courseService.find(lesson.getCourseId());
-                category = course.getCategory();
-            } catch (Exception ignored) {
-            }
-            gamificationService.recordLessonCompletion(userId, category);
+            rewardCompletion(userId, lesson);
+        }
+    }
 
+    /** Points are a bonus on top of learning: whatever goes wrong in them must never lose the learner's progress. */
+    private void rewardCompletion(Long userId, Lesson lesson) {
+        try {
+            String stream = courseService.find(lesson.getCourseId()).getCategory();
+            gamificationService.recordLessonCompletion(userId, lesson.getId().toString(), stream);
             if (progressPercent(userId, lesson.getCourseId()) >= 100) {
-                gamificationService.recordCourseCompletion(userId, category);
+                gamificationService.recordCourseCompletion(userId, lesson.getCourseId().toString(), stream);
             }
+        } catch (RuntimeException e) {
+            log.warn("Could not award points for lesson {} to user {}", lesson.getId(), userId, e);
         }
     }
 

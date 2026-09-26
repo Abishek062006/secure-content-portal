@@ -163,6 +163,27 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler({com.secureportal.gamification.InvalidGamificationRequestException.class,
+            com.secureportal.hackathon.InvalidHackathonException.class, com.secureportal.interview.InvalidInterviewException.class})
+    public ResponseEntity<ApiError> handleInvalidGamificationRequest(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler({com.secureportal.hackathon.HackathonNotFoundException.class, com.secureportal.interview.InterviewNotFoundException.class})
+    public ResponseEntity<ApiError> handleGamificationNotFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler({com.secureportal.hackathon.HackathonClosedException.class, com.secureportal.interview.InterviewStateException.class})
+    public ResponseEntity<ApiError> handleGamificationConflict(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.interview.InterviewLimitException.class)
+    public ResponseEntity<ApiError> handleInterviewLimit(com.secureportal.interview.InterviewLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(new ApiError("That file is too large to upload."));

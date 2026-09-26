@@ -6,6 +6,8 @@ import com.secureportal.quiz.Difficulty;
 import com.secureportal.quiz.Question;
 import com.secureportal.quiz.QuestionOption;
 import com.secureportal.quiz.QuestionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class AttemptService {
+
+    private static final Logger log = LoggerFactory.getLogger(AttemptService.class);
 
     /** Time allowed after the clock hits zero, for the auto-submit request to arrive. */
     static final Duration GRACE = Duration.ofSeconds(5);
@@ -205,10 +209,16 @@ public class AttemptService {
         attempt.grade(correct, total, score, passed, timedOut);
         attemptRepository.save(attempt);
 
+        rewardPass(attempt, assessment, score, passed);
+    }
+
+    /** Points are a bonus on top of the result: a problem awarding them must never lose the attempt. */
+    private void rewardPass(Attempt attempt, Assessment assessment, int score, Boolean passed) {
         try {
-            boolean isPassed = Boolean.TRUE.equals(passed);
-            gamificationService.recordQuizAttempt(attempt.getUserId(), score, isPassed, null);
-        } catch (Exception ignored) {
+            gamificationService.recordQuizAttempt(attempt.getUserId(), assessment.getId().toString(), score,
+                    Boolean.TRUE.equals(passed), null);
+        } catch (RuntimeException e) {
+            log.warn("Could not award points for attempt {} of user {}", attempt.getId(), attempt.getUserId(), e);
         }
     }
 
