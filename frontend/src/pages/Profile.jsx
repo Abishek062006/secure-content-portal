@@ -227,7 +227,22 @@ export default function Profile() {
             </div>
           )}
         </div>
-        <div className="profile-avatar-big"><Avatar name={profile.name} url={profile.avatarUrl} size={152} /></div>
+        <div className="profile-avatar-big">
+          <Avatar name={profile.name} url={profile.avatarUrl} size={152} />
+          {mine && (
+            <>
+              <label className="avatar-plus" title="Change profile photo" aria-label="Change profile photo">
+                <Icon name="plus" size={20} strokeWidth={2.4} />
+                <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { pickImage('avatar', e.target.files[0]); e.target.value = ''; }} />
+              </label>
+              {profile.hasUploadedAvatar && (
+                <button type="button" className="avatar-minus" title="Use my Google photo" aria-label="Use my Google photo" onClick={() => removeImage('avatar')}>
+                  <Icon name="x" size={14} strokeWidth={2.4} />
+                </button>
+              )}
+            </>
+          )}
+        </div>
         <div className="profile-header-body">
           <div className="profile-header-top">
             <div>
@@ -240,14 +255,6 @@ export default function Profile() {
             </div>
             {mine && <button type="button" className="btn" onClick={() => setModal({ type: 'details' })}>Edit profile</button>}
           </div>
-          {mine && (
-            <div className="photo-tools">
-              <label className="link-button">Change photo
-                <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { pickImage('avatar', e.target.files[0]); e.target.value = ''; }} />
-              </label>
-              {profile.hasUploadedAvatar && <button type="button" className="link-button danger" onClick={() => removeImage('avatar')}>Use my Google photo</button>}
-            </div>
-          )}
         </div>
       </section>
 

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import SetupGuide from './course-editor/SetupGuide';
 import CoverPicker from '../../components/CoverPicker';
 import PricingFields, { pricingFromCourse, pricingPayload } from '../../components/PricingFields';
 import { Link, useLocation, useParams } from 'react-router-dom';
@@ -196,8 +195,6 @@ export default function CourseEditor() {
           <div className="form-actions"><button type="submit" className="btn btn-primary">Save price</button></div>
         </form>
       )}
-
-      <SetupGuide id={id} modules={modules} finalAssessment={outline.finalAssessment} published={published} flat={flat} />
 
       <h2 className="editor-heading">{flat ? 'Videos and quiz' : 'Outline'}</h2>
       {modules.length === 0 && (

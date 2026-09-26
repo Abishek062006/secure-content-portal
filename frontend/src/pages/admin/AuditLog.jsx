@@ -27,7 +27,7 @@ export default function AuditLog() {
 
       <div className="page-head">
         <h1>Audit log</h1>
-        <Link className="btn" to="/admin/content">Back to content</Link>
+        <Link className="btn" to="/admin/courses">Back to courses</Link>
       </div>
 
       {!loading && entries.length === 0 && (

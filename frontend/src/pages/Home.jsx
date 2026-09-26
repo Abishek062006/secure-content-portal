@@ -28,10 +28,9 @@ export default function Home() {
       <>
         <div className="container hero">
           <p className="hero-eyebrow">GradientNovaAI</p>
-          <h1 className="hero-title">Training &amp; reference,<br />shared securely.</h1>
+          <h1 className="hero-title">Learn, practise,<br />and share your progress.</h1>
           <p className="hero-sub">
-            Video, PDF and HTML content shared with your organization — sign in with Google to
-            browse the library.
+            Courses, quizzes, certificates and a community feed — sign in with Google to start learning.
           </p>
           <Link className="btn btn-primary btn-lg" to="/login">Sign in with Google</Link>
         </div>
@@ -55,19 +54,17 @@ export default function Home() {
     <div className="container">
       <div className="panel">
         <h1 style={{ marginTop: 0 }}>Welcome, {user.displayName}</h1>
-        <p>You're signed in as <strong>{user.role}</strong>.</p>
         {user.admin ? (
           <div className="home-actions">
             <Link className="btn btn-primary" to="/courses">Browse courses</Link>
-            <Link className="btn" to="/library">Browse library</Link>
             <Link className="btn" to="/admin/courses">Manage courses</Link>
-            <Link className="btn" to="/admin/content">Manage content</Link>
+            <Link className="btn" to="/feed">Feed</Link>
           </div>
         ) : (
           <div className="home-actions">
-            <p>Browse the training and reference videos, PDFs and HTML pages shared with you.</p>
+            <p>Pick up where you left off, or find something new to learn.</p>
             <Link className="btn btn-primary" to="/courses">Browse courses</Link>
-            <Link className="btn" to="/library">Browse library</Link>
+            <Link className="btn" to="/my-learning">My learning</Link>
           </div>
         )}
       </div>

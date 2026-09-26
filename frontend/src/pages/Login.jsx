@@ -3,8 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { Logo, LockIcon, ShieldPlayIcon, UsersGearIcon } from '../components/Icons';
 
 const POINTS = [
-  { Icon: ShieldPlayIcon, text: 'Video, PDF and HTML — one secure library' },
-  { Icon: LockIcon, text: 'Nothing is ever downloadable, only viewable' },
+  { Icon: ShieldPlayIcon, text: 'Video courses with quizzes and certificates' },
+  { Icon: LockIcon, text: 'Protected content, watermarked to the viewer' },
   { Icon: UsersGearIcon, text: 'Role-based access, enforced on every request' },
 ];
 
