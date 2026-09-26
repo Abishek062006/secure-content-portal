@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { API_BASE } from '../../api';
 
-export default function PdfViewer({ ticket, pageCount }) {
+export default function PdfViewer({ ticket, pageCount, basePath }) {
+  const pagesPath = basePath || `/api/pdf/${ticket}/page`;
   const totalPages = pageCount || 1;
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -30,7 +31,7 @@ export default function PdfViewer({ ticket, pageCount }) {
         <img
           alt="PDF page"
           hidden={loading || failed}
-          src={`${API_BASE}/api/pdf/${ticket}/page/${page}`}
+          src={`${API_BASE}${pagesPath}/${page}`}
           onLoad={() => setLoading(false)}
           onError={() => {
             setLoading(false);

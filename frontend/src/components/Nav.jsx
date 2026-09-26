@@ -17,7 +17,7 @@ export default function Nav() {
     <nav className="nav">
       <Link className="nav-brand" to="/">
         <Logo />
-        Secure Content Portal
+        GradientNovaAI
       </Link>
 
       {user && (
@@ -35,7 +35,7 @@ export default function Nav() {
       <div className="nav-right">
         {user ? (
           <div className="nav-user">
-            <span className={`badge${user.admin ? ' admin' : ''}`}>{user.role}</span>
+            {user.admin && <span className="badge admin">Admin</span>}
             <Link to="/profile" className="nav-profile-link" title="Your profile">
               {user.pictureUrl ? (
                 <img className="avatar" src={user.pictureUrl} alt="" referrerPolicy="no-referrer" />

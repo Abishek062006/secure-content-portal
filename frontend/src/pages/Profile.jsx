@@ -272,7 +272,7 @@ export default function Profile() {
               <div className="entry-icon" aria-hidden="true"><Icon name="award" size={24} /></div>
               <div className="entry-body">
                 <strong>{c.courseTitle}</strong>
-                <div>Secure Content Portal</div>
+                <div>GradientNovaAI</div>
                 <div className="muted">Issued {new Date(c.issuedAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })} · Credential ID {c.code}</div>
                 <Link className="btn btn-sm" to={`/verify/${c.code}`}>Show credential</Link>
               </div>

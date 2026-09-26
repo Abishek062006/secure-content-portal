@@ -1,4 +1,6 @@
-# Secure Content Portal
+# GradientNovaAI
+
+_(formerly Secure Content Portal; the repository and package names keep the old name)_
 
 A role-based portal for sharing training and reference content — video, PDF, and HTML — inside an
 organization. Admins upload and manage content; viewers browse and watch/read it inline, without a
@@ -54,6 +56,12 @@ else below was chosen deliberately, not defaulted to.
   or Hard: pick Hard and all of them are hard) and takes up to 100 at a time. Questions can be saved as *final
   assessment only*. A final assessment has a slider for what share of its questions is recycled from the course's
   regular questions versus new final-only ones; if one kind runs short, the other fills the gap.
+- **Module materials.** Each module can carry extra study material: PDFs, web pages, small videos (up to 500 MB),
+  Word/PowerPoint/Excel/text/CSV/ZIP files, and links. The admin ticks per item whether learners may download it.
+  View-only PDFs, web pages and videos open inside the portal with the same protections as library content
+  (watermarked page images, sandboxed HTML, session-bound video tickets) and the download endpoint refuses them.
+  Documents can't be shown in a browser, so they are always download-only. Materials follow the same rules as
+  lessons: learners must be enrolled and the module unlocked.
 - **Pricing.** A course is free or paid (whole rupees). A paid course can have a percentage discount, set with a
   slider, that runs for a period: while it is on, learners see the original price struck out, the discounted price,
   the percentage and when the offer ends. Payments are **not** connected yet, so a price is displayed but enrolling

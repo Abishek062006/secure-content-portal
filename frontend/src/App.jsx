@@ -8,6 +8,7 @@ import ContentView from './pages/ContentView';
 import Courses from './pages/Courses';
 import CourseView from './pages/CourseView';
 import LessonView from './pages/LessonView';
+import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
 import AttemptView from './pages/AttemptView';
 import MyLearning from './pages/MyLearning';
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseView />} />
           <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />
+          <Route path="/courses/:courseId/materials/:id" element={<MaterialView />} />
           <Route path="/courses/:courseId/assessments/:assessmentId" element={<AssessmentView />} />
           <Route path="/attempts/:attemptId" element={<AttemptView />} />
         </Route>

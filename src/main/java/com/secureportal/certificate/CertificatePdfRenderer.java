@@ -47,7 +47,7 @@ public class CertificatePdfRenderer {
                 cs.addRect(40, 40, w - 80, h - 80);
                 cs.stroke();
 
-                centered(cs, bold, 14, ACCENT, "SECURE CONTENT PORTAL", w, h - 110);
+                centered(cs, bold, 14, ACCENT, "GRADIENTNOVAAI", w, h - 110);
                 centered(cs, bold, 40, INK, "Certificate of Completion", w, h - 165);
                 centered(cs, regular, 14, MUTED, "This certifies that", w, h - 215);
 

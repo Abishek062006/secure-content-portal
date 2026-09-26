@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
 import AssessmentRow from '../components/AssessmentRow';
 import PriceTag from '../components/PriceTag';
+import Icon from '../components/Icon';
+import { MATERIAL_ICON, MATERIAL_LABEL } from '../lib/materials';
 import CertificateCard from '../components/CertificateCard';
 
 export default function CourseView() {
@@ -129,6 +131,21 @@ export default function CourseView() {
                 </li>
               ))}
             </ol>
+            {module.materials?.length > 0 && (
+              <div className="materials">
+                <h3 className="materials-title">Materials</h3>
+                <ul>
+                  {module.materials.map((m) => (
+                    <li key={m.id}>
+                      <Icon name={MATERIAL_ICON[m.kind]} size={18} />
+                      {open ? <Link to={`/courses/${course.id}/materials/${m.id}`}>{m.title}</Link> : <span className="outline-locked">{m.title}</span>}
+                      <span className="badge">{MATERIAL_LABEL[m.kind]}</span>
+                      {m.downloadable && m.kind !== 'LINK' && <span className="badge status-published">Download</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {module.assessment && (
               <AssessmentRow courseId={course.id} assessment={module.assessment} canOpen={canOpen} />
             )}

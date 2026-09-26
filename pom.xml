@@ -14,7 +14,7 @@
     <groupId>com.secureportal</groupId>
     <artifactId>secure-content-portal</artifactId>
     <version>1.0.0</version>
-    <name>Secure Content Portal</name>
+    <name>GradientNovaAI</name>
     <description>Role-based portal for sharing protected video, PDF and HTML content</description>
 
     <properties>

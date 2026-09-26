@@ -27,7 +27,7 @@ export default function Home() {
     return (
       <>
         <div className="container hero">
-          <p className="hero-eyebrow">Secure Content Portal</p>
+          <p className="hero-eyebrow">GradientNovaAI</p>
           <h1 className="hero-title">Training &amp; reference,<br />shared securely.</h1>
           <p className="hero-sub">
             Video, PDF and HTML content shared with your organization — sign in with Google to

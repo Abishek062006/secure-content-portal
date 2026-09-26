@@ -9,39 +9,8 @@
  * content that's alive/organic rather than locked down, matching the
  * softer glassmorphic redesign of the rest of the UI.
  */
-export function Logo(props) {
-  return (
-    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" {...props}>
-      <rect width="30" height="30" rx="9" fill="url(#scp-tile-grad)" />
-      <rect x="8.6" y="9.6" width="12.4" height="16.2" rx="2.3" transform="rotate(-4 8.6 9.6)" fill="#cdeadb" />
-      <path
-        d="M10.4 6.5h7.9l3.3 3.3v13.4a1.9 1.9 0 0 1-1.9 1.9H10.4a1.9 1.9 0 0 1-1.9-1.9V8.4a1.9 1.9 0 0 1 1.9-1.9Z"
-        fill="url(#scp-paper-grad)"
-      />
-      <path d="M18.3 6.5l3.3 3.3h-2.2a1.1 1.1 0 0 1-1.1-1.1V6.5Z" fill="#d8ecdf" />
-      <rect x="10.6" y="13.6" width="7.2" height="1.35" rx="0.675" fill="#a9d3bb" />
-      <rect x="10.6" y="16.7" width="7.2" height="1.35" rx="0.675" fill="#a9d3bb" />
-      <rect x="10.6" y="19.8" width="4.6" height="1.35" rx="0.675" fill="#a9d3bb" />
-      <path
-        d="M17.3 21c3.4-2.3 7-1.7 8.7 1.1-2.6 2.3-6.4 2-8.7-1.1Z"
-        fill="url(#scp-leaf-grad)"
-      />
-      <defs>
-        <linearGradient id="scp-tile-grad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#f3faf6" />
-          <stop offset="1" stopColor="#dff1e6" />
-        </linearGradient>
-        <linearGradient id="scp-paper-grad" x1="8.5" y1="6.5" x2="21.5" y2="25.1" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ffffff" />
-          <stop offset="1" stopColor="#eaf6ee" />
-        </linearGradient>
-        <linearGradient id="scp-leaf-grad" x1="17.3" y1="23.4" x2="26" y2="19.6" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#1f8a4c" />
-          <stop offset="1" stopColor="#8fd96f" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
+export function Logo({ size = 32, ...props }) {
+  return <img src="/logo.png" alt="GradientNovaAI" width={size} height={size} className="brand-logo" {...props} />;
 }
 
 export function VideoIcon(props) {

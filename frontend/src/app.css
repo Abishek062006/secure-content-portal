@@ -2349,3 +2349,17 @@ select:focus, input[type="number"]:focus, input[type="datetime-local"]:focus {
 .promo-card { flex-direction: column; gap: 0; }
 .promo-card > img { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
 .promo-info { padding: 14px 16px 16px; }
+
+.brand-logo { border-radius: 8px; display: block; object-fit: cover; }
+
+/* materials */
+.materials { margin: 12px 0 4px; }
+.materials-title { font-size: 0.95rem; margin: 0 0 6px; color: var(--ink-mid); }
+.materials ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.materials li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.materials li .icon { color: var(--accent-deep); }
+.materials-admin { margin: 14px 0; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.materials-admin h4 { margin: 0 0 6px; font-size: 1rem; }
+.materials-admin h4 .field-hint { font-weight: 400; margin-left: 6px; }
+.compact-check { font-size: 0.85rem; }
+.material-card { padding: 24px; border: 1px solid var(--line); border-radius: var(--radius-lg, 14px); background: var(--surface); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }

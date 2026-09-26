@@ -24,7 +24,7 @@ function buildWatermarkTile(text) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/stream', videoRef: externalRef }) {
+export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/stream', src, videoRef: externalRef }) {
   const [failed, setFailed] = useState(false);
   const internalRef = useRef(null);
   const videoRef = externalRef || internalRef;
@@ -62,7 +62,7 @@ export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/st
         playsInline
         webkit-playsinline="true"
         className="media-player"
-        src={`${API_BASE}${streamPath}/${ticket}`}
+        src={`${API_BASE}${src || `${streamPath}/${ticket}`}`}
         onError={() => setFailed(true)}
         onContextMenu={(e) => e.preventDefault()}
       >

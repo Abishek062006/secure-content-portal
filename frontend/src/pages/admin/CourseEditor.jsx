@@ -103,6 +103,12 @@ export default function CourseEditor() {
       swallow(run(() => api.upload(`/api/admin/lessons/${lessonId}/transcript`, formData), 'Transcript replaced.'));
     },
     deleteLesson: (lesson) => setPendingDelete({ type: 'lesson', item: lesson }),
+    addMaterial: (moduleId, formData, onProgress) =>
+      run(() => api.uploadWithProgress(`/api/admin/modules/${moduleId}/materials`, formData, onProgress), 'Material added.'),
+    updateMaterial: (material, changes) => swallow(run(() => api.put(`/api/admin/materials/${material.id}`, {
+      title: material.title, description: material.description, url: material.url, downloadable: material.downloadable, ...changes,
+    }), 'Material updated.')),
+    deleteMaterial: (material) => setPendingDelete({ type: 'material', item: material }),
     saveAssessment: (moduleId, body) => run(() => api.put(`/api/admin/modules/${moduleId}/assessment`, body), 'Saved.'),
     removeAssessment: (module) => setPendingDelete({ type: 'assessment', item: { ...module.assessment, kind: 'module', moduleId: module.id } }),
     moveLesson: (module, lessonId, delta) => {
@@ -119,9 +125,9 @@ export default function CourseEditor() {
     if (type === 'assessment') {
       path = item.kind === 'final' ? `/api/admin/courses/${id}/final-assessment` : `/api/admin/modules/${item.moduleId}/assessment`;
     } else {
-      path = type === 'module' ? `/api/admin/modules/${item.id}` : `/api/admin/lessons/${item.id}`;
+      path = type === 'module' ? `/api/admin/modules/${item.id}` : type === 'material' ? `/api/admin/materials/${item.id}` : `/api/admin/lessons/${item.id}`;
     }
-    const label = { module: 'Module', lesson: 'Lesson', assessment: 'Quiz/assessment' }[type];
+    const label = { module: 'Module', lesson: 'Lesson', material: 'Material', assessment: 'Quiz/assessment' }[type];
     swallow(run(() => api.del(path), `${label} deleted.`));
   }
 
@@ -236,8 +242,9 @@ export default function CourseEditor() {
         open={Boolean(pendingDelete)}
         title={pendingDelete?.item.title}
         detail={{
-          module: 'All its lessons and their videos will be removed too.',
+          module: 'All its lessons, videos and materials will be removed too.',
           lesson: 'Its video and transcript will be removed too.',
+          material: 'Its file will be removed too.',
           assessment: 'Learners\' attempts at it will be removed too.',
         }[pendingDelete?.type]}
         onCancel={() => setPendingDelete(null)}

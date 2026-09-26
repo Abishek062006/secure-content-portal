@@ -21,7 +21,7 @@ export default function Login() {
       <div className="login-card">
         <div className="login-brand">
           <Logo />
-          <span>Secure Content Portal</span>
+          <span>GradientNovaAI</span>
         </div>
 
         <h1>Welcome back</h1>
