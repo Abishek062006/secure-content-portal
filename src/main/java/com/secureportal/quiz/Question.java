@@ -56,6 +56,10 @@ public class Question {
     @OrderColumn(name = "sort_order")
     private List<QuestionOption> options = new ArrayList<>();
 
+    /** Reserved for the final assessment: module quizzes never draw it. */
+    @Column(name = "final_only", nullable = false)
+    private boolean finalOnly;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -139,5 +143,14 @@ public class Question {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public boolean isFinalOnly() {
+        return finalOnly;
+    }
+
+    public void setFinalOnly(boolean finalOnly) {
+        this.finalOnly = finalOnly;
+        this.updatedAt = Instant.now();
     }
 }

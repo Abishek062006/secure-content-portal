@@ -1,0 +1,5 @@
+# Tests wipe tables between cases, so they must never share the database you develop in.
+# This file only exists on the test classpath and overrides the datasource of the `local` profile.
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/secureportal_test}

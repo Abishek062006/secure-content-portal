@@ -58,17 +58,18 @@ public class AdminAssessmentApiController {
     public record AssessmentRequest(
             @NotNull(message = "Choose quiz or assessment") AssessmentType type,
             @NotBlank(message = "Give it a title") @Size(max = 200, message = "The title must be 200 characters or fewer") String title,
-            @Min(value = 0, message = "Counts can't be negative") @Max(value = 50, message = "At most 50 questions per difficulty") int easyCount,
-            @Min(value = 0, message = "Counts can't be negative") @Max(value = 50, message = "At most 50 questions per difficulty") int mediumCount,
-            @Min(value = 0, message = "Counts can't be negative") @Max(value = 50, message = "At most 50 questions per difficulty") int hardCount,
+            @Min(value = 0, message = "Counts can't be negative") @Max(value = 100, message = "At most 100 questions per difficulty") int easyCount,
+            @Min(value = 0, message = "Counts can't be negative") @Max(value = 100, message = "At most 100 questions per difficulty") int mediumCount,
+            @Min(value = 0, message = "Counts can't be negative") @Max(value = 100, message = "At most 100 questions per difficulty") int hardCount,
             Integer passPercent,
             Integer timeLimitMinutes,
             Integer maxAttempts,
-            boolean gatesNext
+            boolean gatesNext,
+            Integer reusePercent
     ) {
         AssessmentInput toInput() {
             return new AssessmentInput(type, title, easyCount, mediumCount, hardCount, passPercent, timeLimitMinutes,
-                    maxAttempts, gatesNext);
+                    maxAttempts, gatesNext, reusePercent);
         }
     }
 

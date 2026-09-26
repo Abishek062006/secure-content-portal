@@ -29,6 +29,10 @@ public record AssessmentSummaryDto(
         UUID inProgressAttemptId,
         Integer availableEasy,
         Integer availableMedium,
-        Integer availableHard
+        Integer availableHard,
+        Integer reusePercent,
+        Integer newEasy,
+        Integer newMedium,
+        Integer newHard
 ) {
 }

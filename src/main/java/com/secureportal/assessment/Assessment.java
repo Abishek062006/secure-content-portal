@@ -52,6 +52,10 @@ public class Assessment {
     @Column(name = "gates_next", nullable = false)
     private boolean gatesNext;
 
+    /** Final assessment only: the share (0-100) of questions recycled from the course's regular questions. */
+    @Column(name = "reuse_percent")
+    private Integer reusePercent;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -78,6 +82,7 @@ public class Assessment {
         this.timeLimitMinutes = input.timeLimitMinutes();
         this.maxAttempts = input.maxAttempts();
         this.gatesNext = input.gatesNext();
+        this.reusePercent = input.reusePercent();
         this.updatedAt = Instant.now();
     }
 
@@ -135,5 +140,9 @@ public class Assessment {
 
     public boolean isGatesNext() {
         return gatesNext;
+    }
+
+    public Integer getReusePercent() {
+        return reusePercent;
     }
 }

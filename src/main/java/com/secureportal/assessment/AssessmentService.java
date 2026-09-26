@@ -20,7 +20,7 @@ import java.util.UUID;
 @Service
 public class AssessmentService {
 
-    static final int MAX_PER_DIFFICULTY = 50;
+    static final int MAX_PER_DIFFICULTY = 100;
 
     private final AssessmentRepository assessmentRepository;
     private final CourseService courseService;
@@ -92,12 +92,41 @@ public class AssessmentService {
         return counts;
     }
 
+    /** Approved questions reserved for the final assessment, by difficulty (all zero for a module's assessment). */
+    public Map<Difficulty, Long> availableNew(Assessment assessment) {
+        Map<Difficulty, Long> counts = new EnumMap<>(Difficulty.class);
+        for (Difficulty d : Difficulty.values()) {
+            counts.put(d, 0L);
+        }
+        for (Question q : newPool(assessment)) {
+            counts.merge(q.getDifficulty(), 1L, Long::sum);
+        }
+        return counts;
+    }
+
+    /**
+     * The regular questions: a module's assessment draws from its own lessons' questions; the final draws from
+     * every regular (not final-only) question in the course, which is what "recycled from earlier" means.
+     */
     public List<Question> pool(Assessment assessment) {
-        List<UUID> lessonIds = (assessment.getModuleId() != null
-                ? lessonRepository.findByModuleIdOrderByPositionAsc(assessment.getModuleId())
-                : lessonRepository.findByCourseId(assessment.getCourseId()))
+        if (assessment.getModuleId() == null) {
+            return questionRepository.findByCourseIdAndStatus(assessment.getCourseId(), QuestionStatus.APPROVED)
+                    .stream().filter(q -> !q.isFinalOnly()).toList();
+        }
+        List<UUID> lessonIds = lessonRepository.findByModuleIdOrderByPositionAsc(assessment.getModuleId())
                 .stream().map(Lesson::getId).toList();
-        return lessonIds.isEmpty() ? List.of() : questionRepository.findByLessonIdInAndStatus(lessonIds, QuestionStatus.APPROVED);
+        return lessonIds.isEmpty() ? List.<Question>of()
+                : questionRepository.findByLessonIdInAndStatus(lessonIds, QuestionStatus.APPROVED).stream()
+                .filter(q -> !q.isFinalOnly()).toList();
+    }
+
+    /** The questions written only for the final assessment (empty for a module's assessment). */
+    public List<Question> newPool(Assessment assessment) {
+        if (assessment.getModuleId() != null) {
+            return List.of();
+        }
+        return questionRepository.findByCourseIdAndStatus(assessment.getCourseId(), QuestionStatus.APPROVED)
+                .stream().filter(Question::isFinalOnly).toList();
     }
 
     /** Normalises the input: a quiz never carries a pass mark, timer, attempt limit or gate. */
@@ -117,9 +146,16 @@ public class AssessmentService {
         if (in.easyCount() + in.mediumCount() + in.hardCount() == 0) {
             throw new InvalidAssessmentException("Draw at least one question.");
         }
+        Integer reuse = null;
+        if (!moduleScope) {
+            reuse = in.reusePercent() == null ? 100 : in.reusePercent();
+            if (reuse < 0 || reuse > 100) {
+                throw new InvalidAssessmentException("The share of recycled questions must be 0 to 100%.");
+            }
+        }
         if (in.type() == AssessmentType.QUIZ) {
             return new AssessmentInput(AssessmentType.QUIZ, title, in.easyCount(), in.mediumCount(), in.hardCount(),
-                    null, null, null, false);
+                    null, null, null, false, reuse);
         }
         if (in.passPercent() == null || in.passPercent() < 1 || in.passPercent() > 100) {
             throw new InvalidAssessmentException("An assessment needs a pass mark between 1 and 100%.");
@@ -131,6 +167,6 @@ public class AssessmentService {
             throw new InvalidAssessmentException("Attempts must be 1 to 20.");
         }
         return new AssessmentInput(AssessmentType.ASSESSMENT, title, in.easyCount(), in.mediumCount(), in.hardCount(),
-                in.passPercent(), in.timeLimitMinutes(), in.maxAttempts(), moduleScope && in.gatesNext());
+                in.passPercent(), in.timeLimitMinutes(), in.maxAttempts(), moduleScope && in.gatesNext(), reuse);
     }
 }

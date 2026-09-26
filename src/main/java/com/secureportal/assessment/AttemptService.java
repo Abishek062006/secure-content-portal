@@ -212,23 +212,40 @@ public class AttemptService {
     }
 
     private List<Question> draw(Assessment assessment) {
-        Map<Difficulty, List<Question>> byDifficulty = new EnumMap<>(Difficulty.class);
-        for (Question q : assessmentService.pool(assessment)) {
-            byDifficulty.computeIfAbsent(q.getDifficulty(), d -> new ArrayList<>()).add(q);
-        }
-        Map<Difficulty, Integer> wanted = new HashMap<>();
+        Map<Difficulty, List<Question>> regular = byDifficulty(assessmentService.pool(assessment));
+        Map<Difficulty, List<Question>> fresh = byDifficulty(assessmentService.newPool(assessment));
+        // A final assessment takes reusePercent of each difficulty from the regular questions and the rest from
+        // the final-only ones; a shortfall in either is made up from the other so the count still adds up.
+        int reuse = assessment.getModuleId() == null && assessment.getReusePercent() != null ? assessment.getReusePercent() : 100;
+
+        Map<Difficulty, Integer> wanted = new EnumMap<>(Difficulty.class);
         wanted.put(Difficulty.EASY, assessment.getEasyCount());
         wanted.put(Difficulty.MEDIUM, assessment.getMediumCount());
         wanted.put(Difficulty.HARD, assessment.getHardCount());
 
         List<Question> drawn = new ArrayList<>();
         for (Difficulty difficulty : Difficulty.values()) {
-            List<Question> pool = byDifficulty.getOrDefault(difficulty, new ArrayList<>());
-            Collections.shuffle(pool);
-            drawn.addAll(pool.subList(0, Math.min(wanted.get(difficulty), pool.size())));
+            List<Question> old = regular.getOrDefault(difficulty, new ArrayList<>());
+            List<Question> add = fresh.getOrDefault(difficulty, new ArrayList<>());
+            Collections.shuffle(old);
+            Collections.shuffle(add);
+            int total = wanted.get(difficulty);
+            int fromOld = Math.min(old.size(), (int) Math.round(total * reuse / 100.0));
+            int fromNew = Math.min(add.size(), total - fromOld);
+            fromOld = Math.min(old.size(), total - fromNew);
+            drawn.addAll(old.subList(0, fromOld));
+            drawn.addAll(add.subList(0, fromNew));
         }
         Collections.shuffle(drawn);
         return drawn;
+    }
+
+    private static Map<Difficulty, List<Question>> byDifficulty(List<Question> questions) {
+        Map<Difficulty, List<Question>> map = new EnumMap<>(Difficulty.class);
+        for (Question q : questions) {
+            map.computeIfAbsent(q.getDifficulty(), d -> new ArrayList<>()).add(q);
+        }
+        return map;
     }
 
     public static int correctIndex(Question question) {

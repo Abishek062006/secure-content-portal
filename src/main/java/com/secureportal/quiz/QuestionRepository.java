@@ -12,5 +12,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID> {
 
     List<Question> findByLessonIdOrderByCreatedAtAsc(UUID lessonId);
 
+    List<Question> findByCourseIdAndStatus(UUID courseId, QuestionStatus status);
+
     List<Question> findByLessonIdInAndStatus(Collection<UUID> lessonIds, QuestionStatus status);
 }

@@ -34,9 +34,11 @@ public class AssessmentAssembler {
 
     public AssessmentSummaryDto admin(Assessment a) {
         Map<Difficulty, Long> available = assessmentService.available(a);
+        Map<Difficulty, Long> fresh = assessmentService.availableNew(a);
         return build(a, null, null, null, null, null, null, null,
                 available.get(Difficulty.EASY).intValue(), available.get(Difficulty.MEDIUM).intValue(),
-                available.get(Difficulty.HARD).intValue());
+                available.get(Difficulty.HARD).intValue(), fresh.get(Difficulty.EASY).intValue(),
+                fresh.get(Difficulty.MEDIUM).intValue(), fresh.get(Difficulty.HARD).intValue());
     }
 
     /** {@code lockReason} is present when the learner can't start it yet; {@code mine} is all their attempts at it. */
@@ -61,16 +63,17 @@ public class AssessmentAssembler {
             status = "AVAILABLE";
         }
         return build(a, status, lockReason.filter(r -> !passed && inProgress == null).orElse(null), used, left, best,
-                a.isGraded() ? passed : null, inProgress == null ? null : inProgress.getId(), null, null, null);
+                a.isGraded() ? passed : null, inProgress == null ? null : inProgress.getId(), null, null, null, null, null, null);
     }
 
     private AssessmentSummaryDto build(Assessment a, String status, String lockedReason, Integer used, Integer left,
                                        Integer best, Boolean passed, java.util.UUID inProgressId,
-                                       Integer availableEasy, Integer availableMedium, Integer availableHard) {
+                                       Integer availableEasy, Integer availableMedium, Integer availableHard,
+                                       Integer newEasy, Integer newMedium, Integer newHard) {
         return new AssessmentSummaryDto(a.getId(), a.getModuleId(), a.getType().name(), a.getTitle(),
                 a.getEasyCount(), a.getMediumCount(), a.getHardCount(), a.totalQuestions(), a.getPassPercent(),
                 a.getTimeLimitMinutes(), a.getMaxAttempts(), a.isGatesNext(), status, lockedReason, used, left, best,
-                passed, inProgressId, availableEasy, availableMedium, availableHard);
+                passed, inProgressId, availableEasy, availableMedium, availableHard, a.getReusePercent(), newEasy, newMedium, newHard);
     }
 
     public AttemptDto attempt(AttemptService.Detail detail) {

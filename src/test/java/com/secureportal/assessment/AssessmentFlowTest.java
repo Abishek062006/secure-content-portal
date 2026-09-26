@@ -352,6 +352,87 @@ class AssessmentFlowTest {
         assertThat(attemptRepository.count()).isZero();
     }
 
+    @Test
+    void aFinalAssessmentMixesRecycledAndNewQuestionsByThePercentageAndQuizzesNeverDrawFinalOnlyOnes() throws Exception {
+        Fixture f = fixture();
+        // Fixture has 4 regular EASY questions; add 6 EASY questions reserved for the final.
+        for (int i = 0; i < 6; i++) {
+            mockMvc.perform(post("/api/admin/lessons/" + f.lesson1 + "/questions").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"text\":\"NEWQ number " + i + "?\",\"difficulty\":\"EASY\",\"explanation\":\"Because.\","
+                                    + "\"options\":[\"" + RIGHT + "\",\"Wrong one\",\"Wrong two\",\"Wrong three\"],\"correctIndex\":0,\"finalOnly\":true}")
+                            .with(csrf()).with(as(admin)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.finalOnly").value(true));
+        }
+        mockMvc.perform(post("/api/courses/" + f.course + "/enroll").with(csrf()).with(as(learner))).andExpect(status().isOk());
+        complete(f, f.lesson1);
+        complete(f, f.lesson2);
+        complete(f, f.lesson3);
+
+        // A module quiz asking for 4 easy questions can only ever get the 4 regular ones.
+        String quiz = saveModuleAssessment(f.module1, config("QUIZ", "Practice", 4, 0, 0, null, null, null, false));
+        JsonNode quizAttempt = json(mockMvc.perform(post("/api/assessments/" + quiz + "/attempts").with(csrf()).with(as(learner)))
+                .andExpect(status().isOk()).andReturn());
+        assertThat(texts(quizAttempt).stream().filter(t -> t.startsWith("NEWQ"))).isEmpty();
+
+        for (int[] mix : new int[][]{{50, 2}, {100, 0}, {0, 4}, {75, 1}}) {
+            String finalExam = json(mockMvc.perform(put("/api/admin/courses/" + f.course + "/final-assessment")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(config("QUIZ", "Final", 4, 0, 0, null, null, null, false).replace("}", ",\"reusePercent\":" + mix[0] + "}"))
+                            .with(csrf()).with(as(admin)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.reusePercent").value(mix[0]))
+                    .andExpect(jsonPath("$.availableEasy").value(4))
+                    .andExpect(jsonPath("$.newEasy").value(6)).andReturn()).get("id").asText();
+            JsonNode attempt = json(mockMvc.perform(post("/api/assessments/" + finalExam + "/attempts").with(csrf()).with(as(learner)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(4)).andReturn());
+            assertThat(texts(attempt).stream().filter(t -> t.startsWith("NEWQ")).count())
+                    .as("new questions at %s%% reuse", mix[0]).isEqualTo(mix[1]);
+            mockMvc.perform(post("/api/attempts/" + attempt.get("id").asText() + "/submit").with(csrf()).with(as(learner)))
+                    .andExpect(status().isOk());
+        }
+
+        // If there aren't enough new questions the regular ones fill the gap, so the count still adds up.
+        for (var question : json(mockMvc.perform(get("/api/admin/courses/" + f.course + "/questions").with(as(admin))).andReturn())) {
+            if (question.get("finalOnly").asBoolean() && !question.get("text").asText().endsWith("0?")) {
+                mockMvc.perform(delete("/api/admin/questions/" + question.get("id").asText()).with(csrf()).with(as(admin)))
+                        .andExpect(status().isNoContent());
+            }
+        }
+        String shortfall = json(mockMvc.perform(put("/api/admin/courses/" + f.course + "/final-assessment")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(config("QUIZ", "Final", 4, 0, 0, null, null, null, false).replace("}", ",\"reusePercent\":0}"))
+                        .with(csrf()).with(as(admin))).andReturn()).get("id").asText();
+        JsonNode attempt = json(mockMvc.perform(post("/api/assessments/" + shortfall + "/attempts").with(csrf()).with(as(learner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalCount").value(4)).andReturn());
+        assertThat(texts(attempt).stream().filter(t -> t.startsWith("NEWQ")).count()).isEqualTo(1);
+
+        mockMvc.perform(put("/api/admin/courses/" + f.course + "/final-assessment").contentType(MediaType.APPLICATION_JSON)
+                        .content(config("QUIZ", "Final", 4, 0, 0, null, null, null, false).replace("}", ",\"reusePercent\":101}"))
+                        .with(csrf()).with(as(admin)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void aQuestionCanBeMovedBetweenTheRegularAndFinalOnlyPools() throws Exception {
+        Fixture f = fixture();
+        String id = json(mockMvc.perform(get("/api/admin/courses/" + f.course + "/questions").with(as(admin))).andReturn()).get(0).get("id").asText();
+        mockMvc.perform(put("/api/admin/questions/" + id + "/scope").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"finalOnly\":true}").with(csrf()).with(as(admin)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.finalOnly").value(true));
+        mockMvc.perform(put("/api/admin/questions/" + id + "/scope").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"finalOnly\":false}").with(csrf()).with(as(admin)))
+                .andExpect(jsonPath("$.finalOnly").value(false));
+        mockMvc.perform(put("/api/admin/questions/" + id + "/scope").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"finalOnly\":true}").with(csrf()).with(as(learner)))
+                .andExpect(status().isForbidden());
+    }
+
+    private static List<String> texts(JsonNode attempt) {
+        List<String> texts = new ArrayList<>();
+        attempt.get("questions").forEach(q -> texts.add(q.get("text").asText()));
+        return texts;
+    }
+
     // ---- helpers ----
 
     private Fixture fixture() throws Exception {

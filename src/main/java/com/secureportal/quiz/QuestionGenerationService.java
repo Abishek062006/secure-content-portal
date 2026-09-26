@@ -48,7 +48,20 @@ public class QuestionGenerationService {
         this.objectMapper = objectMapper;
     }
 
+    /** Most questions asked of the model in one call: bigger asks get slow, truncated or repetitive. */
+    static final int BATCH = 20;
+    private static final int TOP_UP_ROUNDS = 5;
+
     public List<Question> generate(UUID lessonId, int count) {
+        return generate(lessonId, count, null, false);
+    }
+
+    /**
+     * @param only  when set, every question is written at that difficulty (others the model slips in are dropped);
+     *              null asks for a mix
+     * @param finalOnly save them as new questions for the final assessment rather than the module quizzes
+     */
+    public List<Question> generate(UUID lessonId, int count, Difficulty only, boolean finalOnly) {
         Lesson lesson = structureService.findLesson(lessonId);
         List<TranscriptCue> cues = structureService.transcript(lesson);
         if (cues.isEmpty()) {
@@ -58,7 +71,6 @@ public class QuestionGenerationService {
 
         double lastSecond = cues.get(cues.size() - 1).end();
         List<String> chunks = chunk(cues);
-        int[] perChunk = allocate(count, chunks.size());
 
         Set<String> seen = new HashSet<>();
         questionRepository.findByLessonIdOrderByCreatedAtAsc(lessonId)
@@ -66,20 +78,30 @@ public class QuestionGenerationService {
 
         List<Question> accepted = new ArrayList<>();
         AiException lastFailure = null;
-        for (int i = 0; i < chunks.size(); i++) {
-            if (perChunk[i] == 0) {
-                continue;
-            }
-            try {
-                String reply = llmClient.complete(SYSTEM_PROMPT, userPrompt(perChunk[i], chunks.get(i)));
-                for (Question question : parse(reply, lesson.getCourseId(), lessonId, lastSecond)) {
-                    if (seen.add(question.getText().toLowerCase(Locale.ROOT))) {
-                        accepted.add(question);
+        // The model often returns fewer usable, non-duplicate questions than asked for, so ask again for the
+        // shortfall a few times, stopping as soon as a round adds nothing.
+        for (int round = 0; round < TOP_UP_ROUNDS && accepted.size() < count; round++) {
+            int before = accepted.size();
+            int[] perChunk = allocate(count - accepted.size(), chunks.size());
+            for (int i = 0; i < chunks.size(); i++) {
+                for (int remaining = perChunk[i]; remaining > 0; remaining -= BATCH) {
+                    int ask = Math.min(BATCH, remaining);
+                    try {
+                        String reply = llmClient.complete(SYSTEM_PROMPT, userPrompt(ask, chunks.get(i), only));
+                        for (Question question : parse(reply, lesson.getCourseId(), lessonId, lastSecond, only, finalOnly)) {
+                            if (accepted.size() < count && seen.add(question.getText().toLowerCase(Locale.ROOT))) {
+                                accepted.add(question);
+                            }
+                        }
+                    } catch (AiException e) {
+                        log.warn("Question generation failed for chunk {} of lesson {}", i, lessonId, e);
+                        lastFailure = e;
+                        break;
                     }
                 }
-            } catch (AiException e) {
-                log.warn("Question generation failed for chunk {} of lesson {}", i, lessonId, e);
-                lastFailure = e;
+            }
+            if (accepted.size() == before) {
+                break;
             }
         }
 
@@ -124,13 +146,22 @@ public class QuestionGenerationService {
         return perChunk;
     }
 
-    private String userPrompt(int count, String excerpt) {
+    private String userPrompt(int count, String excerpt, Difficulty only) {
+        String difficultyRule = only == null
+                ? "- Mix difficulty: EASY (recall a stated fact), MEDIUM (understand or explain), HARD (apply or combine ideas). "
+                + "Aim for about 40% EASY, 40% MEDIUM, 20% HARD.\n"
+                : "- Every question must be " + only.name() + " difficulty and its \"difficulty\" must be \"" + only.name() + "\". "
+                + switch (only) {
+                    case EASY -> "EASY means recalling a fact that is stated directly.";
+                    case MEDIUM -> "MEDIUM means understanding or explaining an idea, not just recalling it.";
+                    case HARD -> "HARD means applying or combining ideas, for example predicting the result of an example.";
+                } + "\n";
         return "Write exactly " + count + " multiple-choice questions that test understanding of the lecture excerpt below.\n"
                 + "Rules:\n"
                 + "- Base every question only on the excerpt; never invent facts.\n"
                 + "- Give 4 options per question with exactly one correct; the wrong options must be plausible.\n"
-                + "- Mix difficulty: EASY (recall a stated fact), MEDIUM (understand or explain), HARD (apply or combine ideas). "
-                + "Aim for about 40% EASY, 40% MEDIUM, 20% HARD.\n"
+                + difficultyRule
+                + "- Each question must ask about something different from the others.\n"
                 + "- \"timestampSeconds\" is the transcript time in seconds where the answer is discussed.\n"
                 + "- \"explanation\" is one sentence on why the answer is correct.\n"
                 + "Return JSON exactly like: {\"questions\":[{\"question\":\"...\",\"difficulty\":\"EASY\","
@@ -139,6 +170,10 @@ public class QuestionGenerationService {
     }
 
     List<Question> parse(String reply, UUID courseId, UUID lessonId, double lastSecond) {
+        return parse(reply, courseId, lessonId, lastSecond, null, false);
+    }
+
+    List<Question> parse(String reply, UUID courseId, UUID lessonId, double lastSecond, Difficulty only, boolean finalOnly) {
         JsonNode root;
         try {
             root = objectMapper.readTree(stripFences(reply));
@@ -161,9 +196,14 @@ public class QuestionGenerationService {
                 }
             }
             try {
-                questions.add(QuestionFactory.build(courseId, lessonId, QuestionSource.AI, QuestionStatus.DRAFT,
+                Question question = QuestionFactory.build(courseId, lessonId, QuestionSource.AI, QuestionStatus.DRAFT,
                         node.path("question").asText(""), node.path("difficulty").asText(""), options,
-                        node.path("correctIndex").asInt(-1), node.path("explanation").asText(""), seconds, true));
+                        node.path("correctIndex").asInt(-1), node.path("explanation").asText(""), seconds, true);
+                if (only != null && question.getDifficulty() != only) {
+                    continue;
+                }
+                question.setFinalOnly(finalOnly);
+                questions.add(question);
             } catch (InvalidQuestionException e) {
                 log.debug("Dropped an invalid AI question: {}", e.getMessage());
             }

@@ -42,10 +42,16 @@ public class QuestionService {
     }
 
     public Question addManual(UUID lessonId, QuestionInput input) {
+        return addManual(lessonId, input, false);
+    }
+
+    public Question addManual(UUID lessonId, QuestionInput input, boolean finalOnly) {
         Lesson lesson = structureService.findLesson(lessonId);
-        return questionRepository.save(QuestionFactory.build(lesson.getCourseId(), lessonId, QuestionSource.MANUAL,
+        Question question = QuestionFactory.build(lesson.getCourseId(), lessonId, QuestionSource.MANUAL,
                 QuestionStatus.APPROVED, input.text(), input.difficulty(), input.options(), input.correctIndex(),
-                input.explanation(), null, false));
+                input.explanation(), null, false);
+        question.setFinalOnly(finalOnly);
+        return questionRepository.save(question);
     }
 
     /**
@@ -53,6 +59,10 @@ public class QuestionService {
      * Columns: question, difficulty, option1-4, correct (1-4 or A-D), and an optional explanation.
      */
     public ImportResult importCsv(UUID lessonId, MultipartFile file) {
+        return importCsv(lessonId, file, false);
+    }
+
+    public ImportResult importCsv(UUID lessonId, MultipartFile file, boolean finalOnly) {
         Lesson lesson = structureService.findLesson(lessonId);
         if (file == null || file.isEmpty()) {
             throw new InvalidQuestionException("Choose a CSV file to import.");
@@ -103,6 +113,7 @@ public class QuestionService {
                 errors.add(new ImportResult.RowError(row.line(), e.getMessage()));
             }
         }
+        valid.forEach(q -> q.setFinalOnly(finalOnly));
         questionRepository.saveAll(valid);
         return new ImportResult(valid.size(), errors);
     }
@@ -121,6 +132,14 @@ public class QuestionService {
     public Question setStatus(UUID questionId, QuestionStatus status) {
         Question question = find(questionId);
         question.setStatus(status);
+        return question;
+    }
+
+    /** Moves a question between the course's regular questions and the final-assessment-only ones. */
+    @Transactional
+    public Question setFinalOnly(UUID questionId, boolean finalOnly) {
+        Question question = find(questionId);
+        question.setFinalOnly(finalOnly);
         return question;
     }
 

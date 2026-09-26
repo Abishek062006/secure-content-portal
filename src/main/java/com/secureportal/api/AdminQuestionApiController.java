@@ -59,7 +59,7 @@ public class AdminQuestionApiController {
         this.auditService = auditService;
     }
 
-    public record GenerateRequest(@Min(1) @Max(30) Integer count) {
+    public record GenerateRequest(@Min(1) @Max(100) Integer count, Difficulty difficulty, boolean finalOnly) {
     }
 
     public record QuestionRequest(
@@ -68,7 +68,8 @@ public class AdminQuestionApiController {
             @Size(max = 1000, message = "The explanation must be 1000 characters or fewer") String explanation,
             @NotNull(message = "A question needs exactly 4 options") @Size(min = 4, max = 4, message = "A question needs exactly 4 options")
             List<@NotBlank(message = "Options can't be empty") @Size(max = 500, message = "Each option must be 500 characters or fewer") String> options,
-            @Min(value = 0, message = "Choose the correct option") @Max(value = 3, message = "Choose the correct option") int correctIndex
+            @Min(value = 0, message = "Choose the correct option") @Max(value = 3, message = "Choose the correct option") int correctIndex,
+            boolean finalOnly
     ) {
         QuestionInput toInput() {
             return new QuestionInput(text, difficulty.name(), options, correctIndex, explanation);
@@ -89,7 +90,8 @@ public class AdminQuestionApiController {
                                       @AuthenticationPrincipal AppPrincipal principal) {
         Lesson lesson = structureService.findLesson(lessonId);
         int count = request != null && request.count() != null ? request.count() : DEFAULT_COUNT;
-        List<QuestionDto> created = generationService.generate(lessonId, count).stream()
+        List<QuestionDto> created = generationService.generate(lessonId, count,
+                request == null ? null : request.difficulty(), request != null && request.finalOnly()).stream()
                 .map(q -> QuestionDto.from(q, lesson.getTitle())).toList();
         auditService.log(principal.getEmail(), "QUESTIONS_GENERATE", lesson.getCourseId(),
                 created.size() + " draft questions for \"" + lesson.getTitle() + "\"");
@@ -100,16 +102,17 @@ public class AdminQuestionApiController {
     public QuestionDto add(@PathVariable UUID lessonId, @Valid @RequestBody QuestionRequest request,
                            @AuthenticationPrincipal AppPrincipal principal) {
         Lesson lesson = structureService.findLesson(lessonId);
-        Question created = questionService.addManual(lessonId, request.toInput());
+        Question created = questionService.addManual(lessonId, request.toInput(), request.finalOnly());
         auditService.log(principal.getEmail(), "QUESTION_ADD", lesson.getCourseId(), "for \"" + lesson.getTitle() + "\"");
         return QuestionDto.from(created, lesson.getTitle());
     }
 
     @PostMapping("/lessons/{lessonId}/questions/import")
     public ImportResult importCsv(@PathVariable UUID lessonId, @RequestParam("file") MultipartFile file,
+                                  @RequestParam(defaultValue = "false") boolean finalOnly,
                                   @AuthenticationPrincipal AppPrincipal principal) {
         Lesson lesson = structureService.findLesson(lessonId);
-        ImportResult result = questionService.importCsv(lessonId, file);
+        ImportResult result = questionService.importCsv(lessonId, file, finalOnly);
         auditService.log(principal.getEmail(), "QUESTIONS_IMPORT", lesson.getCourseId(),
                 result.imported() + " questions for \"" + lesson.getTitle() + "\"");
         return result;
@@ -119,6 +122,16 @@ public class AdminQuestionApiController {
     public QuestionDto edit(@PathVariable UUID questionId, @Valid @RequestBody QuestionRequest request,
                             @AuthenticationPrincipal AppPrincipal principal) {
         return audited(questionService.edit(questionId, request.toInput()), "QUESTION_EDIT", principal);
+    }
+
+    public record ScopeRequest(boolean finalOnly) {
+    }
+
+    @PutMapping("/questions/{questionId}/scope")
+    public QuestionDto scope(@PathVariable UUID questionId, @RequestBody ScopeRequest request,
+                             @AuthenticationPrincipal AppPrincipal principal) {
+        return audited(questionService.setFinalOnly(questionId, request.finalOnly()),
+                request.finalOnly() ? "QUESTION_FINAL_ONLY" : "QUESTION_MODULE_POOL", principal);
     }
 
     @PostMapping("/questions/{questionId}/approve")

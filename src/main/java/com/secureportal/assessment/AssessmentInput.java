@@ -10,6 +10,7 @@ public record AssessmentInput(
         Integer passPercent,
         Integer timeLimitMinutes,
         Integer maxAttempts,
-        boolean gatesNext
+        boolean gatesNext,
+        Integer reusePercent
 ) {
 }
