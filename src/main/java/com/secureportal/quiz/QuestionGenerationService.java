@@ -70,7 +70,9 @@ public class QuestionGenerationService {
         }
 
         double lastSecond = cues.get(cues.size() - 1).end();
-        List<String> chunks = chunk(cues);
+        // Free tiers cap tokens per minute, and every call re-sends its transcript excerpt. So instead of asking
+        // for all the questions from big shared chunks, give each batch of ~BATCH questions its own slice.
+        List<String> chunks = windows(cues, Math.max((count + BATCH - 1) / BATCH, chunk(cues).size()));
 
         Set<String> seen = new HashSet<>();
         questionRepository.findByLessonIdOrderByCreatedAtAsc(lessonId)
@@ -87,7 +89,7 @@ public class QuestionGenerationService {
                 for (int remaining = perChunk[i]; remaining > 0; remaining -= BATCH) {
                     int ask = Math.min(BATCH, remaining);
                     try {
-                        String reply = llmClient.complete(SYSTEM_PROMPT, userPrompt(ask, chunks.get(i), only));
+                        String reply = llmClient.complete(SYSTEM_PROMPT, userPrompt(ask, chunks.get(i), only, round));
                         for (Question question : parse(reply, lesson.getCourseId(), lessonId, lastSecond, only, finalOnly)) {
                             if (accepted.size() < count && seen.add(question.getText().toLowerCase(Locale.ROOT))) {
                                 accepted.add(question);
@@ -131,6 +133,32 @@ public class QuestionGenerationService {
         return chunks;
     }
 
+    /** Splits the transcript into {@code parts} excerpts of roughly equal length, each line keeping its timestamp. */
+    static List<String> windows(List<TranscriptCue> cues, int parts) {
+        List<String> lines = new ArrayList<>();
+        long total = 0;
+        for (TranscriptCue cue : cues) {
+            String line = "[" + (int) cue.start() + "] " + cue.text() + "\n";
+            lines.add(line);
+            total += line.length();
+        }
+        int n = Math.max(1, Math.min(parts, lines.size()));
+        List<String> windows = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        long target = (total + n - 1) / n;
+        for (String line : lines) {
+            if (current.length() >= target && windows.size() < n - 1) {
+                windows.add(current.toString());
+                current.setLength(0);
+            }
+            current.append(line);
+        }
+        if (!current.isEmpty()) {
+            windows.add(current.toString());
+        }
+        return windows;
+    }
+
     /** Spreads {@code count} questions across the chunks; with fewer questions than chunks, picks evenly spaced ones. */
     static int[] allocate(int count, int chunks) {
         int[] perChunk = new int[chunks];
@@ -146,7 +174,7 @@ public class QuestionGenerationService {
         return perChunk;
     }
 
-    private String userPrompt(int count, String excerpt, Difficulty only) {
+    private String userPrompt(int count, String excerpt, Difficulty only, int round) {
         String difficultyRule = only == null
                 ? "- Mix difficulty: EASY (recall a stated fact), MEDIUM (understand or explain), HARD (apply or combine ideas). "
                 + "Aim for about 40% EASY, 40% MEDIUM, 20% HARD.\n"
@@ -162,6 +190,7 @@ public class QuestionGenerationService {
                 + "- Give 4 options per question with exactly one correct; the wrong options must be plausible.\n"
                 + difficultyRule
                 + "- Each question must ask about something different from the others.\n"
+                + (round > 0 ? "- Earlier attempts already covered the obvious points; look for less obvious details.\n" : "")
                 + "- \"timestampSeconds\" is the transcript time in seconds where the answer is discussed.\n"
                 + "- \"explanation\" is one sentence on why the answer is correct.\n"
                 + "Return JSON exactly like: {\"questions\":[{\"question\":\"...\",\"difficulty\":\"EASY\","

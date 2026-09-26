@@ -116,7 +116,7 @@ class OpenAiCompatibleClientTest {
         assertThatThrownBy(() -> client("k", "m", true).complete("s", "u"))
                 .isInstanceOf(AiException.class)
                 .hasMessageContaining("429");
-        assertThat(calls.get()).isEqualTo(3);
+        assertThat(calls.get()).isEqualTo(5);
     }
 
     @Test
@@ -126,5 +126,13 @@ class OpenAiCompatibleClientTest {
         assertThatThrownBy(() -> client("k", "m", true).complete("s", "u"))
                 .isInstanceOf(AiException.class)
                 .hasMessageContaining("no content");
+    }
+
+    @Test
+    void readsRateLimitDurationsInTheProvidersFormat() {
+        assertThat(OpenAiCompatibleClient.parseDurationMillis("577ms")).isEqualTo(577);
+        assertThat(OpenAiCompatibleClient.parseDurationMillis("6.405s")).isEqualTo(6405);
+        assertThat(OpenAiCompatibleClient.parseDurationMillis("1m36.4s")).isEqualTo(96_400);
+        assertThat(OpenAiCompatibleClient.parseDurationMillis("garbage")).isZero();
     }
 }

@@ -156,4 +156,21 @@ class QuestionGenerationServiceTest {
         assertThat(service.parse(reply, courseId, lessonId, 600, Difficulty.EASY, false))
                 .extracting(Question::getText).containsExactly("Easy one?");
     }
+
+    @Test
+    void windowsGiveEachBatchItsOwnSliceOfTheTranscriptWithoutLosingAnyLine() {
+        List<TranscriptCue> cues = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            cues.add(new TranscriptCue(i * 10, i * 10 + 9, "Line " + i));
+        }
+
+        List<String> windows = QuestionGenerationService.windows(cues, 5);
+
+        assertThat(windows).hasSize(5);
+        assertThat(String.join("", windows).split("\n")).hasSize(100);
+        assertThat(windows.get(0)).startsWith("[0] Line 0");
+        assertThat(windows.get(4)).contains("Line 99");
+        assertThat(QuestionGenerationService.windows(cues, 500)).hasSizeLessThanOrEqualTo(100);
+        assertThat(QuestionGenerationService.windows(cues.subList(0, 1), 5)).hasSize(1);
+    }
 }
