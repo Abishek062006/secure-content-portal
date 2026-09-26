@@ -54,7 +54,13 @@ public class S3StorageService implements StorageService {
             builder.range(range);
         }
 
-        ResponseInputStream<GetObjectResponse> s3Object = s3Client.getObject(builder.build());
+        ResponseInputStream<GetObjectResponse> s3Object;
+        try {
+            s3Object = s3Client.getObject(builder.build());
+        } catch (NoSuchKeyException e) {
+            // Same answer the local-disk store gives, so a missing file is a 404 rather than a server error.
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+        }
         GetObjectResponse response = s3Object.response();
 
         long totalSize;
