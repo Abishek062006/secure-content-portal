@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import PriceTag from './PriceTag';
+import Avatar from './Avatar';
 
 /** Emoji artwork: Twemoji (CC-BY 4.0), stored in /public/reactions. */
 const REACTIONS = [
@@ -16,6 +17,8 @@ const REACTIONS = [
 const BY_TYPE = Object.fromEntries(REACTIONS.map((r) => [r.type, r]));
 const icon = (type) => `/reactions/${type.toLowerCase()}.svg`;
 
+const LIMIT = 280;
+
 function ago(iso) {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return 'just now';
@@ -23,10 +26,6 @@ function ago(iso) {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   if (seconds < 86400 * 30) return `${Math.floor(seconds / 86400)}d ago`;
   return new Date(iso).toLocaleDateString();
-}
-
-function Avatar({ name, url }) {
-  return url ? <img className="avatar" src={url} alt="" /> : <span className="avatar">{(name || '?').slice(0, 1).toUpperCase()}</span>;
 }
 
 const Svg = ({ children }) => (
@@ -136,6 +135,7 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
   const [showComments, setShowComments] = useState(false);
   const [copied, setCopied] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   /** Picking your current reaction again removes it; picking another switches to it. */
   async function react(type) {
@@ -168,25 +168,44 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
   return (
     <article className={`post-card${post.pinned ? ' pinned' : ''}`} id={`post-${post.id}`}>
       <header className="post-head">
-        <Avatar name={post.authorName} url={post.authorPictureUrl} />
-        <div>
-          <strong>{post.authorName}</strong>
+        <Avatar name={post.authorName} url={post.authorPictureUrl} userId={post.authorId} size={48} />
+        <div className="post-author">
+          <Link to={`/profile/${post.authorId}`} className="author-name">{post.authorName}</Link>
+          {post.authorHeadline && <div className="muted author-headline">{post.authorHeadline}</div>}
           <div className="muted">
             {post.scheduled ? `Scheduled for ${new Date(post.publishAt).toLocaleString()}` : ago(post.publishAt)}
             {post.pinned && ' · 📌 Pinned'}
           </div>
         </div>
-        {user?.admin && (
-          <div className="post-admin">
+        <div className="post-admin">
+          {user?.admin && (
             <button type="button" className="link-button" onClick={() => onTogglePin(post, setPost)}>
               {post.pinned ? 'Unpin' : 'Pin'}
             </button>
-            <button type="button" className="link-button danger" onClick={() => onDelete(post)}>Delete</button>
-          </div>
-        )}
+          )}
+          {post.canDelete && <button type="button" className="link-button danger" onClick={() => onDelete(post)}>Delete</button>}
+        </div>
       </header>
 
-      <p className="post-body">{post.body}</p>
+      {post.kind === 'ARTICLE' && <h3 className="article-heading">{post.title}</h3>}
+      <div className="post-body">
+        {expanded || post.body.length <= LIMIT ? post.body : `${post.body.slice(0, LIMIT).trimEnd()}… `}
+        {!expanded && post.body.length > LIMIT && (
+          <button type="button" className="link-button muted-link" onClick={() => setExpanded(true)}>more</button>
+        )}
+      </div>
+
+      {post.certificate && (
+        <div className="cert-share">
+          <div className="cert-badge" aria-hidden="true">🎓</div>
+          <div>
+            <strong>{post.certificate.courseTitle}</strong>
+            <div className="muted">Issued {new Date(post.certificate.issuedAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</div>
+            <div className="muted">Credential ID {post.certificate.code}</div>
+            <Link className="btn btn-sm" to={`/verify/${post.certificate.code}`}>Show credential</Link>
+          </div>
+        </div>
+      )}
       {post.imageUrl && <img className="post-image" src={`${API_BASE}${post.imageUrl}`} alt="" loading="lazy" />}
       {post.videoUrl && (
         <video className="post-video" controls playsInline preload="metadata" controlsList="nodownload"

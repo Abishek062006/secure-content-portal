@@ -36,12 +36,14 @@ export default function Nav() {
         {user ? (
           <div className="nav-user">
             <span className={`badge${user.admin ? ' admin' : ''}`}>{user.role}</span>
-            {user.pictureUrl ? (
-              <img className="avatar" src={user.pictureUrl} alt="" />
-            ) : (
-              <span className="avatar">{initials(user.displayName)}</span>
-            )}
-            <span className="nav-user-name">{user.displayName}</span>
+            <Link to="/profile" className="nav-profile-link" title="Your profile">
+              {user.pictureUrl ? (
+                <img className="avatar" src={user.pictureUrl} alt="" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="avatar">{initials(user.displayName)}</span>
+              )}
+              <span className="nav-user-name">{user.displayName}</span>
+            </Link>
             <button type="button" className="btn" onClick={logout}>Sign out</button>
           </div>
         ) : (

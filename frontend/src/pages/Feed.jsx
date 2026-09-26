@@ -1,84 +1,46 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
+import Avatar from '../components/Avatar';
+import ComposerModal from '../components/ComposerModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import PostCard from '../components/PostCard';
+import PriceTag from '../components/PriceTag';
+import ProfileCard from '../components/ProfileCard';
+import useSocialBackground from '../lib/useLinkedInBackground';
+import { mediaUrl } from '../lib/media';
 
-function Composer({ courses, presetCourseId, onCreated }) {
-  const [body, setBody] = useState(presetCourseId ? 'New course is live! ' : '');
-  const [courseId, setCourseId] = useState(presetCourseId || '');
-  const [media, setMedia] = useState(null);
-  const [progress, setProgress] = useState(0);
-  const [pinned, setPinned] = useState(false);
-  const [publishAt, setPublishAt] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-
-  async function submit(e) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      form.append('body', body);
-      form.append('pinned', pinned);
-      if (courseId) form.append('courseId', courseId);
-      if (media) form.append(media.type.startsWith('video/') ? 'video' : 'image', media);
-      if (publishAt) form.append('publishAt', new Date(publishAt).toISOString());
-      setProgress(0);
-      const created = await api.uploadWithProgress('/api/admin/posts', form, setProgress);
-      setBody('');
-      setCourseId('');
-      setMedia(null);
-      setPinned(false);
-      setPublishAt('');
-      e.target.reset();
-      onCreated(created);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
+function RecommendedCourses({ courses }) {
+  if (!courses.length) return null;
   return (
-    <form className="composer" onSubmit={submit}>
-      <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={3000}
-                placeholder="Share an update with your learners…" />
-      <div className="composer-row">
-        <select value={courseId} onChange={(e) => setCourseId(e.target.value)} aria-label="Promote a course">
-          <option value="">No course attached</option>
-          {courses.map((c) => <option key={c.id} value={c.id}>Promote: {c.title}</option>)}
-        </select>
-        <label className="attach-preview">
-          Photo or video (video up to 500 MB)
-          <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
-                 onChange={(e) => setMedia(e.target.files[0] || null)} />
-        </label>
-      </div>
-      <div className="composer-row">
-        <label><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} /> Pin to top</label>
-        <label>Schedule <input type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} /></label>
-        <button type="submit" className="btn btn-primary" disabled={busy || !body.trim()}>
-          {busy ? 'Posting…' : publishAt ? 'Schedule' : 'Post'}
-        </button>
-      </div>
-      {busy && media && (
-        <div className="progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
-          <div className="progress-bar" style={{ width: `${progress * 100}%` }} />
-          <span className="progress-label">{progress < 1 ? `Uploading… ${Math.round(progress * 100)}%` : 'Saving…'}</span>
-        </div>
-      )}
-      {error && <p className="form-error">{error}</p>}
-    </form>
+    <aside className="side-card">
+      <h2 className="side-title">Recommended courses</h2>
+      <ul className="side-list">
+        {courses.slice(0, 4).map((course) => (
+          <li key={course.id}>
+            {course.thumbnailUrl
+              ? <img className="side-thumb" src={mediaUrl(course.thumbnailUrl)} alt="" />
+              : <span className="side-thumb side-thumb-empty">▶</span>}
+            <div>
+              <Link to={`/courses/${course.id}`} className="side-link">{course.title}</Link>
+              <div className="muted">{course.lessonCount} lesson{course.lessonCount === 1 ? '' : 's'}</div>
+              <PriceTag pricing={course.pricing} compact />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <Link to="/courses" className="side-more">Show all courses →</Link>
+    </aside>
   );
 }
 
 export default function Feed() {
+  useSocialBackground();
   const { user } = useAuth();
   const [params] = useSearchParams();
+  const [me, setMe] = useState(null);
   const [posts, setPosts] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -87,6 +49,7 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [toDelete, setToDelete] = useState(null);
   const [error, setError] = useState(null);
+  const [composer, setComposer] = useState({ open: false, mode: 'post' });
 
   const loadScheduled = useCallback(() => {
     if (user?.admin) api.get('/api/admin/posts/scheduled').then(setScheduled).catch(() => setScheduled([]));
@@ -99,11 +62,19 @@ export default function Feed() {
     setPage(target);
   }, []);
 
+  const loadMe = useCallback(() => api.get('/api/profile').then(setMe).catch(() => setMe(null)), []);
+
   useEffect(() => {
     load(0).catch((e) => setError(e.message)).finally(() => setLoading(false));
     loadScheduled();
-    if (user?.admin) api.get('/api/courses').then(setCourses).catch(() => setCourses([]));
-  }, [load, loadScheduled, user]);
+    loadMe();
+    api.get('/api/courses').then(setCourses).catch(() => setCourses([]));
+  }, [load, loadScheduled, loadMe]);
+
+  // "Promote this course" on the course editor lands here with the composer already open.
+  useEffect(() => {
+    if (params.get('promote')) setComposer({ open: true, mode: 'post' });
+  }, [params]);
 
   useEffect(() => {
     if (!loading && window.location.hash) {
@@ -114,6 +85,7 @@ export default function Feed() {
   async function refresh() {
     await load(0);
     loadScheduled();
+    loadMe();
   }
 
   async function togglePin(post, setPost) {
@@ -132,38 +104,55 @@ export default function Feed() {
     const post = toDelete;
     setToDelete(null);
     try {
-      await api.del(`/api/admin/posts/${post.id}`);
+      await api.del(`/api/posts/${post.id}`);
       await refresh();
     } catch (e) {
       setError(e.message);
     }
   }
 
+  const open = (mode) => setComposer({ open: true, mode });
+
   return (
-    <div className="container feed">
-      <div className="page-head">
-        <h1>Feed</h1>
-      </div>
-      <Alert error={error} />
+    <div className="social-layout">
+      <div className="social-left"><ProfileCard me={me} /></div>
 
-      {user?.admin && <Composer courses={courses} presetCourseId={params.get('promote')} onCreated={refresh} />}
+      <main className="social-main">
+        <Alert error={error} />
 
-      {user?.admin && scheduled.length > 0 && (
-        <section>
-          <h2 className="section-title">Scheduled</h2>
-          {scheduled.map((p) => <PostCard key={p.id} initial={p} onDelete={setToDelete} onTogglePin={togglePin} />)}
+        <section className="start-post">
+          <div className="start-post-top">
+            <Avatar name={user?.displayName} url={me?.avatarUrl} userId={user?.id} size={48} />
+            <button type="button" className="start-post-input" onClick={() => open('post')}>Start a post</button>
+          </div>
+          <div className="start-post-actions">
+            <button type="button" onClick={() => open('post')}><span className="sp-icon sp-video">▶</span> Video</button>
+            <button type="button" onClick={() => open('post')}><span className="sp-icon sp-photo">🖼</span> Photo</button>
+            <button type="button" onClick={() => open('certificate')}><span className="sp-icon sp-cert">🎓</span> Certificate</button>
+            <button type="button" onClick={() => open('article')}><span className="sp-icon sp-article">≣</span> Write article</button>
+          </div>
         </section>
-      )}
 
-      {!loading && posts.length === 0 && (
-        <div className="empty-state"><p>Nothing has been posted yet.</p></div>
-      )}
-      {posts.map((p) => <PostCard key={p.id} initial={p} onDelete={setToDelete} onTogglePin={togglePin} />)}
-      {hasMore && (
-        <button type="button" className="btn load-more" onClick={() => load(page + 1)}>Load more</button>
-      )}
+        {user?.admin && scheduled.length > 0 && (
+          <section>
+            <h2 className="section-title">Scheduled</h2>
+            {scheduled.map((p) => <PostCard key={p.id} initial={p} onDelete={setToDelete} onTogglePin={togglePin} />)}
+          </section>
+        )}
 
-      <ConfirmDialog open={!!toDelete} title={toDelete ? toDelete.body.slice(0, 60) : ''}
+        {!loading && posts.length === 0 && (
+          <div className="empty-state"><p>Nothing has been posted yet. Be the first!</p></div>
+        )}
+        {posts.map((p) => <PostCard key={p.id} initial={p} onDelete={setToDelete} onTogglePin={togglePin} />)}
+        {hasMore && <button type="button" className="btn load-more" onClick={() => load(page + 1)}>Load more</button>}
+      </main>
+
+      <div className="social-right"><RecommendedCourses courses={courses} /></div>
+
+      <ComposerModal open={composer.open} mode={composer.mode} me={me} courses={courses.filter((c) => c.status !== 'DRAFT')}
+                     presetCourseId={params.get('promote')} onClose={() => setComposer((c) => ({ ...c, open: false }))}
+                     onCreated={refresh} />
+      <ConfirmDialog open={!!toDelete} title={toDelete ? (toDelete.title || toDelete.body).slice(0, 60) : ''}
                      detail="Its reactions and comments go with it"
                      onCancel={() => setToDelete(null)} onConfirm={confirmDelete} />
     </div>

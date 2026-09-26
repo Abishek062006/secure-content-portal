@@ -58,6 +58,12 @@ else below was chosen deliberately, not defaulted to.
   slider, that runs for a period: while it is on, learners see the original price struck out, the discounted price,
   the percentage and when the offer ends. Payments are **not** connected yet, so a price is displayed but enrolling
   still doesn't charge anything.
+- **Profiles and member posts.** Every member has a profile (cover, photo, headline, location, website, about,
+  experience, education, skills) that anyone signed in can view; certificates they earn appear on it as credentials
+  that link to the public check page. Any member can post text, a photo or a video, write an article, or share one of
+  their own certificates, and delete their own posts; admins can delete anyone's and keep pinning, scheduling and
+  course promos. Members are limited to 20 posts an hour. The feed is laid out in three columns (a "you" card,
+  "Start a post", recommended courses).
 - **Feed reactions and videos.** Six reactions (like, celebrate, support, love, insightful, funny) chosen from a
   row that pops up over the Like button. Posts can carry a photo or a video (up to 500 MB, streamed with the same
   session-bound tickets as lessons). Reaction artwork is [Twemoji](https://github.com/jdecked/twemoji), graphics

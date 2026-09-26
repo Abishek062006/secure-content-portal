@@ -13,6 +13,7 @@ import AttemptView from './pages/AttemptView';
 import MyLearning from './pages/MyLearning';
 import VerifyCertificate from './pages/VerifyCertificate';
 import Feed from './pages/Feed';
+import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
 import ContentList from './pages/admin/ContentList';
@@ -40,6 +41,8 @@ export default function App() {
           <Route path="/library" element={<Library />} />
           <Route path="/content/:id" element={<ContentView />} />
           <Route path="/feed" element={<Feed />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseView />} />
