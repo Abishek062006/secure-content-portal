@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import Alert from '../components/Alert';
 import ScoreTrend from '../components/interview/ScoreTrend';
+import ResumeCard from '../components/interview/ResumeCard';
 import SkillsInput from '../components/interview/SkillsInput';
 import { DIFFICULTIES, READINESS, TRACKS, goalLabel } from '../lib/interview';
 
@@ -20,12 +21,15 @@ export default function InterviewPrep() {
   const [difficulty, setDifficulty] = useState('MEDIUM');
   const [history, setHistory] = useState([]);
   const [quota, setQuota] = useState(null);
+  const [resume, setResume] = useState(null);
+  const [useResume, setUseResume] = useState(false);
   const [error, setError] = useState(null);
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     api.getInterviewHistory().then(setHistory).catch(() => {});
     api.getInterviewQuota().then(setQuota).catch(() => {});
+    api.getResume().then((r) => { setResume(r); setUseResume(Boolean(r)); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -52,7 +56,7 @@ export default function InterviewPrep() {
     e.preventDefault();
     const payload = fromCourse
       ? { track, difficulty, courseId }
-      : { track, difficulty, targetRole: role, skills, jobDescription: showJob ? jobDescription : '' };
+      : { track, difficulty, targetRole: role, skills, jobDescription: showJob ? jobDescription : '', useResume: useResume && Boolean(resume) };
     begin(() => api.startInterview(payload));
   }
 
@@ -75,11 +79,17 @@ export default function InterviewPrep() {
             <div className="field"><label>Your skills</label>
               <SkillsInput skills={skills} onChange={setSkills} />
               <p className="field-hint">Add up to 12. The questions are built around them.</p></div>
+            {resume && (
+              <label className="board-toggle">
+                <input type="checkbox" checked={useResume} onChange={(e) => setUseResume(e.target.checked)} />
+                Also build questions from my resume
+              </label>
+            )}
             {showJob ? (
               <div className="field"><label htmlFor="jd">Job description</label>
                 <textarea id="jd" rows={6} maxLength={4000} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)}
                           placeholder="Paste the job description you're applying to." />
-                <p className="field-hint">Needed only if you didn't add skills. {jobDescription.length}/4000</p></div>
+                <p className="field-hint">Needed only if you didn't add skills or use your resume. {jobDescription.length}/4000</p></div>
             ) : (
               <button type="button" className="link-button" onClick={() => setShowJob(true)}>Add a job description</button>
             )}
@@ -104,6 +114,8 @@ export default function InterviewPrep() {
           </button>
         </div>
       </form>
+
+      {!fromCourse && <ResumeCard resume={resume} onChange={(r) => { setResume(r); setUseResume(Boolean(r)); }} onError={setError} />}
 
       {history.length > 0 && (
         <section className="progress-card">

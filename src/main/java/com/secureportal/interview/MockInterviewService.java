@@ -49,17 +49,20 @@ public class MockInterviewService {
     private final MockInterviewQuestionRepository questions;
     private final UserRepository users;
     private final CourseRepository courses;
+    private final ResumeService resumes;
     private final InterviewAi ai;
     private final GamificationService gamification;
     private final TransactionTemplate tx;
 
     public MockInterviewService(MockInterviewSessionRepository sessions, MockInterviewQuestionRepository questions,
-                                UserRepository users, CourseRepository courses, InterviewAi ai, GamificationService gamification,
+                                UserRepository users, CourseRepository courses, ResumeService resumes, InterviewAi ai,
+                                GamificationService gamification,
                                 PlatformTransactionManager transactionManager) {
         this.sessions = sessions;
         this.questions = questions;
         this.users = users;
         this.courses = courses;
+        this.resumes = resumes;
         this.ai = ai;
         this.gamification = gamification;
         this.tx = new TransactionTemplate(transactionManager);
@@ -76,7 +79,7 @@ public class MockInterviewService {
 
     /** What the learner asks for. Exactly one of skills, a job description or a course is needed. */
     public record StartRequest(String track, String difficulty, String targetRole, List<String> skills, String jobDescription,
-                               String courseId) {
+                               String courseId, boolean useResume) {
     }
 
     public record Quota(long used, int limit) {
@@ -90,22 +93,24 @@ public class MockInterviewService {
         InterviewDifficulty difficulty = request.difficulty() == null || request.difficulty().isBlank() ? InterviewDifficulty.MEDIUM
                 : InterviewDifficulty.parse(request.difficulty()).orElseThrow(() -> new InvalidInterviewException("Choose Easy, Medium or Hard."));
         MockInterviewSession.Goal goal = goalFrom(request);
-        return begin(userId, track, difficulty, goal);
+        return begin(userId, track, difficulty, goal, resumeTextFor(userId, goal));
     }
 
     /** Practise again with the same setup as an earlier interview of the learner's own. */
     public MockInterviewSession retry(Long userId, Long sessionId) {
         MockInterviewSession earlier = ownedSession(sessionId, userId);
-        return begin(userId, InterviewTrack.valueOf(earlier.getTrack()), InterviewDifficulty.valueOf(earlier.getDifficulty()), earlier.goal());
+        return begin(userId, InterviewTrack.valueOf(earlier.getTrack()), InterviewDifficulty.valueOf(earlier.getDifficulty()), earlier.goal(),
+                resumeTextFor(userId, earlier.goal()));
     }
 
-    private MockInterviewSession begin(Long userId, InterviewTrack track, InterviewDifficulty difficulty, MockInterviewSession.Goal goal) {
+    private MockInterviewSession begin(Long userId, InterviewTrack track, InterviewDifficulty difficulty, MockInterviewSession.Goal goal,
+                                       String resumeText) {
         if (sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)) >= MAX_PER_DAY) {
             throw new InterviewLimitException(MAX_PER_DAY);
         }
 
         // The AI is asked before anything is written, so a failure leaves nothing half-created.
-        List<InterviewQuestionBank.Item> items = ai.questionsFor(track, difficulty, goal);
+        List<InterviewQuestionBank.Item> items = ai.questionsFor(track, difficulty, goal, resumeText);
 
         return tx.execute(status -> {
             sessions.abandonOpen(userId);
@@ -115,6 +120,15 @@ public class MockInterviewService {
             }
             return session;
         });
+    }
+
+    /** The learner's current resume text when the interview is built from it: it is read fresh, never copied into the interview. */
+    private String resumeTextFor(Long userId, MockInterviewSession.Goal goal) {
+        if (goal.source() != InterviewSource.RESUME) {
+            return null;
+        }
+        return resumes.find(userId).map(InterviewResume::getContentText)
+                .orElseThrow(() -> new InvalidInterviewException("Upload your resume first. It may have been deleted or expired."));
     }
 
     /** Turns what the learner typed into a goal, checking every piece: it all ends up in an AI prompt. */
@@ -152,10 +166,12 @@ public class MockInterviewService {
         if (jobDescription != null && jobDescription.length() > MAX_JOB_DESCRIPTION) {
             throw new InvalidInterviewException("Keep the job description under " + MAX_JOB_DESCRIPTION + " characters.");
         }
-        if (skills.isEmpty() && jobDescription == null) {
-            throw new InvalidInterviewException("Add some skills or paste a job description so the questions fit you.");
+        if (skills.isEmpty() && jobDescription == null && !request.useResume()) {
+            throw new InvalidInterviewException("Add some skills, paste a job description or use your resume so the questions fit you.");
         }
-        return new MockInterviewSession.Goal(jobDescription == null ? InterviewSource.SKILLS : InterviewSource.JOB, role,
+        InterviewSource source = request.useResume() ? InterviewSource.RESUME
+                : jobDescription == null ? InterviewSource.SKILLS : InterviewSource.JOB;
+        return new MockInterviewSession.Goal(source, role,
                 skills.isEmpty() ? null : String.join(", ", skills), jobDescription, null);
     }
 

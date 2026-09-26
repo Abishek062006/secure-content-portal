@@ -43,6 +43,7 @@ export function rubricAverages(questions) {
 /** What the interview was built from, in a few words. */
 export function goalLabel(session) {
   if (session.source === 'JOB') return `${session.targetRole}, from a job description`;
+  if (session.source === 'RESUME') return `${session.targetRole}, from my resume`;
   if (session.source === 'COURSE') return `${session.targetRole}, from a course`;
   return session.targetRole;
 }

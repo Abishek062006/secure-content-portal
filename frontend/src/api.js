@@ -151,4 +151,12 @@ export const api = {
   completeInterview: (id) => api.post(`/api/interviews/sessions/${id}/complete`),
   getInterviewHistory: () => request('/api/interviews/history'),
   getInterviewQuota: () => request('/api/interviews/quota'),
+  getResume: () => request('/api/interviews/resume'),
+  uploadResume: (file, consent) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('consent', String(consent));
+    return api.upload('/api/interviews/resume', form);
+  },
+  deleteResume: () => api.del('/api/interviews/resume'),
 };
