@@ -41,16 +41,19 @@ public class AttemptService {
     private final AttemptQuestionRepository itemRepository;
     private final QuestionRepository questionRepository;
     private final LearningService learningService;
+    private final com.secureportal.gamification.GamificationService gamificationService;
 
     public AttemptService(AssessmentService assessmentService, AssessmentAccess access, AttemptRepository attemptRepository,
                           AttemptQuestionRepository itemRepository, QuestionRepository questionRepository,
-                          LearningService learningService) {
+                          LearningService learningService,
+                          com.secureportal.gamification.GamificationService gamificationService) {
         this.assessmentService = assessmentService;
         this.access = access;
         this.attemptRepository = attemptRepository;
         this.itemRepository = itemRepository;
         this.questionRepository = questionRepository;
         this.learningService = learningService;
+        this.gamificationService = gamificationService;
     }
 
     /** Starts an attempt, or returns the one already in progress. */
@@ -201,6 +204,12 @@ public class AttemptService {
         Boolean passed = assessment.isGraded() ? score >= assessment.getPassPercent() : null;
         attempt.grade(correct, total, score, passed, timedOut);
         attemptRepository.save(attempt);
+
+        try {
+            boolean isPassed = Boolean.TRUE.equals(passed);
+            gamificationService.recordQuizAttempt(attempt.getUserId(), score, isPassed, null);
+        } catch (Exception ignored) {
+        }
     }
 
     private Detail detail(Attempt attempt, Assessment assessment) {

@@ -23,6 +23,13 @@ import QuestionBank from './pages/admin/QuestionBank';
 import AssessmentResults from './pages/admin/AssessmentResults';
 import Users from './pages/admin/Users';
 import AuditLog from './pages/admin/AuditLog';
+import AdminLeaderboard from './pages/admin/AdminLeaderboard';
+
+import Leaderboard from './pages/Leaderboard';
+import Hackathons from './pages/Hackathons';
+import MockInterviews from './pages/MockInterviews';
+import AdminHackathons from './pages/admin/AdminHackathons';
+import AdminMockInterviews from './pages/admin/AdminMockInterviews';
 
 export default function App() {
   // Lessons and resources use their own focused player bar instead of the site navigation.
@@ -41,6 +48,9 @@ export default function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/feed" element={<Feed />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/hackathons" element={<Hackathons />} />
+          <Route path="/interviews" element={<MockInterviews />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
@@ -60,6 +70,9 @@ export default function App() {
           <Route path="/admin/courses/:id/questions" element={<QuestionBank />} />
           <Route path="/admin/courses/:id/results" element={<AssessmentResults />} />
           <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
+          <Route path="/admin/hackathons" element={<AdminHackathons />} />
+          <Route path="/admin/interviews" element={<AdminMockInterviews />} />
           <Route path="/admin/audit" element={<AuditLog />} />
         </Route>
 

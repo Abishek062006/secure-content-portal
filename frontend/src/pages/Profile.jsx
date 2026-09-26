@@ -127,9 +127,17 @@ export default function Profile() {
   const [modal, setModal] = useState(null); // {type:'details'} | {type:'entry', kind, entry}
   const [toDelete, setToDelete] = useState(null);
 
+  const [userBadges, setUserBadges] = useState([]);
+
   const load = useCallback(async () => {
     if (!userId) return;
     setProfile(await api.get(id ? `/api/profiles/${id}` : '/api/profile'));
+    try {
+      const badges = await api.getUserBadges(userId);
+      setUserBadges(badges || []);
+    } catch (e) {
+      console.error('Failed to load user badges for profile:', e);
+    }
   }, [id, userId]);
 
   const loadPosts = useCallback(async (target) => {
@@ -287,6 +295,20 @@ export default function Profile() {
           ))}
         </ul>
       </Section>}
+
+      <Section title="Earned Badges & Achievements" mine={false} empty={userBadges.filter(b => b.unlocked).length === 0 ? 'No badges earned yet. Complete lessons and quizzes to earn badges!' : null}>
+        <div className="profile-badges-grid">
+          {userBadges.filter(b => b.unlocked).map((badge) => (
+            <div key={badge.id} className={`profile-badge-item rarity-${badge.rarity.toLowerCase()}`} title={badge.description}>
+              <span className="profile-badge-emoji">{badge.icon}</span>
+              <div className="profile-badge-info">
+                <strong className="profile-badge-title">{badge.title}</strong>
+                <span className="profile-badge-sub">+{badge.pointsReward} XP • {badge.rarity}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
 
       <Section title="Skills" mine={mine} onAdd={() => setModal({ type: 'entry', kind: 'SKILL' })} addLabel="Add skill"
                empty={profile.skills.length === 0 ? 'Add skills people can recognise you for.' : null}>

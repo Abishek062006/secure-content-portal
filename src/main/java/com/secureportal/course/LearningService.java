@@ -16,13 +16,16 @@ public class LearningService {
     private final LessonRepository lessonRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final LessonProgressRepository progressRepository;
+    private final com.secureportal.gamification.GamificationService gamificationService;
 
     public LearningService(CourseService courseService, LessonRepository lessonRepository,
-                           EnrollmentRepository enrollmentRepository, LessonProgressRepository progressRepository) {
+                           EnrollmentRepository enrollmentRepository, LessonProgressRepository progressRepository,
+                           com.secureportal.gamification.GamificationService gamificationService) {
         this.courseService = courseService;
         this.lessonRepository = lessonRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.progressRepository = progressRepository;
+        this.gamificationService = gamificationService;
     }
 
     /** Drafts don't exist as far as learners are concerned; admins may preview them. */
@@ -68,6 +71,7 @@ public class LearningService {
     public void saveProgress(Long userId, Lesson lesson, int positionSeconds, boolean completed) {
         LessonProgress progress = progressRepository.findByUserIdAndLessonId(userId, lesson.getId())
                 .orElseGet(() -> new LessonProgress(userId, lesson.getId(), lesson.getCourseId()));
+        boolean wasCompleted = progress.isCompleted();
         progress.record(positionSeconds, completed);
         try {
             progressRepository.save(progress);
@@ -77,6 +81,20 @@ public class LearningService {
                     .orElseThrow(() -> e);
             existing.record(positionSeconds, completed);
             progressRepository.save(existing);
+        }
+
+        if (completed && !wasCompleted) {
+            String category = null;
+            try {
+                Course course = courseService.find(lesson.getCourseId());
+                category = course.getCategory();
+            } catch (Exception ignored) {
+            }
+            gamificationService.recordLessonCompletion(userId, category);
+
+            if (progressPercent(userId, lesson.getCourseId()) >= 100) {
+                gamificationService.recordCourseCompletion(userId, category);
+            }
         }
     }
 

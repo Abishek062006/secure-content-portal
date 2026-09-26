@@ -106,4 +106,49 @@ export const api = {
   del: (path) => request(path, { method: 'DELETE' }),
   upload: (path, formData) => request(path, { method: 'POST', body: formData }),
   uploadWithProgress,
+
+  // Gamification APIs
+  getGamificationSummary: () => request('/api/gamification/me'),
+  checkInDaily: () => api.post('/api/gamification/check-in'),
+  getLeaderboard: (timeframe = 'all_time', stream = 'all') =>
+    request(`/api/gamification/leaderboard?timeframe=${encodeURIComponent(timeframe)}&stream=${encodeURIComponent(stream)}`),
+  getBadges: () => request('/api/gamification/badges'),
+  getUserBadges: (userId) => request(`/api/gamification/users/${userId}/badges`),
+  getStreams: () => request('/api/gamification/streams'),
+  getMyPointHistory: () => request('/api/points/history'),
+
+  // Admin Gamification APIs
+  getAdminLeaderboard: (timeframe = 'all_time', stream = 'all') =>
+    request(`/api/admin/gamification/leaderboard?timeframe=${encodeURIComponent(timeframe)}&stream=${encodeURIComponent(stream)}`),
+  getAdminPointRules: () => request('/api/admin/gamification/rules'),
+  updateAdminPointRule: (actionType, points) => api.put(`/api/admin/gamification/rules/${encodeURIComponent(actionType)}`, { points }),
+  adjustAdminUserXp: (userId, amount, reason) => api.post('/api/admin/gamification/adjust', { userId, amount, reason }),
+  getAdminPointHistory: (userId = '', actionType = '', stream = '') => {
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    if (actionType) params.append('actionType', actionType);
+    if (stream) params.append('stream', stream);
+    return request(`/api/admin/gamification/history?${params.toString()}`);
+  },
+
+  // Hackathon APIs
+  getHackathons: (stream = 'all', mode = 'all') =>
+    request(`/api/hackathons?stream=${encodeURIComponent(stream)}&mode=${encodeURIComponent(mode)}`),
+  registerHackathon: (id) => api.post(`/api/hackathons/${id}/register`),
+  getAdminHackathons: (stream = 'all', mode = 'all') =>
+    request(`/api/admin/hackathons?stream=${encodeURIComponent(stream)}&mode=${encodeURIComponent(mode)}`),
+  createAdminHackathon: (data) => api.post('/api/admin/hackathons', data),
+  updateAdminHackathon: (id, data) => api.put(`/api/admin/hackathons/${id}`, data),
+  deleteAdminHackathon: (id) => api.del(`/api/admin/hackathons/${id}`),
+
+  // Mock Interview APIs
+  startMockInterview: (track, stream, difficulty) =>
+    api.post('/api/interviews/start', { track, stream, difficulty }),
+  getMockInterviewSession: (sessionId) => request(`/api/interviews/sessions/${sessionId}`),
+  submitMockInterviewAnswer: (sessionId, questionId, learnerAnswer) =>
+    api.post(`/api/interviews/sessions/${sessionId}/answer`, { questionId, learnerAnswer }),
+  completeMockInterviewSession: (sessionId) => api.post(`/api/interviews/sessions/${sessionId}/complete`),
+  getMockInterviewHistory: () => request('/api/interviews/history'),
+  getAdminMockInterviewAnalytics: () => request('/api/admin/interviews/analytics'),
+  getAdminMockInterviewSession: (sessionId) => request(`/api/admin/interviews/sessions/${sessionId}`),
 };
