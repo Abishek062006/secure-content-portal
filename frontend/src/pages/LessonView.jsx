@@ -11,6 +11,12 @@ import { clock } from '../lib/time';
 
 const SAVE_EVERY_MS = 10_000;
 
+function initials(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
 /** A fresh ticket is fetched on every mount — tickets are short-lived and session-bound, never cached. */
 export default function LessonView() {
   const { courseId, lessonId } = useParams();
@@ -195,19 +201,34 @@ export default function LessonView() {
         <div className="ln-panel" role="tabpanel" key={tab}>
           {tab === 'overview' && (
             <div className="ln-overview">
-              <section>
-                <h2>About this lesson</h2>
-                <p>{lesson.description || 'No description for this lesson yet.'}</p>
-              </section>
-              <section className="ln-about-course">
+              {lesson.description && (
+                <section className="ln-lesson-about">
+                  <p className="ln-label">About this lesson</p>
+                  <p className="ln-prose">{lesson.description}</p>
+                </section>
+              )}
+
+              <section className="ln-about">
+                <p className="ln-label">About this course</p>
                 <h2>{outline.course.title}</h2>
-                {outline.course.description && <p>{outline.course.description}</p>}
-                <ul className="ln-facts">
-                  {outline.course.instructorName && <li><Icon name="users" size={16} /> {outline.course.instructorName}</li>}
-                  <li><Icon name="layers" size={16} /> {outline.course.moduleCount} section{outline.course.moduleCount === 1 ? '' : 's'}</li>
-                  <li><Icon name="video" size={16} /> {outline.course.lessonCount} lesson{outline.course.lessonCount === 1 ? '' : 's'}</li>
-                  {outline.course.category && <li><Icon name="book-open" size={16} /> {outline.course.category}</li>}
-                </ul>
+                {outline.course.description && <p className="ln-prose">{outline.course.description}</p>}
+
+                {outline.course.instructorName && (
+                  <div className="ln-byline">
+                    <span className="ln-byline-avatar" aria-hidden="true">{initials(outline.course.instructorName)}</span>
+                    <span className="ln-byline-text">
+                      <small>Created by</small>
+                      <strong>{outline.course.instructorName}</strong>
+                    </span>
+                  </div>
+                )}
+
+                <dl className="ln-stats">
+                  <div><dt>Sections</dt><dd>{outline.course.moduleCount}</dd></div>
+                  <div><dt>Lessons</dt><dd>{outline.course.lessonCount}</dd></div>
+                  {outline.course.category && <div><dt>Topic</dt><dd className="text">{outline.course.category}</dd></div>}
+                  {enrolled && !isAdmin && <div><dt>Your progress</dt><dd>{outline.progressPercent}%</dd></div>}
+                </dl>
               </section>
             </div>
           )}

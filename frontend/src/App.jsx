@@ -26,7 +26,10 @@ import AuditLog from './pages/admin/AuditLog';
 
 export default function App() {
   // Lessons and resources use their own focused player bar instead of the site navigation.
-  const inPlayer = Boolean(useMatch('/courses/:courseId/lessons/:lessonId') || useMatch('/courses/:courseId/materials/:id'));
+  // Both hooks always run (never `a || b`): skipping one changes the hook order between routes and crashes the app.
+  const onLesson = useMatch('/courses/:courseId/lessons/:lessonId');
+  const onMaterial = useMatch('/courses/:courseId/materials/:id');
+  const inPlayer = Boolean(onLesson || onMaterial);
   return (
     <>
       {!inPlayer && <Nav />}
