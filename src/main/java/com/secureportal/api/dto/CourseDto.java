@@ -23,8 +23,20 @@ public record CourseDto(
         Boolean enrolled,
         Integer progressPercent,
         Long viewCount,
-        Instant lastViewedAt
+        Instant lastViewedAt,
+        Pricing pricing
 ) {
+    /** {@code finalPriceRupees} is what a learner pays now; it differs from {@code priceRupees} while a discount is active. */
+    public record Pricing(int priceRupees, boolean free, int discountPercent, Instant discountStart, Instant discountEnd,
+                          boolean discountActive, int finalPriceRupees) {
+        public static Pricing of(Course course) {
+            var p = course.getPricing();
+            Instant now = Instant.now();
+            return new Pricing(p.priceRupees(), p.free(), p.discountPercent(), p.discountStart(), p.discountEnd(),
+                    p.discountActive(now), p.finalPriceRupees(now));
+        }
+    }
+
     public static CourseDto forLearner(Course course, long moduleCount, long lessonCount,
                                        boolean enrolled, int progressPercent) {
         return build(course, moduleCount, lessonCount, enrolled, progressPercent, null, null);
@@ -40,6 +52,6 @@ public record CourseDto(
                 : "/api/courses/" + course.getId() + "/thumbnail?v=" + course.getUpdatedAt().toEpochMilli();
         return new CourseDto(course.getId(), course.getTitle(), course.getDescription(), course.getCategory(),
                 thumbnailUrl, course.getStatus().name(), moduleCount, lessonCount, course.getCreatedAt(),
-                course.getUpdatedAt(), enrolled, progressPercent, viewCount, lastViewedAt);
+                course.getUpdatedAt(), enrolled, progressPercent, viewCount, lastViewedAt, Pricing.of(course));
     }
 }

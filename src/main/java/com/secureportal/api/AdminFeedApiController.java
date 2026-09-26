@@ -51,8 +51,9 @@ public class AdminFeedApiController {
                           @RequestParam(defaultValue = "false") boolean pinned,
                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant publishAt,
                           @RequestParam(required = false) MultipartFile image,
+                          @RequestParam(required = false) MultipartFile video,
                           @AuthenticationPrincipal AppPrincipal principal) {
-        return assembler.post(feedService.create(principal.getUserId(), body, courseId, pinned, publishAt, image),
+        return assembler.post(feedService.create(principal.getUserId(), body, courseId, pinned, publishAt, image, video),
                 principal.getUserId());
     }
 

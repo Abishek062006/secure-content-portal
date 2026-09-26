@@ -20,7 +20,7 @@ public record StreamTicket(
 ) {
 
     public enum Purpose {
-        VIDEO, PDF_PAGE, HTML, COURSE_VIDEO
+        VIDEO, PDF_PAGE, HTML, COURSE_VIDEO, POST_VIDEO
     }
 
     public boolean isExpired() {

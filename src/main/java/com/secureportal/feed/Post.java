@@ -27,6 +27,12 @@ public class Post {
     @Column(name = "image_mime")
     private String imageMime;
 
+    @Column(name = "video_key")
+    private String videoKey;
+
+    @Column(name = "video_mime")
+    private String videoMime;
+
     @Column(name = "course_id")
     private UUID courseId;
 
@@ -71,6 +77,11 @@ public class Post {
         this.imageMime = mime;
     }
 
+    public void setVideo(String key, String mime) {
+        this.videoKey = key;
+        this.videoMime = mime;
+    }
+
     public boolean isPublished() {
         return !publishAt.isAfter(Instant.now());
     }
@@ -93,6 +104,14 @@ public class Post {
 
     public String getImageMime() {
         return imageMime;
+    }
+
+    public String getVideoKey() {
+        return videoKey;
+    }
+
+    public String getVideoMime() {
+        return videoMime;
     }
 
     public UUID getCourseId() {

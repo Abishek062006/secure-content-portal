@@ -1,5 +1,5 @@
 package com.secureportal.feed;
 
 public enum ReactionType {
-    LIKE, CELEBRATE, INSIGHTFUL
+    LIKE, CELEBRATE, SUPPORT, LOVE, INSIGHTFUL, FUNNY
 }

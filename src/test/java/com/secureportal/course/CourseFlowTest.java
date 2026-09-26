@@ -306,4 +306,42 @@ class CourseFlowTest {
         System.arraycopy(head, 0, bytes, 0, head.length);
         return bytes;
     }
+
+    @Test
+    void coursePricingIsValidatedShownToLearnersAndDiscountsApplyOnlyWhilePeriodRuns() throws Exception {
+        java.time.Instant end = java.time.Instant.now().plus(5, java.time.temporal.ChronoUnit.DAYS);
+        String id = json(mockMvc.perform(multipart("/api/admin/courses").param("title", "Priced course")
+                        .param("priceRupees", "1249").param("discountPercent", "20").param("discountEnd", end.toString())
+                        .with(csrf()).with(as(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pricing.priceRupees").value(1249))
+                .andExpect(jsonPath("$.pricing.discountActive").value(true))
+                .andExpect(jsonPath("$.pricing.finalPriceRupees").value(999))
+                .andExpect(jsonPath("$.pricing.free").value(false))
+                .andReturn()).get("id").asText();
+
+        String module = json(mockMvc.perform(post("/api/admin/courses/" + id + "/modules").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"M\"}").with(csrf()).with(as(admin))).andReturn()).get("id").asText();
+        mockMvc.perform(lessonRequest(module, "L", VIDEO, null).with(csrf()).with(as(admin))).andExpect(status().isOk());
+        mockMvc.perform(post("/api/admin/courses/" + id + "/publish").with(csrf()).with(as(admin))).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/courses").with(as(viewer)))
+                .andExpect(jsonPath("$[0].pricing.finalPriceRupees").value(999))
+                .andExpect(jsonPath("$[0].pricing.discountPercent").value(20))
+                .andExpect(jsonPath("$[0].pricing.discountEnd").exists());
+
+        // Removing the discount, going free, and rejecting nonsense.
+        mockMvc.perform(put("/api/admin/courses/" + id + "/pricing").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceRupees\":1249,\"discountPercent\":0}").with(csrf()).with(as(admin)))
+                .andExpect(jsonPath("$.pricing.finalPriceRupees").value(1249)).andExpect(jsonPath("$.pricing.discountActive").value(false));
+        mockMvc.perform(put("/api/admin/courses/" + id + "/pricing").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceRupees\":0}").with(csrf()).with(as(admin)))
+                .andExpect(jsonPath("$.pricing.free").value(true));
+        mockMvc.perform(put("/api/admin/courses/" + id + "/pricing").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceRupees\":500,\"discountPercent\":30}").with(csrf()).with(as(admin)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/admin/courses/" + id + "/pricing").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceRupees\":500}").with(csrf()).with(as(viewer)))
+                .andExpect(status().isForbidden());
+    }
 }

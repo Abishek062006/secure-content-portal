@@ -12,6 +12,7 @@ public record PostDto(
         UUID id,
         String body,
         String imageUrl,
+        String videoUrl,
         String authorName,
         String authorPictureUrl,
         Instant publishAt,
@@ -24,7 +25,7 @@ public record PostDto(
         long commentCount
 ) {
     public record PostCourseDto(UUID id, String title, String description, String category, String thumbnailUrl,
-                                boolean enrolled) {
+                                boolean enrolled, CourseDto.Pricing pricing) {
     }
 
     public record CommentDto(UUID id, String userName, String userPictureUrl, String body, Instant createdAt,

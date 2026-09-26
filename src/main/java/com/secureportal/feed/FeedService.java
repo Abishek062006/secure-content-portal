@@ -27,6 +27,7 @@ public class FeedService {
     public static final int PAGE_SIZE = 10;
     static final int MAX_BODY = 3000;
     static final int MAX_COMMENT = 1000;
+    static final long MAX_VIDEO_BYTES = 500L * 1024 * 1024;
 
     private static final Logger log = LoggerFactory.getLogger(FeedService.class);
 
@@ -65,19 +66,35 @@ public class FeedService {
 
     @Transactional
     public Post create(Long authorId, String body, UUID courseId, boolean pinned, Instant publishAt, MultipartFile image) {
+        return create(authorId, body, courseId, pinned, publishAt, image, null);
+    }
+
+    @Transactional
+    public Post create(Long authorId, String body, UUID courseId, boolean pinned, Instant publishAt, MultipartFile image,
+                       MultipartFile video) {
         String text = cleanBody(body);
         checkCourse(courseId);
-        ValidatedFile validated = image != null && !image.isEmpty() ? fileValidator.validateThumbnail(image) : null;
+        boolean hasImage = image != null && !image.isEmpty();
+        boolean hasVideo = video != null && !video.isEmpty();
+        if (hasImage && hasVideo) {
+            throw new InvalidPostException("Attach an image or a video, not both.");
+        }
+        ValidatedFile validatedImage = hasImage ? fileValidator.validateThumbnail(image) : null;
+        ValidatedFile validatedVideo = null;
+        if (hasVideo) {
+            if (video.getSize() > MAX_VIDEO_BYTES) {
+                throw new InvalidPostException("A post video can be at most 500 MB. Longer videos belong in a course.");
+            }
+            validatedVideo = fileValidator.validate(video, com.secureportal.content.ContentType.VIDEO);
+        }
         Post post = new Post(authorId, text, courseId, pinned, publishAt);
         String key = null;
-        if (validated != null) {
-            key = "posts/" + post.getId() + "/image/" + validated.originalFilename().replaceAll("[^a-zA-Z0-9._-]", "_");
-            try (InputStream in = image.getInputStream()) {
-                storageService.put(key, in, validated.sizeBytes(), validated.detectedMimeType());
-            } catch (IOException e) {
-                throw new IllegalStateException("Could not read the uploaded image", e);
-            }
-            post.setImage(key, validated.detectedMimeType());
+        if (validatedImage != null) {
+            key = store(post, "image", image, validatedImage);
+            post.setImage(key, validatedImage.detectedMimeType());
+        } else if (validatedVideo != null) {
+            key = store(post, "video", video, validatedVideo);
+            post.setVideo(key, validatedVideo.detectedMimeType());
         }
         try {
             return postRepository.save(post);
@@ -85,6 +102,16 @@ public class FeedService {
             deleteQuietly(key);
             throw e;
         }
+    }
+
+    private String store(Post post, String kind, MultipartFile file, ValidatedFile validated) {
+        String key = "posts/" + post.getId() + "/" + kind + "/" + validated.originalFilename().replaceAll("[^a-zA-Z0-9._-]", "_");
+        try (InputStream in = file.getInputStream()) {
+            storageService.put(key, in, validated.sizeBytes(), validated.detectedMimeType());
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not read the uploaded " + kind, e);
+        }
+        return key;
     }
 
     @Transactional
@@ -98,9 +125,11 @@ public class FeedService {
     @Transactional
     public void delete(UUID id) {
         Post post = postRepository.findById(id).orElseThrow(PostNotFoundException::new);
-        String key = post.getImageKey();
+        String imageKey = post.getImageKey();
+        String videoKey = post.getVideoKey();
         postRepository.delete(post);
-        deleteQuietly(key);
+        deleteQuietly(imageKey);
+        deleteQuietly(videoKey);
     }
 
     @Transactional

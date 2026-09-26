@@ -36,6 +36,8 @@ public class CourseService {
                 ? fileValidator.validateThumbnail(form.getThumbnail()) : null;
 
         Course course = new Course(form.getTitle(), form.getDescription(), form.getCategory(), createdBy);
+        course.setPricing(CoursePricing.check(form.getPriceRupees(), form.getDiscountPercent(), form.getDiscountStart(),
+                form.getDiscountEnd(), Instant.now()));
         List<String> stored = new ArrayList<>();
         try {
             if (thumbnail != null) {
@@ -56,6 +58,13 @@ public class CourseService {
         course.setDescription(form.getDescription());
         course.setCategory(form.getCategory());
         course.setUpdatedAt(Instant.now());
+        return course;
+    }
+
+    @Transactional
+    public Course updatePricing(UUID id, Integer price, Integer percent, Instant start, Instant end) {
+        Course course = find(id);
+        course.setPricing(CoursePricing.check(price, percent, start, end, Instant.now()));
         return course;
     }
 

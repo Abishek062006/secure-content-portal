@@ -18,6 +18,16 @@ public class CourseCreateForm {
 
     private MultipartFile thumbnail;
 
+    private Integer priceRupees;
+
+    private Integer discountPercent;
+
+    @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+    private java.time.Instant discountStart;
+
+    @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+    private java.time.Instant discountEnd;
+
     public String getTitle() {
         return title;
     }
@@ -48,5 +58,37 @@ public class CourseCreateForm {
 
     public void setThumbnail(MultipartFile thumbnail) {
         this.thumbnail = thumbnail;
+    }
+
+    public Integer getPriceRupees() {
+        return priceRupees;
+    }
+
+    public void setPriceRupees(Integer priceRupees) {
+        this.priceRupees = priceRupees;
+    }
+
+    public Integer getDiscountPercent() {
+        return discountPercent;
+    }
+
+    public void setDiscountPercent(Integer discountPercent) {
+        this.discountPercent = discountPercent;
+    }
+
+    public java.time.Instant getDiscountStart() {
+        return discountStart;
+    }
+
+    public void setDiscountStart(java.time.Instant discountStart) {
+        this.discountStart = discountStart;
+    }
+
+    public java.time.Instant getDiscountEnd() {
+        return discountEnd;
+    }
+
+    public void setDiscountEnd(java.time.Instant discountEnd) {
+        this.discountEnd = discountEnd;
     }
 }

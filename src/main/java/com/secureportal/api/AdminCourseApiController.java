@@ -97,6 +97,20 @@ public class AdminCourseApiController {
         return assembler.adminCourse(course);
     }
 
+    public record PricingRequest(Integer priceRupees, Integer discountPercent, java.time.Instant discountStart,
+                                 java.time.Instant discountEnd) {
+    }
+
+    @PutMapping("/{id}/pricing")
+    public CourseDto pricing(@PathVariable UUID id, @RequestBody PricingRequest request,
+                             @AuthenticationPrincipal AppPrincipal principal) {
+        Course course = courseService.updatePricing(id, request.priceRupees(), request.discountPercent(),
+                request.discountStart(), request.discountEnd());
+        auditService.log(principal.getEmail(), "COURSE_PRICING", id, "\"" + course.getTitle() + "\": "
+                + course.getPricing().priceRupees() + " rupees, " + course.getPricing().discountPercent() + "% off");
+        return assembler.adminCourse(course);
+    }
+
     @PostMapping("/{id}/unpublish")
     public CourseDto unpublish(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
         Course course = courseService.setStatus(id, CourseStatus.DRAFT);

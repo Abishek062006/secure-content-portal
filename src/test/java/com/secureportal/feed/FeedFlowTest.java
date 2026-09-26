@@ -24,6 +24,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static com.secureportal.testsupport.TestPrincipals.as;
+import jakarta.servlet.http.Cookie;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -180,7 +182,7 @@ class FeedFlowTest {
                 .andExpect(jsonPath("$.reactions.CELEBRATE").value(2))
                 .andExpect(jsonPath("$.reactionTotal").value(2));
         mockMvc.perform(put("/api/posts/" + id + "/reaction").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"type\":\"LOVE\"}").with(csrf()).with(as(learner))).andExpect(status().is4xxClientError());
+                .content("{\"type\":\"WOW\"}").with(csrf()).with(as(learner))).andExpect(status().is4xxClientError());
 
         mockMvc.perform(get("/api/feed").with(as(learner)))
                 .andExpect(jsonPath("$.posts[0].myReaction").value("CELEBRATE"));
@@ -240,6 +242,51 @@ class FeedFlowTest {
 
         mockMvc.perform(delete("/api/admin/posts/" + id).with(csrf()).with(as(admin))).andExpect(status().isNoContent());
         mockMvc.perform(get("/api/posts/" + id + "/image").with(as(learner))).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void aPostCanCarryAVideoStreamedWithASessionBoundTicketAndNotBothAnImageAndAVideo() throws Exception {
+        byte[] mp4 = {0x00, 0x00, 0x00, 0x1C, 'f', 't', 'y', 'p', 'm', 'p', '4', '2',
+                0x00, 0x00, 0x00, 0x00, 'm', 'p', '4', '2', 'i', 's', 'o', 'm', 'a', 'v', 'c', '1'};
+        MockMultipartHttpServletRequestBuilder both = multipart("/api/admin/posts");
+        both.file(new MockMultipartFile("image", "pic.png", "image/png", PNG));
+        both.file(new MockMultipartFile("video", "clip.mp4", "video/mp4", mp4));
+        both.param("body", "Both");
+        mockMvc.perform(both.with(csrf()).with(as(admin))).andExpect(status().isBadRequest());
+
+        MockMultipartHttpServletRequestBuilder fake = multipart("/api/admin/posts");
+        fake.file(new MockMultipartFile("video", "clip.mp4", "video/mp4", "not a video".getBytes()));
+        fake.param("body", "Fake video");
+        mockMvc.perform(fake.with(csrf()).with(as(admin))).andExpect(status().is4xxClientError());
+        assertThat(postRepository.count()).isZero();
+
+        MockMultipartHttpServletRequestBuilder good = multipart("/api/admin/posts");
+        good.file(new MockMultipartFile("video", "clip.mp4", "video/mp4", mp4));
+        good.param("body", "Watch this");
+        String id = json(mockMvc.perform(good.with(csrf()).with(as(admin))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.imageUrl").doesNotExist()).andReturn()).get("id").asText();
+
+        MvcResult feed = mockMvc.perform(get("/api/feed").with(as(learner))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts[0].videoUrl").value(org.hamcrest.Matchers.startsWith("/api/post-stream/"))).andReturn();
+        String url = json(feed).get("posts").get(0).get("videoUrl").asText();
+        Cookie session = feed.getResponse().getCookie("SESSION");
+        assertThat(session).isNotNull();
+
+        mockMvc.perform(get(url).cookie(session).with(as(learner)).header("Range", "bytes=0-3"))
+                .andExpect(status().isPartialContent())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().bytes(java.util.Arrays.copyOfRange(mp4, 0, 4)));
+        mockMvc.perform(get(url).with(as(learner))).andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/admin/posts/" + id).with(csrf()).with(as(admin))).andExpect(status().isNoContent());
+        mockMvc.perform(get(url).cookie(session).with(as(learner))).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void allSixReactionsWork() throws Exception {
+        String id = createPost("Six ways", null, false, null);
+        for (String type : List.of("LIKE", "CELEBRATE", "SUPPORT", "LOVE", "INSIGHTFUL", "FUNNY")) {
+            react(id, type, learner).andExpect(jsonPath("$.myReaction").value(type));
+        }
     }
 
     private String createPost(String body, String courseId, boolean pinned, Instant publishAt) throws Exception {

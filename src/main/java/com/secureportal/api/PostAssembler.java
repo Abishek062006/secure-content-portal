@@ -16,8 +16,13 @@ import com.secureportal.feed.PostReactionRepository;
 import com.secureportal.feed.ReactionType;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
+import com.secureportal.stream.StreamTicket;
+import com.secureportal.stream.StreamTicketService;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,15 +41,17 @@ public class PostAssembler {
     private final EnrollmentRepository enrollmentRepository;
     private final PostReactionRepository reactionRepository;
     private final PostCommentRepository commentRepository;
+    private final StreamTicketService ticketService;
 
     public PostAssembler(UserRepository userRepository, CourseRepository courseRepository,
                          EnrollmentRepository enrollmentRepository, PostReactionRepository reactionRepository,
-                         PostCommentRepository commentRepository) {
+                         PostCommentRepository commentRepository, StreamTicketService ticketService) {
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.reactionRepository = reactionRepository;
         this.commentRepository = commentRepository;
+        this.ticketService = ticketService;
     }
 
     public List<PostDto> posts(List<Post> posts, Long viewerId) {
@@ -85,16 +92,24 @@ public class PostAssembler {
                     : new PostCourseDto(course.getId(), course.getTitle(), course.getDescription(), course.getCategory(),
                     course.getThumbnailKey() == null ? null
                             : "/api/courses/" + course.getId() + "/thumbnail?v=" + course.getUpdatedAt().toEpochMilli(),
-                    enrolled.contains(course.getId()));
+                    enrolled.contains(course.getId()), com.secureportal.api.dto.CourseDto.Pricing.of(course));
             Map<String, Long> counts = reactions.getOrDefault(post.getId(), Map.of());
             return new PostDto(post.getId(), post.getBody(),
                     post.getImageKey() == null ? null
                             : "/api/posts/" + post.getId() + "/image?v=" + post.getUpdatedAt().toEpochMilli(),
+                    post.getVideoKey() == null ? null : videoUrl(post, viewerId),
                     author == null ? "Admin" : author.getDisplayName(), author == null ? null : author.getPictureUrl(),
                     post.getPublishAt(), post.isPinned(), !post.isPublished(), courseDto, counts,
                     counts.values().stream().mapToLong(Long::longValue).sum(), mine.get(post.getId()),
                     commentCounts.getOrDefault(post.getId(), 0L));
         }).toList();
+    }
+
+    /** Feed videos are delivered like lesson videos: a short-lived ticket tied to this viewer's session. */
+    private String videoUrl(Post post, Long viewerId) {
+        var request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+        return "/api/post-stream/" + ticketService.mint(post.getId(), viewerId, request,
+                StreamTicket.Purpose.POST_VIDEO, Duration.ofMinutes(60));
     }
 
     public PostDto post(Post post, Long viewerId) {

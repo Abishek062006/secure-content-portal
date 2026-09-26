@@ -50,6 +50,18 @@ public class Course {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
+    @Column(name = "price_rupees", nullable = false)
+    private int priceRupees;
+
+    @Column(name = "discount_percent", nullable = false)
+    private int discountPercent;
+
+    @Column(name = "discount_start")
+    private Instant discountStart;
+
+    @Column(name = "discount_end")
+    private Instant discountEnd;
+
     @Column(name = "view_count", nullable = false)
     private long viewCount;
 
@@ -140,4 +152,16 @@ public class Course {
         return lastViewedAt;
     }
 
+
+    public CoursePricing getPricing() {
+        return new CoursePricing(priceRupees, discountPercent, discountStart, discountEnd);
+    }
+
+    public void setPricing(CoursePricing pricing) {
+        this.priceRupees = pricing.priceRupees();
+        this.discountPercent = pricing.discountPercent();
+        this.discountStart = pricing.discountStart();
+        this.discountEnd = pricing.discountEnd();
+        this.updatedAt = Instant.now();
+    }
 }
