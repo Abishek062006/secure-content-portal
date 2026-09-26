@@ -32,6 +32,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             new Rule(HttpMethod.POST, "/api/assessments/*/attempts", "attempt", 20),
             new Rule(HttpMethod.PUT, "/api/attempts/*/answers", "answer", 240),
             // Each interview step calls the AI, so these are the tightest limits in the app.
+            new Rule(HttpMethod.POST, "/api/hackathons/join", "hackathon-team", 10),
+            new Rule(HttpMethod.POST, "/api/hackathons/*/team", "hackathon-team", 10),
             new Rule(HttpMethod.POST, "/api/interviews/transcribe", "voice-transcribe", 10),
             new Rule(HttpMethod.POST, "/api/interviews/resume", "resume-upload", 5),
             new Rule(HttpMethod.POST, "/api/interviews/start", "interview-start", 5),

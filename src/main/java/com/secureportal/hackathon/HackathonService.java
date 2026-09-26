@@ -18,6 +18,7 @@ import java.util.Set;
 public class HackathonService {
 
     static final int MAX_LISTED = 200;
+    static final int MAX_TEAM = 10;
 
     private final HackathonRepository hackathons;
     private final HackathonSaveRepository saves;
@@ -32,7 +33,8 @@ public class HackathonService {
     /** What an admin submits. Text is validated and tidied by the service; nothing here is trusted. */
     public record Input(String title, String organizer, String description, String bannerUrl, String stream, String mode,
                         String location, String prizePool, String registrationUrl, Instant registrationDeadline,
-                        Instant eventStartDate, Instant eventEndDate, boolean featured, String status) {
+                        Instant eventStartDate, Instant eventEndDate, boolean featured, String status, String kind, String rules,
+                        String tracks, String prizes, Integer minTeamSize, Integer maxTeamSize) {
     }
 
     public record View(Hackathon hackathon, boolean saved, boolean registrationOpen) {
@@ -49,6 +51,11 @@ public class HackathonService {
         String modeFilter = mode == null || mode.isBlank() || mode.equalsIgnoreCase("all") ? null
                 : HackathonMode.parse(mode).map(Enum::name).orElse("?");
         return views(hackathons.search(streamFilter, modeFilter, PageRequest.of(0, MAX_LISTED)), viewerId);
+    }
+
+    @Transactional(readOnly = true)
+    public View view(Long id, Long viewerId) {
+        return views(List.of(find(id)), viewerId).get(0);
     }
 
     @Transactional(readOnly = true)
@@ -94,7 +101,14 @@ public class HackathonService {
     @Transactional
     public View update(Long id, Input input, String adminEmail) {
         Hackathon hackathon = hackathons.findById(id).orElseThrow(HackathonNotFoundException::new);
-        hackathon.apply(validate(input));
+        Hackathon.Details details = validate(input);
+        if (hackathon.isHosted() != (details.hosted() != null)) {
+            throw new InvalidHackathonException("An event can't change between an external listing and a hosted event.");
+        }
+        if (hackathon.isHosted() && hackathon.getResultsPublishedAt() != null) {
+            throw new HackathonStateException("Results are published, so the event can no longer be edited.");
+        }
+        hackathon.apply(details);
         hackathons.save(hackathon);
         audit.log(adminEmail, "HACKATHON_UPDATE", null, "Updated hackathon \"" + hackathon.getTitle() + "\"");
         return views(List.of(hackathon), null).get(0);
@@ -117,6 +131,9 @@ public class HackathonService {
         if (in.eventStartDate() != null && in.eventEndDate() != null && in.eventEndDate().isBefore(in.eventStartDate())) {
             throw new InvalidHackathonException("The event can't end before it starts.");
         }
+        HackathonKind kind = in.kind() == null || in.kind().isBlank() ? HackathonKind.EXTERNAL
+                : HackathonKind.parse(in.kind()).orElseThrow(() -> new InvalidHackathonException("Choose External listing or Hosted event."));
+        Hackathon.Hosted hosted = kind == HackathonKind.HOSTED ? hosted(in) : null;
         return new Hackathon.Details(
                 required(in.title(), 200, "The title"),
                 optional(in.organizer(), 200, "The organizer"),
@@ -126,9 +143,41 @@ public class HackathonService {
                 mode,
                 optional(in.location(), 200, "The location"),
                 optional(in.prizePool(), 100, "The prize pool"),
-                requiredHttpsUrl(in.registrationUrl(), 1000, "The registration link"),
+                hosted == null ? requiredHttpsUrl(in.registrationUrl(), 1000, "The registration link")
+                        : optionalHttpsUrl(in.registrationUrl(), 1000, "The registration link"),
                 in.registrationDeadline(), in.eventStartDate(), in.eventEndDate(),
-                in.featured(), status);
+                in.featured(), status, hosted);
+    }
+
+    /** A hosted event needs its whole timeline in order, and sensible team sizes. */
+    private static Hackathon.Hosted hosted(Input in) {
+        if (in.registrationDeadline() == null || in.eventStartDate() == null || in.eventEndDate() == null) {
+            throw new InvalidHackathonException("A hosted event needs a registration deadline, a start and an end (the submission deadline).");
+        }
+        if (in.registrationDeadline().isAfter(in.eventStartDate())) {
+            throw new InvalidHackathonException("Registration must close before the event starts.");
+        }
+        if (!in.eventEndDate().isAfter(in.eventStartDate())) {
+            throw new InvalidHackathonException("The submission deadline must be after the event starts.");
+        }
+        int min = in.minTeamSize() == null ? 1 : in.minTeamSize();
+        int max = in.maxTeamSize() == null ? 4 : in.maxTeamSize();
+        if (min < 1 || max > MAX_TEAM || min > max) {
+            throw new InvalidHackathonException("Team size must be between 1 and " + MAX_TEAM + ", and the minimum can't exceed the maximum.");
+        }
+        return new Hackathon.Hosted(required(in.rules(), 5000, "The rules"), tracks(in.tracks()), optional(in.prizes(), 2000, "The prizes"), min, max);
+    }
+
+    /** Tracks are a short comma-separated list of names. */
+    private static String tracks(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        List<String> names = java.util.Arrays.stream(raw.split(",")).map(String::strip).filter(t -> !t.isEmpty()).distinct().toList();
+        if (names.size() > 8 || names.stream().anyMatch(t -> t.length() > 60)) {
+            throw new InvalidHackathonException("Give at most 8 tracks, each under 60 characters.");
+        }
+        return names.isEmpty() ? null : String.join(", ", names);
     }
 
     private static String required(String value, int max, String label) {

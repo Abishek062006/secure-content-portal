@@ -213,6 +213,13 @@ public class GamificationService {
         return awardOnce(userId, action, amount, description, stream, action.name(), sourceId, null);
     }
 
+    /** Grants a badge (and its XP) once; false when the learner already had it. */
+    @Transactional
+    public boolean grantBadge(Long userId, String badgeId) {
+        gamification.ensureRow(userId);
+        return unlockBadge(userId, badgeId).isPresent();
+    }
+
     public int pointsFor(PointAction action) {
         return rules.findByActionType(action.name()).map(PointRule::getPoints).orElse(action.defaultPoints());
     }

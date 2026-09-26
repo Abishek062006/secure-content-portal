@@ -38,6 +38,11 @@ public class HackathonApiController {
         return hackathonService.list(stream, mode, saved, principal.getUserId()).stream().map(HackathonDto::of).toList();
     }
 
+    @GetMapping("/{id}")
+    public HackathonDto one(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
+        return HackathonDto.of(hackathonService.view(id, principal.getUserId()));
+    }
+
     @PutMapping("/{id}/save")
     public void save(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
         if (principal.isAdmin()) {

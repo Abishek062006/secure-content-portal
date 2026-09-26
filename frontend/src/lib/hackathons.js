@@ -32,3 +32,25 @@ export function closingSoon(hackathon, now = Date.now()) {
 }
 
 export const MODE_LABEL = { ONLINE: 'Online', OFFLINE: 'In person', HYBRID: 'Hybrid' };
+
+export const PHASE_LABEL = {
+  REGISTRATION: 'Registration open',
+  BUILDING: 'Building',
+  JUDGING: 'Judging',
+  RESULTS: 'Results out',
+};
+
+/** The four milestones of a hosted event, with whether each has passed. */
+export function timeline(h, now = Date.now()) {
+  const passed = (iso) => iso && new Date(iso).getTime() <= now;
+  return [
+    { key: 'reg', label: 'Registration closes', at: h.registrationDeadline, done: passed(h.registrationDeadline) },
+    { key: 'start', label: 'Building starts', at: h.eventStartDate, done: passed(h.eventStartDate) },
+    { key: 'end', label: 'Submissions close', at: h.eventEndDate, done: passed(h.eventEndDate) },
+    { key: 'res', label: 'Results published', at: null, done: h.resultsPublished },
+  ];
+}
+
+export function dateTime(iso) {
+  return iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+}

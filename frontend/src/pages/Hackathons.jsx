@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api';
 import Alert from '../components/Alert';
 import Icon from '../components/Icon';
-import { MODE_LABEL, closingSoon, dateRange, deadlineLabel } from '../lib/hackathons';
+import { MODE_LABEL, PHASE_LABEL, closingSoon, dateRange, deadlineLabel } from '../lib/hackathons';
 
 const MODES = [
   { id: 'all', label: 'All' },
@@ -45,8 +46,9 @@ export default function Hackathons() {
     }
   }
 
-  const open = (items || []).filter((h) => h.registrationOpen && h.status !== 'COMPLETED');
-  const past = (items || []).filter((h) => !(h.registrationOpen && h.status !== 'COMPLETED'));
+  const isCurrent = (h) => (h.kind === 'HOSTED' ? h.phase !== 'RESULTS' : h.registrationOpen && h.status !== 'COMPLETED');
+  const open = (items || []).filter(isCurrent);
+  const past = (items || []).filter((h) => !isCurrent(h));
   const reminders = (items || []).filter((h) => closingSoon(h));
 
   return (
@@ -102,14 +104,16 @@ export default function Hackathons() {
 
 function Card({ h, busy, onSave, onCalendar }) {
   const dates = dateRange(h.eventStartDate, h.eventEndDate);
-  const deadline = deadlineLabel(h);
+  const hosted = h.kind === 'HOSTED';
+  const deadline = hosted ? (h.phase === 'REGISTRATION' ? deadlineLabel(h) : PHASE_LABEL[h.phase]) : deadlineLabel(h);
   return (
-    <article className={`hack-card${h.registrationOpen ? '' : ' closed'}`}>
+    <article className={`hack-card${hosted ? (h.phase === 'RESULTS' ? ' closed' : '') : (h.registrationOpen ? '' : ' closed')}`}>
       {h.bannerUrl && <img className="hack-banner" src={h.bannerUrl} alt="" loading="lazy" referrerPolicy="no-referrer" />}
       <div className="hack-body">
         <div className="hack-tags">
           <span className="badge">{MODE_LABEL[h.mode] || h.mode}</span>
           <span className="badge">{h.stream}</span>
+          {hosted && <span className="badge status-featured">Hosted here</span>}
           {h.featured && <span className="badge status-featured">Featured</span>}
         </div>
         <h3>{h.title}</h3>
@@ -122,7 +126,11 @@ function Card({ h, busy, onSave, onCalendar }) {
         </dl>
         {deadline && <p className={`hack-deadline${h.registrationOpen ? '' : ' over'}`}>{deadline}</p>}
         <div className="hack-actions">
-          {h.registrationOpen ? (
+          {hosted ? (
+            <Link className="btn btn-primary" to={`/hackathons/${h.id}`}>
+              {h.phase === 'REGISTRATION' && h.registrationOpen ? 'Join' : 'Open event'} <Icon name="arrow-right" size={16} />
+            </Link>
+          ) : h.registrationOpen ? (
             <a className="btn btn-primary" href={h.registrationUrl} target="_blank" rel="noopener noreferrer">
               Register <Icon name="arrow-right" size={16} />
             </a>

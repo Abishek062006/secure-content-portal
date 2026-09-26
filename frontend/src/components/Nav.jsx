@@ -17,6 +17,16 @@ export default function Nav() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [progress, setProgress] = useState(null);
+  const [judging, setJudging] = useState(false);
+
+  // Anyone asked to judge a hackathon gets a Judging link.
+  useEffect(() => {
+    if (!user) {
+      setJudging(false);
+      return;
+    }
+    api.getJudgedEvents().then((events) => setJudging(events.length > 0)).catch(() => setJudging(false));
+  }, [user, location.pathname]);
 
   // Refreshed as the learner moves around, so the ring fills right after they finish a lesson.
   useEffect(() => {
@@ -41,6 +51,7 @@ export default function Nav() {
               <NavLink to="/admin/dashboard">Dashboard</NavLink>
               <NavLink to="/admin/courses">Manage Courses</NavLink>
               <NavLink to="/admin/hackathons">Hackathons</NavLink>
+              {judging && <NavLink to="/judging">Judging</NavLink>}
               <NavLink to="/admin/users">Users</NavLink>
               <NavLink to="/admin/audit">Audit Log</NavLink>
             </>
@@ -52,6 +63,7 @@ export default function Nav() {
               <NavLink to="/interview">Interview</NavLink>
               <NavLink to="/hackathons">Hackathons</NavLink>
               <NavLink to="/leaderboard">Leaderboard</NavLink>
+              {judging && <NavLink to="/judging">Judging</NavLink>}
             </>
           )}
         </div>

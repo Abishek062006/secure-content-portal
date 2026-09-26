@@ -8,6 +8,10 @@ import CourseView from './pages/CourseView';
 import LessonView from './pages/LessonView';
 import Leaderboard from './pages/Leaderboard';
 import Hackathons from './pages/Hackathons';
+import HackathonDetail from './pages/HackathonDetail';
+import JoinTeam from './pages/JoinTeam';
+import Judging from './pages/Judging';
+import AdminHackathonManage from './pages/admin/AdminHackathonManage';
 import InterviewPrep from './pages/InterviewPrep';
 import InterviewSession from './pages/InterviewSession';
 import AdminHackathons from './pages/admin/AdminHackathons';
@@ -52,6 +56,9 @@ export default function App() {
           <Route path="/my-learning" element={<MyLearning />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/hackathons" element={<Hackathons />} />
+          <Route path="/hackathons/join/:code" element={<JoinTeam />} />
+          <Route path="/hackathons/:id" element={<HackathonDetail />} />
+          <Route path="/judging" element={<Judging />} />
           <Route path="/interview" element={<InterviewPrep />} />
           <Route path="/interview/:id" element={<InterviewSession />} />
           <Route path="/courses" element={<Courses />} />
@@ -70,6 +77,7 @@ export default function App() {
           <Route path="/admin/courses/:id/questions" element={<QuestionBank />} />
           <Route path="/admin/courses/:id/results" element={<AssessmentResults />} />
           <Route path="/admin/hackathons" element={<AdminHackathons />} />
+          <Route path="/admin/hackathons/:id/manage" element={<AdminHackathonManage />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/audit" element={<AuditLog />} />
         </Route>

@@ -174,7 +174,7 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
     }
 
-    @ExceptionHandler(com.secureportal.interview.InterviewStateException.class)
+    @ExceptionHandler({com.secureportal.hackathon.HackathonStateException.class, com.secureportal.interview.InterviewStateException.class})
     public ResponseEntity<ApiError> handleGamificationConflict(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
     }
