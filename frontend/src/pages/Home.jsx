@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LockIcon, ShieldPlayIcon, UsersGearIcon } from '../components/Icons';
 
@@ -21,7 +21,11 @@ const FEATURES = [
 ];
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  // Signed-in members land on the feed; the welcome page is only for visitors.
+  if (loading) return null;
+  if (user) return <Navigate to="/feed" replace />;
 
   if (!user) {
     return (
