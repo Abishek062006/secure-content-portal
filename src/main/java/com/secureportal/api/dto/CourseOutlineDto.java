@@ -14,7 +14,8 @@ public record CourseOutlineDto(
 ) {
     /** {@code locked} (with {@code lockedReason}) applies to learners only; {@code assessment} is the module's quiz or assessment, if it has one. */
     public record ModuleDto(UUID id, String title, String description, int position, List<LessonDto> lessons,
-                            boolean locked, String lockedReason, AssessmentSummaryDto assessment) {
+                            boolean locked, String lockedReason, AssessmentSummaryDto assessment,
+                            List<MaterialDto> materials) {
     }
 
     /**

@@ -51,19 +51,20 @@ public class PdfRenderService {
     }
 
     public byte[] renderPage(ContentItem item, int pageNumber, String watermarkText) {
-        validatePageNumber(item, pageNumber);
-        byte[] rendered = getOrRenderPage(item, pageNumber);
+        return renderPage(item.getId(), item.getStorageKey(), item.getPageCount(), pageNumber, watermarkText);
+    }
+
+    /** Any stored PDF (a library item or course material): {@code id} names the page-image cache. */
+    public byte[] renderPage(java.util.UUID id, String storageKey, Integer pageCount, int pageNumber, String watermarkText) {
+        if (pageNumber < 1 || (pageCount != null && pageNumber > pageCount)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such page");
+        }
+        byte[] rendered = getOrRenderPage(id, storageKey, pageNumber);
         return applyWatermark(rendered, watermarkText);
     }
 
-    private void validatePageNumber(ContentItem item, int pageNumber) {
-        if (pageNumber < 1 || (item.getPageCount() != null && pageNumber > item.getPageCount())) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such page");
-        }
-    }
-
-    private byte[] getOrRenderPage(ContentItem item, int pageNumber) {
-        String cacheKey = "derived/" + item.getId() + "/p" + pageNumber + ".jpg";
+    private byte[] getOrRenderPage(java.util.UUID id, String storageKey, int pageNumber) {
+        String cacheKey = "derived/" + id + "/p" + pageNumber + ".jpg";
 
         if (storageService.exists(cacheKey)) {
             try (StorageObject cached = storageService.get(cacheKey, null, null)) {
@@ -73,7 +74,7 @@ public class PdfRenderService {
             }
         }
 
-        byte[] rendered = renderFromPdf(item, pageNumber);
+        byte[] rendered = renderFromPdf(id, storageKey, pageNumber);
 
         try {
             storageService.put(cacheKey, new ByteArrayInputStream(rendered), rendered.length, "image/jpeg");
@@ -84,8 +85,8 @@ public class PdfRenderService {
         return rendered;
     }
 
-    private byte[] renderFromPdf(ContentItem item, int pageNumber) {
-        try (StorageObject source = storageService.get(item.getStorageKey(), null, null);
+    private byte[] renderFromPdf(java.util.UUID id, String storageKey, int pageNumber) {
+        try (StorageObject source = storageService.get(storageKey, null, null);
              PDDocument doc = Loader.loadPDF(source.content().readAllBytes())) {
 
             PDFRenderer renderer = new PDFRenderer(doc);
@@ -97,7 +98,7 @@ public class PdfRenderService {
             return out.toByteArray();
         } catch (IOException e) {
             throw new IllegalStateException(
-                    "Could not render PDF page " + pageNumber + " for " + item.getId(), e);
+                    "Could not render PDF page " + pageNumber + " for " + id, e);
         }
     }
 

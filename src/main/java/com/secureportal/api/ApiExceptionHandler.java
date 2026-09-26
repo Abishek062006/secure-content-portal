@@ -63,6 +63,16 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.course.MaterialNotFoundException.class)
+    public ResponseEntity<ApiError> handleMaterialNotFound(com.secureportal.course.MaterialNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.course.MaterialDownloadNotAllowedException.class)
+    public ResponseEntity<ApiError> handleMaterialDownload(com.secureportal.course.MaterialDownloadNotAllowedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(PostNotFoundException.class)
     public ResponseEntity<ApiError> handlePostNotFound(PostNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));

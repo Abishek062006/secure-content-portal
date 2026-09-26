@@ -31,16 +31,19 @@ public class CourseStructureService {
     private final StorageService storageService;
     private final FileValidator fileValidator;
     private final CourseFileStore fileStore;
+    private final CourseMaterialRepository materialRepository;
 
     public CourseStructureService(CourseService courseService, CourseModuleRepository moduleRepository,
                                   LessonRepository lessonRepository, StorageService storageService,
-                                  FileValidator fileValidator, CourseFileStore fileStore) {
+                                  FileValidator fileValidator, CourseFileStore fileStore,
+                                  CourseMaterialRepository materialRepository) {
         this.courseService = courseService;
         this.moduleRepository = moduleRepository;
         this.lessonRepository = lessonRepository;
         this.storageService = storageService;
         this.fileValidator = fileValidator;
         this.fileStore = fileStore;
+        this.materialRepository = materialRepository;
     }
 
     // ---- modules ----
@@ -66,6 +69,7 @@ public class CourseStructureService {
             keys.add(lesson.getVideoKey());
             keys.add(lesson.getTranscriptKey());
         }
+        materialRepository.findByModuleIdOrderByCreatedAtAsc(moduleId).forEach(m -> keys.add(m.getStorageKey()));
         moduleRepository.delete(module);
         renumberModules(module.getCourseId());
         keys.forEach(fileStore::deleteQuietly);

@@ -21,13 +21,16 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final LessonRepository lessonRepository;
     private final FileValidator fileValidator;
+    private final CourseMaterialRepository materialRepository;
     private final CourseFileStore fileStore;
 
     public CourseService(CourseRepository courseRepository, LessonRepository lessonRepository,
-                         FileValidator fileValidator, CourseFileStore fileStore) {
+                         FileValidator fileValidator, CourseFileStore fileStore,
+                         CourseMaterialRepository materialRepository) {
         this.courseRepository = courseRepository;
         this.lessonRepository = lessonRepository;
         this.fileValidator = fileValidator;
+        this.materialRepository = materialRepository;
         this.fileStore = fileStore;
     }
 
@@ -107,6 +110,7 @@ public class CourseService {
             keys.add(lesson.getVideoKey());
             keys.add(lesson.getTranscriptKey());
         }
+        materialRepository.findByCourseIdOrderByCreatedAtAsc(id).forEach(m -> keys.add(m.getStorageKey()));
         courseRepository.delete(course);
         keys.forEach(fileStore::deleteQuietly);
     }

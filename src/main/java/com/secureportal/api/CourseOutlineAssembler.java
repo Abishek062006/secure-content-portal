@@ -1,6 +1,7 @@
 package com.secureportal.api;
 
 import com.secureportal.api.dto.CourseDto;
+import com.secureportal.api.dto.MaterialDto;
 import com.secureportal.api.dto.CourseOutlineDto;
 import com.secureportal.api.dto.CourseOutlineDto.LessonDto;
 import com.secureportal.api.dto.CourseOutlineDto.ModuleDto;
@@ -43,12 +44,13 @@ public class CourseOutlineAssembler {
     private final AssessmentAccess assessmentAccess;
     private final AttemptRepository attemptRepository;
     private final AttemptService attemptService;
+    private final com.secureportal.course.MaterialService materialService;
 
     public CourseOutlineAssembler(CourseStructureService structureService, LearningService learningService,
                                   CourseModuleRepository moduleRepository, LessonRepository lessonRepository,
                                   AssessmentService assessmentService, AssessmentAssembler assessmentAssembler,
                                   AssessmentAccess assessmentAccess, AttemptRepository attemptRepository,
-                                  AttemptService attemptService) {
+                                  AttemptService attemptService, com.secureportal.course.MaterialService materialService) {
         this.structureService = structureService;
         this.learningService = learningService;
         this.moduleRepository = moduleRepository;
@@ -58,6 +60,7 @@ public class CourseOutlineAssembler {
         this.assessmentAccess = assessmentAccess;
         this.attemptRepository = attemptRepository;
         this.attemptService = attemptService;
+        this.materialService = materialService;
     }
 
     public CourseDto adminCourse(Course course) {
@@ -145,7 +148,7 @@ public class CourseOutlineAssembler {
                                Map<UUID, LessonProgress> progress, boolean admin) {
         return new ModuleDto(module.getId(), module.getTitle(), module.getDescription(), module.getPosition(),
                 lessons.stream().sorted(Comparator.comparingInt(Lesson::getPosition))
-                        .map(l -> lessonDto(l, progress, admin)).toList(), false, null, null);
+                        .map(l -> lessonDto(l, progress, admin)).toList(), false, null, null, List.of());
     }
 
     private List<ModuleDto> modules(UUID courseId, Map<UUID, LessonProgress> progress, boolean admin,
@@ -155,14 +158,19 @@ public class CourseOutlineAssembler {
         Map<UUID, Assessment> assessmentByModule = new HashMap<>();
         assessments.stream().filter(a -> a.getModuleId() != null).forEach(a -> assessmentByModule.put(a.getModuleId(), a));
 
+        Map<UUID, List<MaterialDto>> materialsByModule = materialService.forCourse(courseId).stream()
+                .collect(Collectors.groupingBy(com.secureportal.course.CourseMaterial::getModuleId,
+                        Collectors.mapping(MaterialDto::of, Collectors.toList())));
         return structureService.modules(courseId).stream().map(m -> {
             ModuleDto base = moduleDto(m, byModule.getOrDefault(m.getId(), List.of()), progress, admin);
             Assessment a = assessmentByModule.get(m.getId());
             AssessmentSummaryDto summary = a == null ? null
                     : admin ? assessmentAssembler.admin(a) : learnerAssessment(a, context);
             String reason = locked.get(m.getId());
+            // A locked module's materials stay hidden from learners until it opens.
+            List<MaterialDto> materials = reason != null && !admin ? List.of() : materialsByModule.getOrDefault(m.getId(), List.of());
             return new ModuleDto(base.id(), base.title(), base.description(), base.position(), base.lessons(),
-                    reason != null, reason, summary);
+                    reason != null, reason, summary, materials);
         }).toList();
     }
 
