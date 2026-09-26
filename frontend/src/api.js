@@ -142,4 +142,13 @@ export const api = {
     link.remove();
     URL.revokeObjectURL(url);
   },
+
+  // Interview practice
+  startInterview: (body) => api.post('/api/interviews/start', body),
+  retryInterview: (id) => api.post(`/api/interviews/sessions/${id}/retry`),
+  getInterview: (id) => request(`/api/interviews/sessions/${id}`),
+  answerInterview: (id, questionId, learnerAnswer) => api.post(`/api/interviews/sessions/${id}/answer`, { questionId, learnerAnswer }),
+  completeInterview: (id) => api.post(`/api/interviews/sessions/${id}/complete`),
+  getInterviewHistory: () => request('/api/interviews/history'),
+  getInterviewQuota: () => request('/api/interviews/quota'),
 };

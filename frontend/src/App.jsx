@@ -8,6 +8,8 @@ import CourseView from './pages/CourseView';
 import LessonView from './pages/LessonView';
 import Leaderboard from './pages/Leaderboard';
 import Hackathons from './pages/Hackathons';
+import InterviewPrep from './pages/InterviewPrep';
+import InterviewSession from './pages/InterviewSession';
 import AdminHackathons from './pages/admin/AdminHackathons';
 import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
@@ -50,6 +52,8 @@ export default function App() {
           <Route path="/my-learning" element={<MyLearning />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/hackathons" element={<Hackathons />} />
+          <Route path="/interview" element={<InterviewPrep />} />
+          <Route path="/interview/:id" element={<InterviewSession />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseView />} />
           <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />

@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import './app.css';
 import './styles/progress.css';
 import './styles/hackathons.css';
+import './styles/interview.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

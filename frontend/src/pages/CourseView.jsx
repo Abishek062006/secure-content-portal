@@ -102,6 +102,14 @@ export default function CourseView() {
         </div>
       </div>
 
+      {enrolled && !user?.admin && progressPercent >= 100 && (
+        <section className="progress-card">
+          <header><h2>Ready for an interview?</h2></header>
+          <p className="field-hint">Practise interview questions built from this course.</p>
+          <Link className="btn btn-primary" to={`/interview?courseId=${course.id}`}>Practise interviewing for this skill</Link>
+        </section>
+      )}
+
       {enrolled && !user?.admin && <CourseLeaderboard courseId={course.id} />}
 
       {modules.length === 0 && (

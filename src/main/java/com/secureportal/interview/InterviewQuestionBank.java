@@ -39,7 +39,17 @@ final class InterviewQuestionBank {
     private InterviewQuestionBank() {
     }
 
-    static List<Item> forStream(String stream, InterviewDifficulty difficulty) {
+    /** A warm-up, three questions for the role, and a closing question: five in all, matching what the AI is asked for. */
+    static List<Item> forRole(String role, InterviewDifficulty difficulty) {
+        java.util.ArrayList<Item> items = new java.util.ArrayList<>();
+        items.add(new Item("Tell me a little about yourself and what draws you to this kind of role.", QuestionCategory.BEHAVIORAL));
+        items.addAll(forStream(role, difficulty));
+        items.add(new Item("Tell me about a project you're proud of. What was your part in it, and what would you do differently?",
+                QuestionCategory.BEHAVIORAL));
+        return List.copyOf(items);
+    }
+
+    private static List<Item> forStream(String stream, InterviewDifficulty difficulty) {
         String lower = stream.toLowerCase();
         if (lower.contains("ai") || lower.contains("data")) {
             return AI_DATA;

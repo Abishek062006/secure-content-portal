@@ -49,6 +49,7 @@ export default function Nav() {
               <NavLink to="/courses">Courses</NavLink>
               <NavLink to="/feed">Feed</NavLink>
               <NavLink to="/my-learning">My Learning</NavLink>
+              <NavLink to="/interview">Interview</NavLink>
               <NavLink to="/hackathons">Hackathons</NavLink>
               <NavLink to="/leaderboard">Leaderboard</NavLink>
             </>

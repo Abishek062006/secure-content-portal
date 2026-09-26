@@ -51,6 +51,24 @@ public class MockInterviewSession {
     @Column(name = "xp_earned", nullable = false)
     private int xpEarned;
 
+    @Column(nullable = false, length = 12)
+    private String source = InterviewSource.SKILLS.name();
+
+    @Column(name = "target_role", length = 100)
+    private String targetRole;
+
+    @Column(length = 600)
+    private String skills;
+
+    @Column(name = "job_description", columnDefinition = "TEXT")
+    private String jobDescription;
+
+    @Column(name = "course_id", length = 36)
+    private String courseId;
+
+    @Column(name = "top_fix", columnDefinition = "TEXT")
+    private String topFix;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -69,6 +87,28 @@ public class MockInterviewSession {
         this.totalQuestions = totalQuestions;
     }
 
+    /** What the interview was built from: the goal the learner set, kept so they can practise again with the same one. */
+    public record Goal(InterviewSource source, String targetRole, String skills, String jobDescription, String courseId) {
+    }
+
+    public MockInterviewSession(Long userId, InterviewTrack track, InterviewDifficulty difficulty, Goal goal, int totalQuestions) {
+        this(userId, track, goal.targetRole(), difficulty, totalQuestions);
+        this.source = goal.source().name();
+        this.targetRole = goal.targetRole();
+        this.skills = goal.skills();
+        this.jobDescription = goal.jobDescription();
+        this.courseId = goal.courseId();
+    }
+
+    public Goal goal() {
+        return new Goal(InterviewSource.valueOf(source), targetRole, skills, jobDescription, courseId);
+    }
+
+    /** A follow-up adds a question to the interview. */
+    public void followUpAdded() {
+        totalQuestions++;
+    }
+
     public boolean isInProgress() {
         return InterviewStatus.IN_PROGRESS.name().equals(status);
     }
@@ -85,10 +125,11 @@ public class MockInterviewSession {
         currentQuestionIndex++;
     }
 
-    public void complete(int score, String readiness, String summary, int xp) {
+    public void complete(int score, String readiness, String summary, String topFix, int xp) {
         this.overallScore = score;
         this.readinessLevel = readiness;
         this.summaryFeedback = summary;
+        this.topFix = topFix;
         this.xpEarned = xp;
         this.status = InterviewStatus.COMPLETED.name();
         this.completedAt = Instant.now();
@@ -132,6 +173,26 @@ public class MockInterviewSession {
 
     public String getSummaryFeedback() {
         return summaryFeedback;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getTargetRole() {
+        return targetRole;
+    }
+
+    public String getSkills() {
+        return skills;
+    }
+
+    public String getCourseId() {
+        return courseId;
+    }
+
+    public String getTopFix() {
+        return topFix;
     }
 
     public String getStatus() {

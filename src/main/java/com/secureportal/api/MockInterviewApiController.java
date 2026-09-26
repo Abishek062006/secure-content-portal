@@ -1,6 +1,5 @@
 package com.secureportal.api;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import com.secureportal.api.dto.InterviewDetailDto;
 import com.secureportal.api.dto.InterviewQuestionDto;
 import com.secureportal.api.dto.InterviewSessionDto;
@@ -18,18 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /** AI mock interviews for learners. Each interview is private to the learner who started it. */
-@ConditionalOnProperty(name = "app.features.engagement-modules", havingValue = "true")
 @RestController
 @RequestMapping("/api/interviews")
 public class MockInterviewApiController {
 
-    public record StartRequest(String track, String stream, String difficulty) {
-    }
-
     public record AnswerRequest(Long questionId, String learnerAnswer) {
     }
 
-    public record AnswerResponse(InterviewQuestionDto question, InterviewSessionDto session) {
+    public record AnswerResponse(InterviewQuestionDto question, InterviewSessionDto session, InterviewQuestionDto followUp) {
     }
 
     public record CompletionResponse(InterviewSessionDto session, List<InterviewQuestionDto> questions, int xpEarned, String message) {
@@ -42,11 +37,25 @@ public class MockInterviewApiController {
     }
 
     @PostMapping("/start")
-    public InterviewSessionDto start(@RequestBody StartRequest request, @AuthenticationPrincipal AppPrincipal principal) {
+    public InterviewSessionDto start(@RequestBody MockInterviewService.StartRequest request, @AuthenticationPrincipal AppPrincipal principal) {
         if (principal.isAdmin()) {
             throw new AdminNotALearnerException();
         }
-        return InterviewSessionDto.of(interviewService.start(principal.getUserId(), request.track(), request.stream(), request.difficulty()));
+        return InterviewSessionDto.of(interviewService.start(principal.getUserId(), request));
+    }
+
+    @PostMapping("/sessions/{sessionId}/retry")
+    public InterviewSessionDto retry(@PathVariable Long sessionId, @AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            throw new AdminNotALearnerException();
+        }
+        return InterviewSessionDto.of(interviewService.retry(principal.getUserId(), sessionId));
+    }
+
+    /** How many interviews the learner has started in the last day, and the daily limit. */
+    @GetMapping("/quota")
+    public MockInterviewService.Quota quota(@AuthenticationPrincipal AppPrincipal principal) {
+        return interviewService.quota(principal.getUserId());
     }
 
     @GetMapping("/sessions/{sessionId}")
@@ -60,7 +69,8 @@ public class MockInterviewApiController {
                                  @AuthenticationPrincipal AppPrincipal principal) {
         MockInterviewService.AnswerResult result = interviewService.submitAnswer(sessionId, principal.getUserId(), request.questionId(),
                 request.learnerAnswer());
-        return new AnswerResponse(InterviewQuestionDto.of(result.question()), InterviewSessionDto.of(result.session()));
+        return new AnswerResponse(InterviewQuestionDto.of(result.question()), InterviewSessionDto.of(result.session()),
+                result.followUp() == null ? null : InterviewQuestionDto.of(result.followUp()));
     }
 
     @PostMapping("/sessions/{sessionId}/complete")

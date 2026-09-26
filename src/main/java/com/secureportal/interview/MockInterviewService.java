@@ -1,5 +1,8 @@
 package com.secureportal.interview;
 
+import com.secureportal.course.Course;
+import com.secureportal.course.CourseRepository;
+import com.secureportal.course.CourseStatus;
 import com.secureportal.gamification.GamificationService;
 import com.secureportal.gamification.PointAction;
 import com.secureportal.user.User;
@@ -11,9 +14,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
@@ -27,26 +32,34 @@ public class MockInterviewService {
     static final int MAX_PER_DAY = 15;
     static final int MIN_ANSWER = 10;
     static final int MAX_ANSWER = 4000;
+    static final int MAX_SKILLS = 12;
+    static final int MAX_SKILL_LENGTH = 40;
+    static final int MAX_JOB_DESCRIPTION = 4000;
+    static final int MAX_FOLLOW_UPS = 2;
+    /** A follow-up is only worth asking when the answer was weak. */
+    static final int FOLLOW_UP_BELOW = 7;
     static final int HISTORY_LIMIT = 50;
     static final int RECENT_FOR_ADMIN = 15;
-    static final String DEFAULT_STREAM = "Engineering & Web Dev";
 
-    /** A stream is a short topic label (it goes into the AI prompt), not free-form text. */
-    private static final Pattern STREAM_LABEL = Pattern.compile("[\\p{L}\\p{N} &/+.,'()-]{2,100}");
+    /** A role or skill is a short label (it goes into the AI prompt), not free-form text. */
+    private static final Pattern ROLE_LABEL = Pattern.compile("[\\p{L}\\p{N} &/+.,'()-]{2,100}");
+    private static final Pattern SKILL_LABEL = Pattern.compile("[\\p{L}\\p{N} &/+#.'()-]{1,40}");
 
     private final MockInterviewSessionRepository sessions;
     private final MockInterviewQuestionRepository questions;
     private final UserRepository users;
+    private final CourseRepository courses;
     private final InterviewAi ai;
     private final GamificationService gamification;
     private final TransactionTemplate tx;
 
     public MockInterviewService(MockInterviewSessionRepository sessions, MockInterviewQuestionRepository questions,
-                                UserRepository users, InterviewAi ai, GamificationService gamification,
+                                UserRepository users, CourseRepository courses, InterviewAi ai, GamificationService gamification,
                                 PlatformTransactionManager transactionManager) {
         this.sessions = sessions;
         this.questions = questions;
         this.users = users;
+        this.courses = courses;
         this.ai = ai;
         this.gamification = gamification;
         this.tx = new TransactionTemplate(transactionManager);
@@ -58,36 +71,115 @@ public class MockInterviewService {
     public record Completion(MockInterviewSession session, List<MockInterviewQuestion> questions, int xpEarned) {
     }
 
-    public record AnswerResult(MockInterviewQuestion question, MockInterviewSession session) {
+    public record AnswerResult(MockInterviewQuestion question, MockInterviewSession session, MockInterviewQuestion followUp) {
+    }
+
+    /** What the learner asks for. Exactly one of skills, a job description or a course is needed. */
+    public record StartRequest(String track, String difficulty, String targetRole, List<String> skills, String jobDescription,
+                               String courseId) {
+    }
+
+    public record Quota(long used, int limit) {
     }
 
     // ---- Starting -----------------------------------------------------------------------------------------------------
 
-    public MockInterviewSession start(Long userId, String track, String stream, String difficulty) {
-        InterviewTrack chosenTrack = track == null || track.isBlank() ? InterviewTrack.STUDENT
-                : InterviewTrack.parse(track).orElseThrow(() -> new InvalidInterviewException("Choose Student or Working professional."));
-        InterviewDifficulty chosenDifficulty = difficulty == null || difficulty.isBlank() ? InterviewDifficulty.MEDIUM
-                : InterviewDifficulty.parse(difficulty).orElseThrow(() -> new InvalidInterviewException("Choose Easy, Medium or Hard."));
-        String chosenStream = stream == null || stream.isBlank() ? DEFAULT_STREAM : stream.strip();
-        if (!STREAM_LABEL.matcher(chosenStream).matches()) {
-            throw new InvalidInterviewException("Choose a stream from the list.");
-        }
+    public MockInterviewSession start(Long userId, StartRequest request) {
+        InterviewTrack track = request.track() == null || request.track().isBlank() ? InterviewTrack.STUDENT
+                : InterviewTrack.parse(request.track()).orElseThrow(() -> new InvalidInterviewException("Choose Student or Working professional."));
+        InterviewDifficulty difficulty = request.difficulty() == null || request.difficulty().isBlank() ? InterviewDifficulty.MEDIUM
+                : InterviewDifficulty.parse(request.difficulty()).orElseThrow(() -> new InvalidInterviewException("Choose Easy, Medium or Hard."));
+        MockInterviewSession.Goal goal = goalFrom(request);
+        return begin(userId, track, difficulty, goal);
+    }
+
+    /** Practise again with the same setup as an earlier interview of the learner's own. */
+    public MockInterviewSession retry(Long userId, Long sessionId) {
+        MockInterviewSession earlier = ownedSession(sessionId, userId);
+        return begin(userId, InterviewTrack.valueOf(earlier.getTrack()), InterviewDifficulty.valueOf(earlier.getDifficulty()), earlier.goal());
+    }
+
+    private MockInterviewSession begin(Long userId, InterviewTrack track, InterviewDifficulty difficulty, MockInterviewSession.Goal goal) {
         if (sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)) >= MAX_PER_DAY) {
             throw new InterviewLimitException(MAX_PER_DAY);
         }
 
         // The AI is asked before anything is written, so a failure leaves nothing half-created.
-        List<InterviewQuestionBank.Item> items = ai.questionsFor(chosenTrack, chosenStream, chosenDifficulty);
+        List<InterviewQuestionBank.Item> items = ai.questionsFor(track, difficulty, goal);
 
         return tx.execute(status -> {
             sessions.abandonOpen(userId);
-            MockInterviewSession session = sessions.save(
-                    new MockInterviewSession(userId, chosenTrack, chosenStream, chosenDifficulty, items.size()));
+            MockInterviewSession session = sessions.save(new MockInterviewSession(userId, track, difficulty, goal, items.size()));
             for (int i = 0; i < items.size(); i++) {
                 questions.save(new MockInterviewQuestion(session.getId(), i, items.get(i).text(), items.get(i).category()));
             }
             return session;
         });
+    }
+
+    /** Turns what the learner typed into a goal, checking every piece: it all ends up in an AI prompt. */
+    private MockInterviewSession.Goal goalFrom(StartRequest request) {
+        String courseId = request.courseId() == null || request.courseId().isBlank() ? null : request.courseId().strip();
+        if (courseId != null) {
+            Course course = courses.findById(parseCourseId(courseId))
+                    .filter(c -> c.getStatus() == CourseStatus.PUBLISHED).orElseThrow(InterviewNotFoundException::new);
+            String role = course.getCategory() == null || course.getCategory().isBlank() ? course.getTitle() : course.getCategory();
+            return new MockInterviewSession.Goal(InterviewSource.COURSE, clipLabel(role), clipSkills(course.getTitle()), null,
+                    course.getId().toString());
+        }
+
+        String role = request.targetRole() == null ? "" : request.targetRole().strip();
+        if (!ROLE_LABEL.matcher(role).matches()) {
+            throw new InvalidInterviewException("Tell us the role you're preparing for, for example \"Backend developer\".");
+        }
+        List<String> skills = new ArrayList<>();
+        if (request.skills() != null) {
+            for (String raw : request.skills()) {
+                String skill = raw == null ? "" : raw.strip();
+                if (skill.isEmpty()) continue;
+                if (!SKILL_LABEL.matcher(skill).matches()) {
+                    throw new InvalidInterviewException("Each skill must be a short name of at most " + MAX_SKILL_LENGTH + " characters.");
+                }
+                if (skills.stream().noneMatch(skill::equalsIgnoreCase)) {
+                    skills.add(skill);
+                }
+            }
+        }
+        if (skills.size() > MAX_SKILLS) {
+            throw new InvalidInterviewException("Add at most " + MAX_SKILLS + " skills.");
+        }
+        String jobDescription = request.jobDescription() == null || request.jobDescription().isBlank() ? null : request.jobDescription().strip();
+        if (jobDescription != null && jobDescription.length() > MAX_JOB_DESCRIPTION) {
+            throw new InvalidInterviewException("Keep the job description under " + MAX_JOB_DESCRIPTION + " characters.");
+        }
+        if (skills.isEmpty() && jobDescription == null) {
+            throw new InvalidInterviewException("Add some skills or paste a job description so the questions fit you.");
+        }
+        return new MockInterviewSession.Goal(jobDescription == null ? InterviewSource.SKILLS : InterviewSource.JOB, role,
+                skills.isEmpty() ? null : String.join(", ", skills), jobDescription, null);
+    }
+
+    private static UUID parseCourseId(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidInterviewException("That isn't a valid course.");
+        }
+    }
+
+    private static String clipLabel(String value) {
+        String clean = value.replaceAll("[^\\p{L}\\p{N} &/+.,'()-]", " ").replaceAll("\\s+", " ").strip();
+        clean = clean.length() > 100 ? clean.substring(0, 100).strip() : clean;
+        return clean.length() < 2 ? "Learner" : clean;
+    }
+
+    private static String clipSkills(String value) {
+        String clean = clipLabel(value);
+        return clean.length() > 590 ? clean.substring(0, 590) : clean;
+    }
+
+    public Quota quota(Long userId) {
+        return new Quota(sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)), MAX_PER_DAY);
     }
 
     // ---- Reading ------------------------------------------------------------------------------------------------------
@@ -122,11 +214,12 @@ public class MockInterviewService {
             if (question.isAnswered()) {
                 throw new InterviewStateException("You've already answered this question.");
             }
-            return new Snapshot(session, question);
+            return new Snapshot(session, question, questions.countBySessionIdAndParentQuestionIdIsNotNull(sessionId));
         });
 
         // 2. The AI, outside any transaction. If it fails, nothing is recorded and the learner can simply try again.
-        MockInterviewQuestion.Evaluation evaluation = ai.evaluate(before.question(), before.session(), answer);
+        boolean followUpAllowed = !before.question().isFollowUp() && before.followUps() < MAX_FOLLOW_UPS;
+        MockInterviewQuestion.Evaluation evaluation = ai.evaluate(before.question(), before.session(), answer, followUpAllowed);
 
         // 3. Record it, re-checking under a lock in case a second request got here first.
         return tx.execute(status -> {
@@ -139,12 +232,24 @@ public class MockInterviewService {
             question.recordAnswer(answer, evaluation);
             session.questionAnswered();
             questions.save(question);
+
+            // A weak answer can earn one follow-up, placed right after it. Re-checked here under the lock: the counts read earlier
+            // may be stale, and the limit must hold however requests interleave.
+            MockInterviewQuestion followUp = null;
+            if (evaluation.followUp() != null && !question.isFollowUp() && evaluation.score() < FOLLOW_UP_BELOW
+                    && questions.countBySessionIdAndParentQuestionIdIsNotNull(sessionId) < MAX_FOLLOW_UPS) {
+                questions.shiftAfter(sessionId, question.getQuestionIndex(), 100);
+                followUp = questions.save(MockInterviewQuestion.followUp(sessionId, question.getQuestionIndex() + 1,
+                        evaluation.followUp(), question));
+                questions.shiftAfter(sessionId, question.getQuestionIndex() + 1, -99);
+                session.followUpAdded();
+            }
             sessions.save(session);
-            return new AnswerResult(question, session);
+            return new AnswerResult(question, session, followUp);
         });
     }
 
-    private record Snapshot(MockInterviewSession session, MockInterviewQuestion question) {
+    private record Snapshot(MockInterviewSession session, MockInterviewQuestion question, long followUps) {
     }
 
     // ---- Finishing ----------------------------------------------------------------------------------------------------
@@ -169,10 +274,16 @@ public class MockInterviewService {
             int xp = gamification.pointsFor(PointAction.MOCK_INTERVIEW_COMPLETE);
             boolean paid = xp > 0 && gamification.award(userId, PointAction.MOCK_INTERVIEW_COMPLETE, xp,
                     "Completed AI mock interview: " + session.getStream(), session.getStream(), sessionId.toString());
-            session.complete(percent, readiness, summaryFor(readiness), paid ? xp : 0);
+            session.complete(percent, readiness, summaryFor(readiness), topFixOf(all), paid ? xp : 0);
             sessions.save(session);
             return new Completion(session, all, session.getXpEarned());
         });
+    }
+
+    /** The improvement note from the weakest answer: the one thing to work on first. */
+    private static String topFixOf(List<MockInterviewQuestion> all) {
+        return all.stream().min(java.util.Comparator.comparingInt(MockInterviewQuestion::getScore))
+                .map(MockInterviewQuestion::getAreasToImprove).filter(text -> text != null && !text.isBlank()).orElse(null);
     }
 
     private static String summaryFor(String readiness) {

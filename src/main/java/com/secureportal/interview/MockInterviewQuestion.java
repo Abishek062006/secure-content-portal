@@ -50,6 +50,21 @@ public class MockInterviewQuestion {
     @Column(nullable = false)
     private int score = NOT_ANSWERED;
 
+    @Column(name = "parent_question_id")
+    private Long parentQuestionId;
+
+    @Column(name = "relevance_score")
+    private Integer relevanceScore;
+
+    @Column(name = "depth_score")
+    private Integer depthScore;
+
+    @Column(name = "structure_score")
+    private Integer structureScore;
+
+    @Column(name = "communication_score")
+    private Integer communicationScore;
+
     @Column(name = "answered_at")
     private Instant answeredAt;
 
@@ -65,7 +80,19 @@ public class MockInterviewQuestion {
     }
 
     /** The AI's assessment of one answer, already checked and clamped by {@link InterviewAi}. */
-    public record Evaluation(int score, String feedback, String strengths, String improvements, String idealAnswer) {
+    public record Evaluation(int score, int relevance, int depth, int structure, int communication, String feedback, String strengths,
+                             String improvements, String idealAnswer, String followUp) {
+    }
+
+    /** A follow-up question, asked because the answer to {@code parent} left something unclear. */
+    public static MockInterviewQuestion followUp(Long sessionId, int questionIndex, String text, MockInterviewQuestion parent) {
+        MockInterviewQuestion q = new MockInterviewQuestion(sessionId, questionIndex, text, QuestionCategory.parseOrDefault(parent.getCategory()));
+        q.parentQuestionId = parent.getId();
+        return q;
+    }
+
+    public boolean isFollowUp() {
+        return parentQuestionId != null;
     }
 
     public boolean isAnswered() {
@@ -79,6 +106,10 @@ public class MockInterviewQuestion {
         this.keyStrengths = evaluation.strengths();
         this.areasToImprove = evaluation.improvements();
         this.idealAnswer = evaluation.idealAnswer();
+        this.relevanceScore = evaluation.relevance();
+        this.depthScore = evaluation.depth();
+        this.structureScore = evaluation.structure();
+        this.communicationScore = evaluation.communication();
         this.answeredAt = Instant.now();
     }
 
@@ -124,6 +155,26 @@ public class MockInterviewQuestion {
 
     public int getScore() {
         return score;
+    }
+
+    public Long getParentQuestionId() {
+        return parentQuestionId;
+    }
+
+    public Integer getRelevanceScore() {
+        return relevanceScore;
+    }
+
+    public Integer getDepthScore() {
+        return depthScore;
+    }
+
+    public Integer getStructureScore() {
+        return structureScore;
+    }
+
+    public Integer getCommunicationScore() {
+        return communicationScore;
     }
 
     public Instant getAnsweredAt() {
