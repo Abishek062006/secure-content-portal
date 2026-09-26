@@ -10,11 +10,17 @@ import java.util.UUID;
  */
 public record PostDto(
         UUID id,
+        String kind,
+        String title,
         String body,
         String imageUrl,
         String videoUrl,
+        Long authorId,
         String authorName,
+        String authorHeadline,
         String authorPictureUrl,
+        CertificateDto certificate,
+        boolean canDelete,
         Instant publishAt,
         boolean pinned,
         boolean scheduled,

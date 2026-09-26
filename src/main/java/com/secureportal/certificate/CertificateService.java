@@ -78,6 +78,10 @@ public class CertificateService {
         return certificateRepository.findById(id);
     }
 
+    public List<Certificate> findAllById(java.util.Collection<UUID> ids) {
+        return ids.isEmpty() ? List.of() : certificateRepository.findAllById(ids);
+    }
+
     public Optional<Certificate> findByCode(String code) {
         return certificateRepository.findByCode(code == null ? "" : code.trim().toUpperCase());
     }

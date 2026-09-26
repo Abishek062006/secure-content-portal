@@ -3,6 +3,11 @@ package com.secureportal.api;
 import com.secureportal.api.dto.PostDto;
 import com.secureportal.api.dto.PostDto.CommentDto;
 import com.secureportal.api.dto.PostDto.PostCourseDto;
+import com.secureportal.certificate.Certificate;
+import com.secureportal.certificate.CertificateService;
+import com.secureportal.profile.Profile;
+import com.secureportal.profile.ProfileService;
+import com.secureportal.api.dto.CertificateDto;
 import com.secureportal.course.Course;
 import com.secureportal.course.CourseRepository;
 import com.secureportal.course.CourseStatus;
@@ -42,16 +47,21 @@ public class PostAssembler {
     private final PostReactionRepository reactionRepository;
     private final PostCommentRepository commentRepository;
     private final StreamTicketService ticketService;
+    private final ProfileService profileService;
+    private final CertificateService certificateService;
 
     public PostAssembler(UserRepository userRepository, CourseRepository courseRepository,
                          EnrollmentRepository enrollmentRepository, PostReactionRepository reactionRepository,
-                         PostCommentRepository commentRepository, StreamTicketService ticketService) {
+                         PostCommentRepository commentRepository, StreamTicketService ticketService,
+                         ProfileService profileService, CertificateService certificateService) {
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.reactionRepository = reactionRepository;
         this.commentRepository = commentRepository;
         this.ticketService = ticketService;
+        this.profileService = profileService;
+        this.certificateService = certificateService;
     }
 
     public List<PostDto> posts(List<Post> posts, Long viewerId) {
@@ -66,6 +76,12 @@ public class PostAssembler {
         Map<UUID, Course> courses = courseRepository.findAllById(
                 posts.stream().map(Post::getCourseId).filter(java.util.Objects::nonNull).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(Course::getId, c -> c));
+        Map<Long, Profile> profiles = profileService.profiles(authors.keySet());
+        Map<UUID, Certificate> certificates = new HashMap<>();
+        certificateService.findAllById(posts.stream().map(Post::getCertificateId).filter(java.util.Objects::nonNull).collect(Collectors.toSet()))
+                .forEach(c -> certificates.put(c.getId(), c));
+        boolean viewerIsAdmin = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
         Set<UUID> enrolled = new HashSet<>();
         for (Enrollment e : enrollmentRepository.findByUserId(viewerId)) {
             enrolled.add(e.getCourseId());
@@ -94,11 +110,17 @@ public class PostAssembler {
                             : "/api/courses/" + course.getId() + "/thumbnail?v=" + course.getUpdatedAt().toEpochMilli(),
                     enrolled.contains(course.getId()), com.secureportal.api.dto.CourseDto.Pricing.of(course));
             Map<String, Long> counts = reactions.getOrDefault(post.getId(), Map.of());
-            return new PostDto(post.getId(), post.getBody(),
+            Profile profile = profiles.get(post.getAuthorId());
+            Certificate certificate = certificates.get(post.getCertificateId());
+            return new PostDto(post.getId(), post.getKind(), post.getTitle(), post.getBody(),
                     post.getImageKey() == null ? null
                             : "/api/posts/" + post.getId() + "/image?v=" + post.getUpdatedAt().toEpochMilli(),
                     post.getVideoKey() == null ? null : videoUrl(post, viewerId),
-                    author == null ? "Admin" : author.getDisplayName(), author == null ? null : author.getPictureUrl(),
+                    post.getAuthorId(), author == null ? "Former member" : author.getDisplayName(),
+                    profile == null ? null : profile.getHeadline(),
+                    author == null ? null : ProfileAssembler.avatarUrl(author, profile),
+                    certificate == null ? null : CertificateDto.of(certificate),
+                    viewerIsAdmin || post.getAuthorId().equals(viewerId),
                     post.getPublishAt(), post.isPinned(), !post.isPublished(), courseDto, counts,
                     counts.values().stream().mapToLong(Long::longValue).sum(), mine.get(post.getId()),
                     commentCounts.getOrDefault(post.getId(), 0L));

@@ -53,6 +53,16 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.profile.ProfileNotFoundException.class)
+    public ResponseEntity<ApiError> handleProfileNotFound(com.secureportal.profile.ProfileNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.profile.InvalidProfileException.class)
+    public ResponseEntity<ApiError> handleInvalidProfile(com.secureportal.profile.InvalidProfileException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(PostNotFoundException.class)
     public ResponseEntity<ApiError> handlePostNotFound(PostNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));

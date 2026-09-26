@@ -33,6 +33,14 @@ public class Post {
     @Column(name = "video_mime")
     private String videoMime;
 
+    @Column(nullable = false, length = 10)
+    private String kind = "POST";
+
+    private String title;
+
+    @Column(name = "certificate_id")
+    private UUID certificateId;
+
     @Column(name = "course_id")
     private UUID courseId;
 
@@ -82,6 +90,16 @@ public class Post {
         this.videoMime = mime;
     }
 
+    /** Turns this into an article with a headline; articles are longer than posts. */
+    public void setArticle(String title) {
+        this.kind = "ARTICLE";
+        this.title = title;
+    }
+
+    public void setCertificateId(UUID certificateId) {
+        this.certificateId = certificateId;
+    }
+
     public boolean isPublished() {
         return !publishAt.isAfter(Instant.now());
     }
@@ -104,6 +122,22 @@ public class Post {
 
     public String getImageMime() {
         return imageMime;
+    }
+
+    public String getKind() {
+        return kind;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public UUID getCertificateId() {
+        return certificateId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
     public String getVideoKey() {

@@ -58,6 +58,8 @@ class FeedFlowTest {
     private PostRepository postRepository;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private com.secureportal.certificate.CertificateRepository certificateRepository;
 
     private User admin;
     private User learner;
@@ -287,6 +289,82 @@ class FeedFlowTest {
         for (String type : List.of("LIKE", "CELEBRATE", "SUPPORT", "LOVE", "INSIGHTFUL", "FUNNY")) {
             react(id, type, learner).andExpect(jsonPath("$.myReaction").value(type));
         }
+    }
+
+    private JsonNode memberPost(User who, String... params) throws Exception {
+        MockMultipartHttpServletRequestBuilder request = multipart("/api/posts");
+        for (int i = 0; i < params.length; i += 2) {
+            request.param(params[i], params[i + 1]);
+        }
+        return json(mockMvc.perform(request.with(csrf()).with(as(who))).andExpect(status().isOk()).andReturn());
+    }
+
+    @Test
+    void anyMemberCanPostAndDeleteTheirOwnAndAdminsCanModerate() throws Exception {
+        JsonNode mine = memberPost(learner, "body", "Just finished my first Python course!");
+        assertThat(mine.get("authorId").asLong()).isEqualTo(learner.getId());
+        assertThat(mine.get("canDelete").asBoolean()).isTrue();
+        assertThat(mine.get("pinned").asBoolean()).isFalse();
+        assertThat(mine.get("kind").asText()).isEqualTo("POST");
+
+        mockMvc.perform(get("/api/feed").with(as(other)))
+                .andExpect(jsonPath("$.posts[0].authorName").value("Lena Learner"))
+                .andExpect(jsonPath("$.posts[0].canDelete").value(false));
+        mockMvc.perform(get("/api/profiles/" + learner.getId() + "/posts").with(as(other)))
+                .andExpect(jsonPath("$.posts.length()").value(1));
+        mockMvc.perform(get("/api/profile").with(as(learner))).andExpect(jsonPath("$.postCount").value(1));
+
+        mockMvc.perform(multipart("/api/posts").param("body", "  ").with(csrf()).with(as(learner))).andExpect(status().isBadRequest());
+        mockMvc.perform(delete("/api/posts/" + mine.get("id").asText()).with(csrf()).with(as(other))).andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/posts/" + mine.get("id").asText()).with(csrf()).with(as(learner))).andExpect(status().isNoContent());
+
+        JsonNode another = memberPost(learner, "body", "Something the admin will remove");
+        mockMvc.perform(delete("/api/posts/" + another.get("id").asText()).with(csrf()).with(as(admin))).andExpect(status().isNoContent());
+        assertThat(postRepository.count()).isZero();
+    }
+
+    @Test
+    void articlesNeedATitleAllowLongTextAndNoVideo() throws Exception {
+        mockMvc.perform(multipart("/api/posts").param("article", "true").param("body", "No title").with(csrf()).with(as(learner)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(multipart("/api/posts").param("article", "true").param("title", "Long").param("body", "x".repeat(20001))
+                .with(csrf()).with(as(learner))).andExpect(status().isBadRequest());
+        mockMvc.perform(multipart("/api/posts").param("body", "x".repeat(3001)).with(csrf()).with(as(learner))).andExpect(status().isBadRequest());
+        MockMultipartHttpServletRequestBuilder withVideo = multipart("/api/posts");
+        withVideo.file(new MockMultipartFile("video", "clip.mp4", "video/mp4", new byte[]{0, 0, 0, 0x1C, 'f', 't', 'y', 'p'}));
+        withVideo.param("article", "true").param("title", "T").param("body", "B");
+        mockMvc.perform(withVideo.with(csrf()).with(as(learner))).andExpect(status().isBadRequest());
+
+        JsonNode article = memberPost(learner, "article", "true", "title", "Why I love Python", "body", "y".repeat(15000));
+        assertThat(article.get("kind").asText()).isEqualTo("ARTICLE");
+        assertThat(article.get("title").asText()).isEqualTo("Why I love Python");
+        assertThat(article.get("body").asText()).hasSize(15000);
+    }
+
+    @Test
+    void aMemberCanShareTheirOwnCertificateButNotSomeoneElses() throws Exception {
+        String course = createCourse();
+        com.secureportal.certificate.Certificate mineCert = certificateRepository.save(new com.secureportal.certificate.Certificate(
+                "MINE-AAAA-BBBB", learner.getId(), java.util.UUID.fromString(course), "Lena Learner", "Feed course"));
+        com.secureportal.certificate.Certificate theirs = certificateRepository.save(new com.secureportal.certificate.Certificate(
+                "THEI-AAAA-BBBB", other.getId(), java.util.UUID.fromString(course), "Otto Other", "Feed course"));
+
+        JsonNode shared = memberPost(learner, "body", "I earned a certificate!", "certificateId", mineCert.getId().toString());
+        assertThat(shared.get("certificate").get("courseTitle").asText()).isEqualTo("Feed course");
+        assertThat(shared.get("certificate").get("code").asText()).isEqualTo("MINE-AAAA-BBBB");
+        mockMvc.perform(multipart("/api/posts").param("body", "Mine now").param("certificateId", theirs.getId().toString())
+                .with(csrf()).with(as(learner))).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/feed").with(as(other))).andExpect(jsonPath("$.posts[0].certificate.recipientName").value("Lena Learner"));
+    }
+
+    @Test
+    void membersAreRateLimitedButAdminsUseTheirOwnEndpoint() throws Exception {
+        for (int i = 0; i < 20; i++) {
+            memberPost(learner, "body", "Post " + i);
+        }
+        mockMvc.perform(multipart("/api/posts").param("body", "One too many").with(csrf()).with(as(learner)))
+                .andExpect(status().isBadRequest());
+        memberPost(other, "body", "A different member is unaffected");
     }
 
     private String createPost(String body, String courseId, boolean pinned, Instant publishAt) throws Exception {

@@ -64,6 +64,32 @@ public class FeedApiController {
         return new FeedPage(assembler.posts(posts.getContent(), principal.getUserId()), posts.hasNext());
     }
 
+    /** Any member can post; admins get extras (pinning, scheduling, course promos) on /api/admin/posts. */
+    @PostMapping(value = "/api/posts", consumes = "multipart/form-data")
+    public PostDto create(@RequestParam String body,
+                          @RequestParam(required = false) String title,
+                          @RequestParam(defaultValue = "false") boolean article,
+                          @RequestParam(required = false) UUID certificateId,
+                          @RequestParam(required = false) org.springframework.web.multipart.MultipartFile image,
+                          @RequestParam(required = false) org.springframework.web.multipart.MultipartFile video,
+                          @AuthenticationPrincipal AppPrincipal principal) {
+        Post post = feedService.createByMember(principal.getUserId(), article, title, body, certificateId, image, video);
+        return assembler.post(post, principal.getUserId());
+    }
+
+    @DeleteMapping("/api/posts/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
+        feedService.deleteAs(id, principal.getUserId(), principal.isAdmin());
+    }
+
+    @GetMapping("/api/profiles/{userId}/posts")
+    public FeedPage postsBy(@PathVariable Long userId, @RequestParam(defaultValue = "0") int page,
+                            @AuthenticationPrincipal AppPrincipal principal) {
+        Page<Post> posts = feedService.publishedBy(userId, page);
+        return new FeedPage(assembler.posts(posts.getContent(), principal.getUserId()), posts.hasNext());
+    }
+
     @GetMapping("/api/posts/{id}/image")
     public ResponseEntity<byte[]> image(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
         Post post = feedService.visible(id, principal.isAdmin());

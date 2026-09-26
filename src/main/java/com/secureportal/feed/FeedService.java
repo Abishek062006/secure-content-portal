@@ -1,5 +1,6 @@
 package com.secureportal.feed;
 
+import com.secureportal.certificate.CertificateService;
 import com.secureportal.common.FileValidator;
 import com.secureportal.common.ValidatedFile;
 import com.secureportal.course.Course;
@@ -26,6 +27,8 @@ public class FeedService {
 
     public static final int PAGE_SIZE = 10;
     static final int MAX_BODY = 3000;
+    static final int MAX_ARTICLE = 20000;
+    static final int POSTS_PER_HOUR = 20;
     static final int MAX_COMMENT = 1000;
     static final long MAX_VIDEO_BYTES = 500L * 1024 * 1024;
 
@@ -37,16 +40,18 @@ public class FeedService {
     private final CourseRepository courseRepository;
     private final FileValidator fileValidator;
     private final StorageService storageService;
+    private final CertificateService certificateService;
 
     public FeedService(PostRepository postRepository, PostReactionRepository reactionRepository,
                        PostCommentRepository commentRepository, CourseRepository courseRepository,
-                       FileValidator fileValidator, StorageService storageService) {
+                       FileValidator fileValidator, StorageService storageService, CertificateService certificateService) {
         this.postRepository = postRepository;
         this.reactionRepository = reactionRepository;
         this.commentRepository = commentRepository;
         this.courseRepository = courseRepository;
         this.fileValidator = fileValidator;
         this.storageService = storageService;
+        this.certificateService = certificateService;
     }
 
     public Page<Post> published(int page) {
@@ -72,7 +77,40 @@ public class FeedService {
     @Transactional
     public Post create(Long authorId, String body, UUID courseId, boolean pinned, Instant publishAt, MultipartFile image,
                        MultipartFile video) {
-        String text = cleanBody(body);
+        return createInternal(authorId, false, null, body, courseId, null, pinned, publishAt, image, video);
+    }
+
+    /**
+     * A post or article by an ordinary member. Members can't pin, schedule or promote courses, and are rate limited;
+     * they may share one of their own certificates.
+     */
+    @Transactional
+    public Post createByMember(Long userId, boolean article, String title, String body, UUID certificateId,
+                               MultipartFile image, MultipartFile video) {
+        if (postRepository.countByAuthorIdAndCreatedAtAfter(userId, Instant.now().minusSeconds(3600)) >= POSTS_PER_HOUR) {
+            throw new InvalidPostException("You're posting too fast. Try again in a little while.");
+        }
+        if (certificateId != null) {
+            certificateService.findById(certificateId).filter(c -> c.getUserId().equals(userId))
+                    .orElseThrow(() -> new InvalidPostException("You can only share your own certificates."));
+        }
+        return createInternal(userId, article, title, body, null, certificateId, false, null, image, video);
+    }
+
+    private Post createInternal(Long authorId, boolean article, String title, String body, UUID courseId,
+                                UUID certificateId, boolean pinned, Instant publishAt, MultipartFile image,
+                                MultipartFile video) {
+        String text = cleanBody(body, article ? MAX_ARTICLE : MAX_BODY);
+        String headline = null;
+        if (article) {
+            headline = title == null ? "" : title.trim();
+            if (headline.isEmpty() || headline.length() > 200) {
+                throw new InvalidPostException("An article needs a title of up to 200 characters.");
+            }
+            if (video != null && !video.isEmpty()) {
+                throw new InvalidPostException("Articles can have a cover image, not a video.");
+            }
+        }
         checkCourse(courseId);
         boolean hasImage = image != null && !image.isEmpty();
         boolean hasVideo = video != null && !video.isEmpty();
@@ -88,6 +126,10 @@ public class FeedService {
             validatedVideo = fileValidator.validate(video, com.secureportal.content.ContentType.VIDEO);
         }
         Post post = new Post(authorId, text, courseId, pinned, publishAt);
+        if (article) {
+            post.setArticle(headline);
+        }
+        post.setCertificateId(certificateId);
         String key = null;
         if (validatedImage != null) {
             key = store(post, "image", image, validatedImage);
@@ -118,8 +160,22 @@ public class FeedService {
     public Post edit(UUID id, String body, UUID courseId, boolean pinned, Instant publishAt) {
         Post post = postRepository.findById(id).orElseThrow(PostNotFoundException::new);
         checkCourse(courseId);
-        post.edit(cleanBody(body), courseId, pinned, publishAt);
+        post.edit(cleanBody(body, MAX_BODY), courseId, pinned, publishAt);
         return postRepository.save(post);
+    }
+
+    /** Members can remove their own posts; admins can remove any (moderation). */
+    @Transactional
+    public void deleteAs(UUID id, Long userId, boolean admin) {
+        Post post = postRepository.findById(id).orElseThrow(PostNotFoundException::new);
+        if (!admin && !post.getAuthorId().equals(userId)) {
+            throw new PostNotFoundException();
+        }
+        delete(id);
+    }
+
+    public Page<Post> publishedBy(Long authorId, int page) {
+        return postRepository.findPublishedByAuthor(authorId, Instant.now(), PageRequest.of(Math.max(page, 0), PAGE_SIZE));
     }
 
     @Transactional
@@ -171,10 +227,10 @@ public class FeedService {
         commentRepository.delete(comment);
     }
 
-    private String cleanBody(String body) {
+    private String cleanBody(String body, int max) {
         String text = body == null ? "" : body.trim();
-        if (text.isEmpty() || text.length() > MAX_BODY) {
-            throw new InvalidPostException("A post needs text of 1 to " + MAX_BODY + " characters.");
+        if (text.isEmpty() || text.length() > max) {
+            throw new InvalidPostException("A post needs text of 1 to " + max + " characters.");
         }
         return text;
     }
