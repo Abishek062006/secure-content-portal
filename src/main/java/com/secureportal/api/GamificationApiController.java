@@ -15,6 +15,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -51,10 +53,24 @@ public class GamificationApiController {
     }
 
     @GetMapping("/api/gamification/leaderboard")
-    public LeaderboardResponse leaderboard(@RequestParam(defaultValue = "all_time") String timeframe,
+    public LeaderboardResponse leaderboard(@RequestParam(defaultValue = "weekly") String timeframe,
                                            @RequestParam(required = false) String stream,
+                                           @RequestParam(required = false) String courseId,
                                            @AuthenticationPrincipal AppPrincipal principal) {
-        return leaderboardService.leaderboard(timeframe, stream, principal.getUserId());
+        return leaderboardService.leaderboard(timeframe, stream, courseId, principal.getUserId());
+    }
+
+    public record VisibilityRequest(boolean hidden) {
+    }
+
+    /** Opting out removes the learner from every leaderboard; their points, streak and badges are untouched. */
+    @PutMapping("/api/gamification/me/leaderboard-visibility")
+    public GamificationSummaryDto setVisibility(@RequestBody VisibilityRequest request, @AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            throw new AdminNotALearnerException();
+        }
+        gamificationService.setLeaderboardHidden(principal.getUserId(), request.hidden());
+        return GamificationSummaryDto.of(principal.getUserId(), gamificationService.summary(principal.getUserId()));
     }
 
     @GetMapping("/api/gamification/badges")

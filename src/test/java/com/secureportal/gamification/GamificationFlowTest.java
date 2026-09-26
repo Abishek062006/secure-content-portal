@@ -90,22 +90,22 @@ class GamificationFlowTest {
 
     @Test
     void lessonsQuizzesAndCoursesPayOnlyOncePerSource() {
-        gamification.recordLessonCompletion(one.getId(), "lesson-a", "Web");
+        gamification.recordLessonCompletion(one.getId(), "lesson-a", "course-a", "Web");
         int afterLesson = points(one);
         assertThat(afterLesson).isGreaterThanOrEqualTo(10);
-        gamification.recordLessonCompletion(one.getId(), "lesson-a", "Web");
+        gamification.recordLessonCompletion(one.getId(), "lesson-a", "course-a", "Web");
         assertThat(points(one)).isEqualTo(afterLesson);
-        gamification.recordLessonCompletion(one.getId(), "lesson-b", "Web");
+        gamification.recordLessonCompletion(one.getId(), "lesson-b", "course-a", "Web");
         assertThat(points(one)).isGreaterThan(afterLesson);
 
         // The retake exploit: passing the same quiz again and again must not keep paying.
-        gamification.recordQuizAttempt(one.getId(), "quiz-a", 90, true, null);
+        gamification.recordQuizAttempt(one.getId(), "quiz-a", "course-a", 90, true, null);
         int afterQuiz = points(one);
         for (int i = 0; i < 6; i++) {
-            gamification.recordQuizAttempt(one.getId(), "quiz-a", 90, true, null);
+            gamification.recordQuizAttempt(one.getId(), "quiz-a", "course-a", 90, true, null);
         }
         assertThat(points(one)).isEqualTo(afterQuiz);
-        gamification.recordQuizAttempt(one.getId(), "quiz-b", 90, true, null);
+        gamification.recordQuizAttempt(one.getId(), "quiz-b", "course-a", 90, true, null);
         assertThat(points(one)).isGreaterThan(afterQuiz);
 
         gamification.recordCourseCompletion(one.getId(), "course-a", "Web");
@@ -116,7 +116,7 @@ class GamificationFlowTest {
 
     @Test
     void aFailedQuizAttemptEarnsNothing() {
-        gamification.recordQuizAttempt(one.getId(), "quiz-fail", 40, false, null);
+        gamification.recordQuizAttempt(one.getId(), "quiz-fail", "course-a", 40, false, null);
         assertThat(points(one)).isZero();
     }
 
@@ -255,5 +255,67 @@ class GamificationFlowTest {
     void badgesOfAnUnknownMemberAreNotFound() throws Exception {
         mockMvc.perform(get("/api/gamification/users/987654321/badges").with(as(one))).andExpect(status().isNotFound());
         mockMvc.perform(get("/api/gamification/users/" + two.getId() + "/badges").with(as(one))).andExpect(status().isOk());
+    }
+
+    @Test
+    void finishingAThingKeepsTheStreakAliveAndFillsTheDailyRing() {
+        String course = java.util.UUID.randomUUID().toString();
+        assertThat(gamification.summary(one.getId()).currentStreak()).isZero();
+
+        gamification.recordLessonCompletion(one.getId(), "ring-lesson-1", course, "Web");
+        GamificationService.Summary first = gamification.summary(one.getId());
+        assertThat(first.currentStreak()).isEqualTo(1);
+        assertThat(first.checkedInToday()).isTrue();
+        assertThat(first.activitiesToday()).isEqualTo(1);
+        assertThat(first.dailyGoal()).isEqualTo(GamificationService.DAILY_GOAL);
+
+        gamification.recordLessonCompletion(one.getId(), "ring-lesson-2", course, "Web");
+        gamification.recordLessonCompletion(one.getId(), "ring-lesson-3", course, "Web");
+        GamificationService.Summary full = gamification.summary(one.getId());
+        assertThat(full.currentStreak()).isEqualTo(1);
+        assertThat(full.activitiesToday()).isEqualTo(GamificationService.DAILY_GOAL);
+    }
+
+    @Test
+    void aLearnerCanLeaveTheLeaderboardsAndAdminsCannotTakePart() throws Exception {
+        gamification.award(one.getId(), PointAction.LESSON_COMPLETED, 200, "test", "Web", "hide-1");
+        gamification.award(two.getId(), PointAction.LESSON_COMPLETED, 100, "test", "Web", "hide-2");
+
+        mockMvc.perform(put("/api/gamification/me/leaderboard-visibility").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"hidden\":true}").with(csrf()).with(as(one)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.leaderboardHidden").value(true));
+
+        mockMvc.perform(get("/api/gamification/leaderboard").with(as(two)))
+                .andExpect(status().isOk()).andExpect(content().string(not(containsString(ONE))))
+                .andExpect(jsonPath("$.currentUserRank.userId").value(two.getId()));
+        String board = mockMvc.perform(get("/api/gamification/leaderboard").with(as(two))).andReturn().getResponse().getContentAsString();
+        assertThat(board).doesNotContain("\"userId\":" + one.getId() + ",");
+        // A hidden learner sees no rank of their own, but keeps their points.
+        mockMvc.perform(get("/api/gamification/leaderboard").with(as(one))).andExpect(jsonPath("$.currentUserRank").doesNotExist());
+        assertThat(points(one)).isEqualTo(200);
+
+        mockMvc.perform(put("/api/gamification/me/leaderboard-visibility").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"hidden\":false}").with(csrf()).with(as(one))).andExpect(status().isOk());
+        mockMvc.perform(get("/api/gamification/leaderboard").with(as(one))).andExpect(jsonPath("$.currentUserRank.userId").value(one.getId()));
+
+        mockMvc.perform(put("/api/gamification/me/leaderboard-visibility").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"hidden\":true}").with(csrf()).with(as(admin))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aCourseHasItsOwnLeaderboardCountingOnlyThatCoursesProgress() throws Exception {
+        String courseA = java.util.UUID.randomUUID().toString();
+        String courseB = java.util.UUID.randomUUID().toString();
+        gamification.recordLessonCompletion(one.getId(), "course-board-1", courseA, "Web");
+        gamification.recordLessonCompletion(two.getId(), "course-board-2", courseB, "Web");
+        gamification.recordLessonCompletion(two.getId(), "course-board-3", courseB, "Web");
+
+        mockMvc.perform(get("/api/gamification/leaderboard?courseId=" + courseA).with(as(one)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalParticipants").value(1))
+                .andExpect(jsonPath("$.currentUserRank.points").value(gamification.pointsFor(PointAction.LESSON_COMPLETED)));
+        mockMvc.perform(get("/api/gamification/leaderboard?courseId=" + courseB).with(as(one)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalParticipants").value(1))
+                .andExpect(jsonPath("$.currentUserRank.points").value(0));
+        mockMvc.perform(get("/api/gamification/leaderboard?courseId=not-a-course").with(as(one))).andExpect(status().isBadRequest());
     }
 }

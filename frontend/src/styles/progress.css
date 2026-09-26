@@ -1,0 +1,135 @@
+/* Progress: daily ring, streak, badges and leaderboards. */
+
+/* ---- Daily ring (top bar and progress page) ---- */
+.nav-progress { display: inline-flex; align-items: center; text-decoration: none; }
+
+.daily-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+}
+.daily-ring svg { flex: none; }
+.daily-ring-track { stroke: var(--line); }
+.daily-ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s var(--ease);
+}
+.daily-ring-flame {
+  position: absolute;
+  left: 9.5px;
+  top: 9.5px;
+  color: var(--ink-soft);
+}
+.daily-ring.safe .daily-ring-flame { color: var(--accent); }
+.daily-ring.complete .daily-ring-fill { stroke: var(--accent-bright); }
+.daily-ring-streak { font-size: 0.85rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---- Cards ---- */
+.progress-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-xs);
+}
+.progress-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.progress-card > header h2 { margin: 0; font-size: 1.05rem; }
+
+.progress-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 28px;
+}
+.progress-stat { display: flex; flex-direction: column; }
+.progress-stat strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; color: var(--ink); }
+.progress-stat span { font-size: 0.78rem; color: var(--ink-mid); }
+.progress-summary .btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+
+.course-board { margin-top: 20px; }
+
+/* ---- Segmented control ---- */
+.segmented { display: inline-flex; background: var(--surface-alt); border-radius: 980px; padding: 3px; }
+.segmented button {
+  border: 0;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 980px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+.segmented button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-xs); }
+
+/* ---- Leaderboard rows ---- */
+.board { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.board-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+}
+.board-row.me { background: var(--accent-wash); }
+.board-rank { width: 24px; text-align: center; font-weight: 700; color: var(--ink-mid); font-variant-numeric: tabular-nums; }
+.board-row.top-1 .board-rank { color: #b7791f; }
+.board-row.top-2 .board-rank { color: #6b7280; }
+.board-row.top-3 .board-rank { color: #9a5b2b; }
+.board-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.board-name em { font-style: normal; color: var(--ink-mid); font-weight: 400; }
+.board-points { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+.board-gap { text-align: center; color: var(--ink-soft); letter-spacing: 2px; line-height: 1; }
+.board-toggle { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 0.85rem; color: var(--ink-mid); cursor: pointer; }
+
+/* ---- Badges on the profile ---- */
+.profile-badges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.profile-badge-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+}
+.profile-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-xs);
+  flex: none;
+}
+.profile-badge-item.rarity-rare .profile-badge-icon { color: #1e40af; }
+.profile-badge-item.rarity-epic .profile-badge-icon { color: #6b21a8; }
+.profile-badge-item.rarity-legendary .profile-badge-icon { color: #92400e; }
+.profile-badge-info { display: flex; flex-direction: column; min-width: 0; }
+.profile-badge-title { font-size: 0.88rem; font-weight: 700; color: var(--ink); }
+.profile-badge-sub { font-size: 0.74rem; color: var(--ink-mid); }
+
+@media (max-width: 640px) {
+  .progress-summary { gap: 18px; }
+  .progress-summary .btn { margin-left: 0; }
+}

@@ -75,14 +75,16 @@ public class LeaderboardService {
     }
 
     @Transactional(readOnly = true)
-    public LeaderboardResponse leaderboard(String timeframe, String streamFilter, Long viewerId) {
+    public LeaderboardResponse leaderboard(String timeframe, String streamFilter, String courseFilter, Long viewerId) {
         String period = normalizePeriod(timeframe);
         String stream = normalizeStream(streamFilter);
-        TopPage page = cache.get("leaderboard:" + period + ":" + (stream == null ? "*" : stream), cacheTtl, () -> loadTop(period, stream));
+        String course = normalizeCourse(courseFilter);
+        TopPage page = cache.get("leaderboard:" + period + ":" + (stream == null ? "*" : stream) + ":" + (course == null ? "*" : course),
+                cacheTtl, () -> loadTop(period, stream, course));
 
         List<LeaderboardEntry> entries = page.top().stream().map(s -> s.entry(viewerId)).toList();
         LeaderboardEntry mine = entries.stream().filter(LeaderboardEntry::isCurrentUser).findFirst()
-                .orElseGet(() -> viewerId == null ? null : standingOutsideTop(viewerId, period, stream));
+                .orElseGet(() -> viewerId == null ? null : standingOutsideTop(viewerId, period, stream, course));
 
         return new LeaderboardResponse(period, stream == null ? "all" : stream,
                 entries.stream().limit(PODIUM).toList(),
@@ -103,7 +105,7 @@ public class LeaderboardService {
     public AdminLeaderboardResponse adminLeaderboard(String timeframe, String streamFilter) {
         String period = normalizePeriod(timeframe);
         String stream = normalizeStream(streamFilter);
-        TopPage page = loadTop(period, stream);
+        TopPage page = loadTop(period, stream, null);
 
         List<Long> ids = page.top().stream().map(Standing::userId).toList();
         Map<Long, String> emails = new HashMap<>();
@@ -135,14 +137,14 @@ public class LeaderboardService {
 
     // ---- Building the board -------------------------------------------------------------------------------------------
 
-    private TopPage loadTop(String period, String stream) {
+    private TopPage loadTop(String period, String stream, String course) {
         Instant since = startOf(period);
         List<Long> ids = new ArrayList<>();
         List<Integer> points = new ArrayList<>();
         Map<Long, Integer> streaks = new HashMap<>();
         long participants;
 
-        if (since == null && stream == null) {
+        if (since == null && stream == null && course == null) {
             List<UserGamification> top = gamification.topLearners(Role.ADMIN, PageRequest.of(0, FETCH));
             top.forEach(g -> {
                 ids.add(g.getUserId());
@@ -152,14 +154,14 @@ public class LeaderboardService {
             participants = gamification.countLearners(Role.ADMIN);
         } else {
             Instant from = since == null ? Instant.EPOCH : since;
-            for (Object[] row : ledger.topSince(from, stream, FETCH)) {
+            for (Object[] row : ledger.topSince(from, stream, course, FETCH)) {
                 ids.add(((Number) row[0]).longValue());
                 points.add(((Number) row[1]).intValue());
             }
             if (!ids.isEmpty()) {
                 gamification.findAllById(ids).forEach(g -> streaks.put(g.getUserId(), g.getCurrentStreak()));
             }
-            participants = ledger.countParticipantsSince(from, stream);
+            participants = ledger.countParticipantsSince(from, stream, course);
         }
 
         Map<Long, User> people = new HashMap<>();
@@ -180,22 +182,22 @@ public class LeaderboardService {
     }
 
     /** A viewer who isn't in the top page still sees their own rank. Admins have none. */
-    private LeaderboardEntry standingOutsideTop(Long viewerId, String period, String stream) {
+    private LeaderboardEntry standingOutsideTop(Long viewerId, String period, String stream, String course) {
         User viewer = users.findById(viewerId).orElse(null);
-        if (viewer == null || viewer.isAdmin()) {
+        if (viewer == null || viewer.isAdmin() || viewer.isLeaderboardHidden()) {
             return null;
         }
         Instant since = startOf(period);
         UserGamification mine = gamification.findById(viewerId).orElse(null);
         int points;
         long rank;
-        if (since == null && stream == null) {
+        if (since == null && stream == null && course == null) {
             points = mine == null ? 0 : mine.getTotalPoints();
             rank = gamification.rankOf(points, Role.ADMIN);
         } else {
             Instant from = since == null ? Instant.EPOCH : since;
-            points = (int) ledger.pointsSince(viewerId, from, stream);
-            rank = ledger.rankSince(from, stream, points);
+            points = (int) ledger.pointsSince(viewerId, from, stream, course);
+            rank = ledger.rankSince(from, stream, course, points);
         }
         return new LeaderboardEntry((int) rank, viewerId, viewer.getDisplayName(), viewer.getPictureUrl(), points,
                 mine == null ? 0 : mine.getCurrentStreak(), userBadges.countByUserId(viewerId), true);
@@ -227,6 +229,18 @@ public class LeaderboardService {
         }
         String clean = stream.strip();
         return clean.length() > 100 ? clean.substring(0, 100) : clean;
+    }
+
+    /** A course is filtered by its id; anything that isn't one is a bad request rather than an empty board. */
+    private static String normalizeCourse(String course) {
+        if (course == null || course.isBlank()) {
+            return null;
+        }
+        try {
+            return java.util.UUID.fromString(course.strip()).toString();
+        } catch (IllegalArgumentException e) {
+            throw new InvalidGamificationRequestException("That isn't a valid course.");
+        }
     }
 
     private static Instant startOf(String period) {

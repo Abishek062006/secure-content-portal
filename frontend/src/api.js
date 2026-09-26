@@ -109,11 +109,10 @@ export const api = {
 
   // Gamification APIs
   getGamificationSummary: () => request('/api/gamification/me'),
-  checkInDaily: () => api.post('/api/gamification/check-in'),
-  getLeaderboard: (timeframe = 'all_time', stream = 'all') =>
-    request(`/api/gamification/leaderboard?timeframe=${encodeURIComponent(timeframe)}&stream=${encodeURIComponent(stream)}`),
+  getLeaderboard: (timeframe = 'weekly', courseId = '') =>
+    request(`/api/gamification/leaderboard?timeframe=${encodeURIComponent(timeframe)}${courseId ? `&courseId=${encodeURIComponent(courseId)}` : ''}`),
+  setLeaderboardHidden: (hidden) => api.put('/api/gamification/me/leaderboard-visibility', { hidden }),
   getBadges: () => request('/api/gamification/badges'),
   getUserBadges: (userId) => request(`/api/gamification/users/${userId}/badges`),
-  getStreams: () => request('/api/gamification/streams'),
   getMyPointHistory: () => request('/api/points/history'),
 };

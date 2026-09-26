@@ -8,6 +8,7 @@ import PriceTag from '../components/PriceTag';
 import Icon from '../components/Icon';
 import { MATERIAL_ICON, MATERIAL_LABEL } from '../lib/materials';
 import CertificateCard from '../components/CertificateCard';
+import CourseLeaderboard from '../components/progress/CourseLeaderboard';
 
 export default function CourseView() {
   const { id } = useParams();
@@ -100,6 +101,8 @@ export default function CourseView() {
           )}
         </div>
       </div>
+
+      {enrolled && !user?.admin && <CourseLeaderboard courseId={course.id} />}
 
       {modules.length === 0 && (
         <div className="empty-state"><p>This course has no lessons yet.</p></div>

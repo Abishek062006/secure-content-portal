@@ -38,6 +38,10 @@ public class User {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    /** Learners can opt out of leaderboards. Changed only through {@link UserRepository#setLeaderboardHidden}. */
+    @Column(name = "leaderboard_hidden", nullable = false)
+    private boolean leaderboardHidden;
+
     protected User() {
         // for JPA
     }
@@ -91,6 +95,10 @@ public class User {
 
     public void setLastLoginAt(Instant lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
+    }
+
+    public boolean isLeaderboardHidden() {
+        return leaderboardHidden;
     }
 
     public boolean isAdmin() {

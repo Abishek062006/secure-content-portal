@@ -96,7 +96,7 @@ public class LearningService {
     private void rewardCompletion(Long userId, Lesson lesson) {
         try {
             String stream = courseService.find(lesson.getCourseId()).getCategory();
-            gamificationService.recordLessonCompletion(userId, lesson.getId().toString(), stream);
+            gamificationService.recordLessonCompletion(userId, lesson.getId().toString(), lesson.getCourseId().toString(), stream);
             if (progressPercent(userId, lesson.getCourseId()) >= 100) {
                 gamificationService.recordCourseCompletion(userId, lesson.getCourseId().toString(), stream);
             }

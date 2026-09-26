@@ -215,7 +215,7 @@ public class AttemptService {
     /** Points are a bonus on top of the result: a problem awarding them must never lose the attempt. */
     private void rewardPass(Attempt attempt, Assessment assessment, int score, Boolean passed) {
         try {
-            gamificationService.recordQuizAttempt(attempt.getUserId(), assessment.getId().toString(), score,
+            gamificationService.recordQuizAttempt(attempt.getUserId(), assessment.getId().toString(), assessment.getCourseId().toString(), score,
                     Boolean.TRUE.equals(passed), null);
         } catch (RuntimeException e) {
             log.warn("Could not award points for attempt {} of user {}", attempt.getId(), attempt.getUserId(), e);

@@ -34,11 +34,11 @@ public interface UserGamificationRepository extends JpaRepository<UserGamificati
     @Query("SELECT g FROM UserGamification g WHERE g.userId = :userId")
     Optional<UserGamification> findForUpdate(@Param("userId") Long userId);
 
-    @Query("SELECT g FROM UserGamification g, User u WHERE u.id = g.userId AND u.role <> :admin "
+    @Query("SELECT g FROM UserGamification g, User u WHERE u.id = g.userId AND u.role <> :admin AND u.leaderboardHidden = false "
             + "ORDER BY g.totalPoints DESC, g.userId ASC")
     List<UserGamification> topLearners(@Param("admin") Role admin, Pageable page);
 
-    @Query("SELECT COUNT(g) FROM UserGamification g, User u WHERE u.id = g.userId AND u.role <> :admin")
+    @Query("SELECT COUNT(g) FROM UserGamification g, User u WHERE u.id = g.userId AND u.role <> :admin AND u.leaderboardHidden = false")
     long countLearners(@Param("admin") Role admin);
 
     @Query("SELECT COALESCE(SUM(g.totalPoints), 0) FROM UserGamification g, User u WHERE u.id = g.userId AND u.role <> :admin")
@@ -48,6 +48,6 @@ public interface UserGamificationRepository extends JpaRepository<UserGamificati
     long countWithStreak(@Param("admin") Role admin);
 
     /** 1 + the number of learners with strictly more points. Admins never take part. */
-    @Query("SELECT COUNT(g) + 1 FROM UserGamification g, User u WHERE u.id = g.userId AND u.role <> :admin AND g.totalPoints > :points")
+    @Query("SELECT COUNT(g) + 1 FROM UserGamification g, User u WHERE u.id = g.userId AND u.role <> :admin AND u.leaderboardHidden = false AND g.totalPoints > :points")
     long rankOf(@Param("points") int points, @Param("admin") Role admin);
 }

@@ -300,10 +300,10 @@ export default function Profile() {
         <div className="profile-badges-grid">
           {userBadges.filter(b => b.unlocked).map((badge) => (
             <div key={badge.id} className={`profile-badge-item rarity-${badge.rarity.toLowerCase()}`} title={badge.description}>
-              <span className="profile-badge-emoji">{badge.icon}</span>
+              <span className="profile-badge-icon"><Icon name={badge.icon} size={22} /></span>
               <div className="profile-badge-info">
                 <strong className="profile-badge-title">{badge.title}</strong>
-                <span className="profile-badge-sub">+{badge.pointsReward} XP • {badge.rarity}</span>
+                <span className="profile-badge-sub">+{badge.pointsReward} XP · {badge.rarity}</span>
               </div>
             </div>
           ))}

@@ -3,12 +3,17 @@ package com.secureportal.user;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE User u SET u.leaderboardHidden = :hidden WHERE u.id = :id")
+    int setLeaderboardHidden(@Param("id") Long id, @Param("hidden") boolean hidden);
 
     Optional<User> findByEmailIgnoreCase(String email);
 

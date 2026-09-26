@@ -62,7 +62,11 @@ public class GamificationService {
 
     // ---- Reading ------------------------------------------------------------------------------------------------------
 
-    public record Summary(int totalPoints, int currentStreak, int maxStreak, boolean checkedInToday, long unlockedBadges) {
+    /** Finishing this many lessons or quizzes in a day fills the daily ring. The first one already keeps the streak alive. */
+    public static final int DAILY_GOAL = 2;
+
+    public record Summary(int totalPoints, int currentStreak, int maxStreak, boolean checkedInToday, long unlockedBadges,
+                          int activitiesToday, int dailyGoal, boolean leaderboardHidden) {
     }
 
     /** A learner's own numbers. Reading never creates a row; someone with no activity yet is simply all zeros. */
@@ -70,11 +74,13 @@ public class GamificationService {
     public Summary summary(Long userId) {
         UserGamification mine = gamification.findById(userId).orElse(null);
         long unlocked = userBadges.countByUserId(userId);
+        boolean hidden = users.findById(userId).map(User::isLeaderboardHidden).orElse(false);
         if (mine == null) {
-            return new Summary(0, 0, 0, false, unlocked);
+            return new Summary(0, 0, 0, false, unlocked, 0, DAILY_GOAL, hidden);
         }
         boolean today = today().equals(mine.getLastCheckinDate());
-        return new Summary(mine.getTotalPoints(), mine.getCurrentStreak(), mine.getMaxStreak(), today, unlocked);
+        int done = (int) Math.min(DAILY_GOAL, ledger.countActivitiesSince(userId, today().atStartOfDay(ZoneOffset.UTC).toInstant()));
+        return new Summary(mine.getTotalPoints(), mine.getCurrentStreak(), mine.getMaxStreak(), today, unlocked, done, DAILY_GOAL, hidden);
     }
 
     public record BadgeStatus(String id, String title, String description, String category, String icon, int pointsReward,
@@ -106,6 +112,12 @@ public class GamificationService {
     public record CheckInResult(int pointsEarned, int newStreak, boolean claimedToday, List<Badge> unlockedBadges) {
     }
 
+    /** Learners choose whether they appear on leaderboards. Their own progress and badges are unaffected. */
+    @Transactional
+    public void setLeaderboardHidden(Long userId, boolean hidden) {
+        users.setLeaderboardHidden(userId, hidden);
+    }
+
     /** One check-in per learner per UTC day. The learner's row is locked, so a double click can't be paid twice. */
     @Transactional
     public CheckInResult checkIn(Long userId) {
@@ -128,7 +140,7 @@ public class GamificationService {
         int bonus = streak % 7 == 0 ? 25 : streak % 3 == 0 ? 10 : 0;
         int earned = pointsFor(PointAction.DAILY_CHECKIN) + bonus;
         awardOnce(userId, PointAction.DAILY_CHECKIN, earned, "Daily Check-in (" + streak + " day streak)", null,
-                "DAILY_CHECKIN", today.toString());
+                "DAILY_CHECKIN", today.toString(), null);
 
         List<Badge> unlocked = new ArrayList<>();
         if (streak >= 3) unlockBadge(userId, "STREAK_MASTER").ifPresent(unlocked::add);
@@ -138,10 +150,10 @@ public class GamificationService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<Badge> recordLessonCompletion(Long userId, String lessonId, String stream) {
-        List<Badge> unlocked = new ArrayList<>();
+    public List<Badge> recordLessonCompletion(Long userId, String lessonId, String courseId, String stream) {
+        List<Badge> unlocked = new ArrayList<>(checkIn(userId).unlockedBadges());
         if (awardOnce(userId, PointAction.LESSON_COMPLETED, pointsFor(PointAction.LESSON_COMPLETED),
-                "Completed a video lesson", stream, "LESSON", lessonId)) {
+                "Completed a video lesson", stream, "LESSON", lessonId, courseId)) {
             unlockBadge(userId, "FAST_LEARNER").ifPresent(unlocked::add);
         }
         return unlocked;
@@ -149,11 +161,12 @@ public class GamificationService {
 
     /** Points are for passing a quiz or assessment the first time; retakes never pay again. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<Badge> recordQuizAttempt(Long userId, String assessmentId, int score, boolean passed, String stream) {
+    public List<Badge> recordQuizAttempt(Long userId, String assessmentId, String courseId, int score, boolean passed, String stream) {
         List<Badge> unlocked = new ArrayList<>();
         if (passed) {
+            unlocked.addAll(checkIn(userId).unlockedBadges());
             awardOnce(userId, PointAction.QUIZ_PASSED, pointsFor(PointAction.QUIZ_PASSED), "Passed quiz with " + score + "% score",
-                    stream, "QUIZ", assessmentId);
+                    stream, "QUIZ", assessmentId, courseId);
             if (ledger.countByUserIdAndActionType(userId, PointAction.QUIZ_PASSED.name()) >= 5) {
                 unlockBadge(userId, "QUIZ_MASTER").ifPresent(unlocked::add);
             }
@@ -172,7 +185,7 @@ public class GamificationService {
     public List<Badge> recordCourseCompletion(Long userId, String courseId, String stream) {
         List<Badge> unlocked = new ArrayList<>();
         if (!awardOnce(userId, PointAction.COURSE_COMPLETED, pointsFor(PointAction.COURSE_COMPLETED), "Completed full course",
-                stream, "COURSE", courseId)) {
+                stream, "COURSE", courseId, courseId)) {
             return unlocked;
         }
         unlockBadge(userId, "COURSE_GRADUATE").ifPresent(unlocked::add);
@@ -197,7 +210,7 @@ public class GamificationService {
      */
     @Transactional
     public boolean award(Long userId, PointAction action, int amount, String description, String stream, String sourceId) {
-        return awardOnce(userId, action, amount, description, stream, action.name(), sourceId);
+        return awardOnce(userId, action, amount, description, stream, action.name(), sourceId, null);
     }
 
     public int pointsFor(PointAction action) {
@@ -205,10 +218,10 @@ public class GamificationService {
     }
 
     private boolean awardOnce(Long userId, PointAction action, int amount, String description, String stream,
-                              String sourceType, String sourceId) {
+                              String sourceType, String sourceId, String courseId) {
         gamification.ensureRow(userId);
         String dedupeKey = action.name() + ":" + sourceId;
-        if (ledger.insertOnce(userId, amount, action.name(), truncate(description, 255), stream, sourceType, sourceId, dedupeKey) == 0) {
+        if (ledger.insertOnce(userId, amount, action.name(), truncate(description, 255), stream, sourceType, sourceId, dedupeKey, courseId) == 0) {
             return false;
         }
         gamification.addPoints(userId, amount);
@@ -226,7 +239,7 @@ public class GamificationService {
         Badge badge = badges.findById(badgeId).orElseThrow();
         if (badge.getPointsReward() > 0) {
             awardOnce(userId, PointAction.BADGE_UNLOCKED, badge.getPointsReward(), "Unlocked badge: " + badge.getTitle(), null,
-                    "BADGE", badgeId);
+                    "BADGE", badgeId, null);
         }
         return Optional.of(badge);
     }

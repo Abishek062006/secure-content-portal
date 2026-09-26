@@ -1,6 +1,9 @@
-import { Link, NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Logo } from './Icons';
+import DailyRing from './progress/DailyRing';
 
 function initials(displayName) {
   const source = (displayName || '').trim();
@@ -12,6 +15,18 @@ function initials(displayName) {
 
 export default function Nav() {
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const [progress, setProgress] = useState(null);
+
+  // Refreshed as the learner moves around, so the ring fills right after they finish a lesson.
+  useEffect(() => {
+    if (!user || user.admin) {
+      setProgress(null);
+      return;
+    }
+    api.getGamificationSummary().then(setProgress).catch(() => {});
+  }, [user, location.pathname]);
+
   return (
     <nav className="nav">
       <Link className="nav-brand" to="/">
@@ -33,6 +48,7 @@ export default function Nav() {
               <NavLink to="/courses">Courses</NavLink>
               <NavLink to="/feed">Feed</NavLink>
               <NavLink to="/my-learning">My Learning</NavLink>
+              <NavLink to="/leaderboard">Leaderboard</NavLink>
             </>
           )}
         </div>
@@ -41,6 +57,11 @@ export default function Nav() {
       <div className="nav-right">
         {user ? (
           <div className="nav-user">
+            {progress && (
+              <Link to="/leaderboard" className="nav-progress" aria-label="Your progress">
+                <DailyRing done={progress.activitiesToday} goal={progress.dailyGoal} streak={progress.currentStreak} safe={progress.checkedInToday} />
+              </Link>
+            )}
             {user.admin && <span className="badge admin">Admin</span>}
             <Link to="/profile" className="nav-profile-link" title="Your profile">
               {user.pictureUrl ? (

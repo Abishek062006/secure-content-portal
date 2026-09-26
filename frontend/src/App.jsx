@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Courses from './pages/Courses';
 import CourseView from './pages/CourseView';
 import LessonView from './pages/LessonView';
+import Leaderboard from './pages/Leaderboard';
 import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
 import AttemptView from './pages/AttemptView';
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseView />} />
           <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />
