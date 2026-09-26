@@ -165,12 +165,13 @@ public class CourseApiController {
         int resume = mine != null && !completed && mine.getPositionSeconds() > 5 ? mine.getPositionSeconds() : 0;
 
         String ticket = ticketService.mint(lessonId, principal.getUserId(), request,
-                StreamTicket.Purpose.COURSE_VIDEO, Duration.ofMinutes(30));
+                StreamTicket.Purpose.COURSE_VIDEO, Duration.ofHours(3));
         var module = structureService.findModule(lesson.getModuleId());
         return new LessonDetailResponse(courseId, course.getTitle(), module.getId(), module.getTitle(),
                 assembler.lessonDto(lesson, progress, principal.isAdmin()), ticket, structureService.transcript(lesson),
                 index > 0 ? ordered.get(index - 1).getId() : null,
-                index < ordered.size() - 1 ? ordered.get(index + 1).getId() : null, resume, completed);
+                index < ordered.size() - 1 ? ordered.get(index + 1).getId() : null, resume, completed,
+                lesson.getHlsStatus() == com.secureportal.course.HlsStatus.READY);
     }
 
     @PutMapping("/{courseId}/lessons/{lessonId}/progress")

@@ -105,14 +105,17 @@ public class CourseService {
     public void delete(UUID id) {
         Course course = find(id);
         List<String> keys = new ArrayList<>();
+        List<String> prefixes = new ArrayList<>();
         keys.add(course.getThumbnailKey());
         for (Lesson lesson : lessonRepository.findByCourseId(id)) {
             keys.add(lesson.getVideoKey());
             keys.add(lesson.getTranscriptKey());
+            prefixes.add(lesson.hlsPrefix());
         }
         materialRepository.findByCourseIdOrderByCreatedAtAsc(id).forEach(m -> keys.add(m.getStorageKey()));
         courseRepository.delete(course);
         keys.forEach(fileStore::deleteQuietly);
+        prefixes.forEach(fileStore::deletePrefixQuietly);
     }
 
     @Transactional

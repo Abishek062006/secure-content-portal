@@ -27,6 +27,9 @@ public class StorageProperties {
      */
     private boolean pathStyleAccess = true;
 
+    /** Create the bucket at startup if it doesn't exist (handy locally; off where the bucket is provisioned by hand). */
+    private boolean createBucket = true;
+
     public String getEndpoint() {
         return endpoint;
     }
@@ -89,5 +92,13 @@ public class StorageProperties {
 
     public void setLocalPath(String localPath) {
         this.localPath = localPath;
+    }
+
+    public boolean isCreateBucket() {
+        return createBucket;
+    }
+
+    public void setCreateBucket(boolean createBucket) {
+        this.createBucket = createBucket;
     }
 }

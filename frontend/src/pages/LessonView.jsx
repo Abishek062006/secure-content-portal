@@ -129,6 +129,7 @@ export default function LessonView() {
             ticket={data.ticket}
             viewerEmail={user?.email}
             streamPath="/api/course-stream"
+            hlsSrc={data.hlsReady ? `/api/course-stream/${data.ticket}/hls/master.m3u8` : null}
             videoRef={videoRef}
           />
           {lesson.description && <p className="field-hint">{lesson.description}</p>}

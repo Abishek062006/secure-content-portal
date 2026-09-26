@@ -6,6 +6,8 @@
 #   docker compose ps                          check they are healthy
 #   docker compose down                        stop them (data is kept; add -v to wipe it)
 #
+#   s3        - S3-compatible object storage, so uploads go straight to a bucket   (STORAGE_PROVIDER=s3)
+#
 # RabbitMQ's dashboard is at http://localhost:15672 (log in with RABBITMQ_USERNAME / RABBITMQ_PASSWORD).
 services:
   redis:
@@ -39,6 +41,20 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # S3-compatible storage for local development (SeaweedFS); production uses real S3. S3 API on :8333.
+  # The keys in docker/seaweedfs-s3.json are throwaway local ones (minioadmin / minioadmin).
+  s3:
+    image: chrislusf/seaweedfs:latest
+    command: ["server", "-dir=/data", "-s3", "-s3.config=/etc/seaweedfs/s3.json", "-volume.max=64", "-master.volumeSizeLimitMB=1024"]
+    ports:
+      - "127.0.0.1:8333:8333"
+      - "127.0.0.1:9333:9333"
+    volumes:
+      - s3-data:/data
+      - ./docker/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+    restart: unless-stopped
+
 volumes:
+  s3-data:
   redis-data:
   rabbitmq-data:

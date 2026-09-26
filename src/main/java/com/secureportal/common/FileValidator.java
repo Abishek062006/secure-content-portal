@@ -34,6 +34,28 @@ public class FileValidator {
                 expectedType.getAllowedMimeTypes(), expectedType.getMaxSizeBytes(), expectedType.getMaxSizeLabel());
     }
 
+    /**
+     * Checks a video that was uploaded straight to storage, so this server only ever sees its first bytes: the
+     * extension, the size, and what the leading bytes actually are.
+     */
+    public ValidatedFile validateStoredVideo(String originalFilename, long sizeBytes, byte[] head) {
+        ContentType type = ContentType.VIDEO;
+        String filename = cleanFilename(originalFilename);
+        String extension = extractExtension(filename);
+        if (!type.getAllowedExtensions().contains(extension)) {
+            throw new UploadException("Video files must be .mp4 or .webm.");
+        }
+        if (sizeBytes <= 0 || sizeBytes > type.getMaxSizeBytes()) {
+            throw new UploadException("Video files must be " + type.getMaxSizeLabel() + " or smaller.");
+        }
+        String detected = tika.detect(head);
+        if (!type.getAllowedMimeTypes().contains(detected)) {
+            throw new UploadException("This file's contents don't match a video (detected: " + detected
+                    + "). Renaming a file's extension does not change what it actually is.");
+        }
+        return new ValidatedFile(filename, detected, sizeBytes);
+    }
+
     public ValidatedFile validateThumbnail(MultipartFile file) {
         return validate(file, "Image", IMAGE_EXTENSIONS, IMAGE_MIME_TYPES, THUMBNAIL_MAX_BYTES, "5 MB");
     }

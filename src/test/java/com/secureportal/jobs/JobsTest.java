@@ -100,8 +100,8 @@ class JobsTest {
     void rabbitPublishesTheJobIdAndTheListenerRunsIt() {
         RabbitTemplate template = mock(RabbitTemplate.class);
         UUID id = UUID.randomUUID();
-        new RabbitJobDispatcher(template).dispatch(id);
-        verify(template).convertAndSend(QueueConfig.GENERATION_QUEUE, id.toString());
+        new RabbitJobDispatcher(template, new QueueNames("t-")).dispatch(id);
+        verify(template).convertAndSend("t-question-generation", id.toString());
 
         GenerationJobRunner mockRunner = mock(GenerationJobRunner.class);
         new GenerationJobListener(mockRunner).onMessage(id.toString());

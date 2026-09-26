@@ -83,6 +83,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.video.VideoUploadException.class)
+    public ResponseEntity<ApiError> handleVideoUpload(com.secureportal.video.VideoUploadException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(PostNotFoundException.class)
     public ResponseEntity<ApiError> handlePostNotFound(PostNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));

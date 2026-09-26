@@ -32,7 +32,9 @@ public record CourseOutlineDto(
             String videoFilename,
             String transcriptFilename,
             Boolean completed,
-            Integer positionSeconds
+            Integer positionSeconds,
+            String hlsStatus,
+            String hlsMessage
     ) {
     }
 }

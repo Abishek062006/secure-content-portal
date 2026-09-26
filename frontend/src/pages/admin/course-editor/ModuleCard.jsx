@@ -216,6 +216,14 @@ function LessonRow({ lesson, index, total, actions }) {
               {lesson.videoFilename} · {lesson.videoSizeLabel}
               {lesson.hasTranscript ? ` · transcript: ${lesson.transcriptFilename}` : ' · no transcript'}
             </span>
+            {lesson.hlsStatus === 'PROCESSING' && <span className="field-hint">Preparing adaptive streaming… the original plays meanwhile.</span>}
+            {lesson.hlsStatus === 'READY' && <span className="field-hint">Adaptive streaming ready.</span>}
+            {lesson.hlsStatus === 'FAILED' && (
+              <span className="field-hint">
+                {lesson.hlsMessage || 'Adaptive streaming could not be prepared.'}{' '}
+                <button type="button" className="link-button" onClick={() => actions.retryStreaming(lesson)}>Try again</button>
+              </span>
+            )}
           </div>
           <div className="row-actions">
             <label className="btn file-btn">
@@ -291,6 +299,7 @@ export default function ModuleCard({ module, index, total, actions, available, f
               editLesson: actions.editLesson,
               replaceTranscript: actions.replaceTranscript,
               deleteLesson: actions.deleteLesson,
+              retryStreaming: actions.retryStreaming,
               moveLesson: (lessonId, delta) => actions.moveLesson(module, lessonId, delta),
             }}
           />

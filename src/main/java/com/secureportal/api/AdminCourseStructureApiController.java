@@ -40,8 +40,11 @@ public class AdminCourseStructureApiController {
     private final CourseOutlineAssembler assembler;
     private final AuditService auditService;
 
-    public AdminCourseStructureApiController(CourseStructureService structureService, CourseOutlineAssembler assembler,
+    private final com.secureportal.video.TranscodeRequests transcodeRequests;
+
+    public AdminCourseStructureApiController(com.secureportal.video.TranscodeRequests transcodeRequests, CourseStructureService structureService, CourseOutlineAssembler assembler,
                                              AuditService auditService) {
+        this.transcodeRequests = transcodeRequests;
         this.structureService = structureService;
         this.assembler = assembler;
         this.auditService = auditService;
@@ -96,7 +99,16 @@ public class AdminCourseStructureApiController {
                                @AuthenticationPrincipal AppPrincipal principal) {
         Lesson lesson = structureService.addLesson(moduleId, form);
         auditService.log(principal.getEmail(), "LESSON_ADD", lesson.getCourseId(), "\"" + lesson.getTitle() + "\"");
-        return assembler.lessonDto(lesson, null, true);
+        transcodeRequests.request(lesson.getId());
+        return assembler.lessonDto(structureService.findLesson(lesson.getId()), null, true);
+    }
+
+    /** Prepares adaptive streaming again, for a video whose first attempt failed or that was interrupted. */
+    @PostMapping("/lessons/{lessonId}/transcode")
+    public LessonDto transcode(@PathVariable UUID lessonId) {
+        Lesson lesson = structureService.findLesson(lessonId);
+        transcodeRequests.request(lesson.getId());
+        return assembler.lessonDto(structureService.findLesson(lessonId), null, true);
     }
 
     @PutMapping("/lessons/{lessonId}")

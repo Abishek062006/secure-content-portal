@@ -17,6 +17,7 @@ public record LessonDetailResponse(
         UUID previousLessonId,
         UUID nextLessonId,
         int resumeSeconds,
-        boolean completed
+        boolean completed,
+        boolean hlsReady
 ) {
 }

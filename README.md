@@ -77,6 +77,14 @@ else below was chosen deliberately, not defaulted to.
     process.
   Per-user request limits (for example 6 generations, 20 comments and 8 posts a minute, and a generous overall cap)
   answer HTTP 429 with a retry time; `RATE_LIMIT_ENABLED=false` turns them off.
+- **Large videos and adaptive streaming.** With S3-compatible storage the browser uploads a video straight to the
+  bucket in 16 MB parts (three at a time, each retried if it fails, resumable), and the server only signs the
+  URLs and afterwards checks the stored file (its size, and what its first bytes really are) before making the
+  lesson, so a 5 GB video never passes through the app. In the background ffmpeg then cuts the video into HLS
+  (360p, 720p and 1080p as far as the source goes) and the player switches quality with the viewer's connection.
+  Segments are served behind the same session-locked ticket as the video, and the original keeps playing until the
+  packaging is ready (or if ffmpeg isn't available). Without S3 (the default local disk) uploads go through the
+  server as before.
 - **Module materials.** Each module can carry extra study material: PDFs, web pages, small videos (up to 500 MB),
   Word/PowerPoint/Excel/text/CSV/ZIP files, and links. The admin ticks per item whether learners may download it.
   View-only PDFs, web pages and videos open inside the portal with the same protections as library content
@@ -268,6 +276,40 @@ sessions can't be stored; switch it off or start it. To check the real brokers e
 set -a; source .env; source .env.local; set +a
 BROKERS_UP=true mvn test -Dtest=BrokersIntegrationTest
 ```
+
+### Object storage and video processing with Docker
+
+The default `STORAGE_PROVIDER=local` keeps files in `./local-storage`. To use an S3-compatible bucket locally (the
+same code path production will use with real S3):
+
+```bash
+docker compose up -d s3
+scripts/copy-local-storage-to-s3.sh        # copies what you already uploaded into the bucket
+```
+
+Then add to `.env.local` and restart the backend (use the full path to the project for the two scripts):
+
+```
+STORAGE_PROVIDER=s3
+STORAGE_ENDPOINT=http://localhost:8333
+STORAGE_BUCKET=content
+STORAGE_ACCESS_KEY=minioadmin
+STORAGE_SECRET_KEY=minioadmin
+FFMPEG_PATH=/full/path/to/Secureportal/scripts/ffmpeg-docker.sh
+FFPROBE_PATH=/full/path/to/Secureportal/scripts/ffprobe-docker.sh
+```
+
+The two scripts run ffmpeg inside Docker, so you don't have to install it (`brew install ffmpeg` and leaving those
+two lines out works too). The local S3 server (SeaweedFS) uses throwaway keys and allows browser uploads from
+`localhost`. Check the whole path (upload in parts, packaging, ticketed playback, cleanup) with:
+
+```bash
+set -a; source .env; source .env.local; set +a
+S3_UP=true mvn test -Dtest=DirectUploadIntegrationTest
+```
+
+On real S3 the bucket needs a CORS rule that allows `PUT` from your site and exposes the `ETag` header, and
+`storage.create-bucket=false`; a CDN in front is the production step after this.
 
 ### How quizzes and assessments behave
 

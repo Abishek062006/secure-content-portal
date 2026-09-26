@@ -164,7 +164,8 @@ public class CourseOutlineAssembler {
         return new LessonDto(lesson.getId(), lesson.getTitle(), lesson.getDescription(), lesson.getPosition(),
                 lesson.getTranscriptKey() != null, lesson.getVideoSizeLabel(),
                 admin ? lesson.getVideoFilename() : null, admin ? lesson.getTranscriptFilename() : null,
-                admin ? null : p != null && p.isCompleted(), admin ? null : p == null ? 0 : p.getPositionSeconds());
+                admin ? null : p != null && p.isCompleted(), admin ? null : p == null ? 0 : p.getPositionSeconds(),
+                lesson.getHlsStatus().name(), admin ? lesson.getHlsMessage() : null);
     }
 
     public ModuleDto moduleDto(com.secureportal.course.CourseModule module, List<Lesson> lessons,

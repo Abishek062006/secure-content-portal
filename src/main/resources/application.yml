@@ -83,6 +83,8 @@ app:
     enabled: ${REDIS_ENABLED:false}
   queue:
     enabled: ${QUEUE_ENABLED:false}
+    # Prefixes the RabbitMQ queue names, so two copies of the app sharing a broker don't consume each other's jobs.
+    name-prefix: ${QUEUE_PREFIX:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
   cache:
@@ -105,6 +107,15 @@ storage:
   access-key: ${STORAGE_ACCESS_KEY:}
   secret-key: ${STORAGE_SECRET_KEY:}
   path-style-access: true
+  create-bucket: ${STORAGE_CREATE_BUCKET:true}
+
+# Adaptive streaming (HLS) is made from each uploaded video by ffmpeg in the background. Without ffmpeg the original
+# video simply keeps playing. ffmpeg/ffprobe can be paths, e.g. the scripts/ffmpeg-docker.sh wrapper.
+transcode:
+  enabled: ${TRANSCODE_ENABLED:true}
+  ffmpeg: ${FFMPEG_PATH:ffmpeg}
+  ffprobe: ${FFPROBE_PATH:ffprobe}
+  timeout-minutes: 240
 
 logging:
   level:

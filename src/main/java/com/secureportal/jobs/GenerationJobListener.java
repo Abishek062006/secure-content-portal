@@ -13,7 +13,7 @@ public class GenerationJobListener {
         this.runner = runner;
     }
 
-    @RabbitListener(queues = QueueConfig.GENERATION_QUEUE, concurrency = "1-2")
+    @RabbitListener(queues = "#{queueNames.generation}", concurrency = "1-2")
     public void onMessage(String jobId) {
         runner.run(UUID.fromString(jobId));
     }

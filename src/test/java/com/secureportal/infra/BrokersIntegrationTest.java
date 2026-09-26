@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code docker compose up -d redis rabbitmq} and then {@code BROKERS_UP=true mvn test -Dtest=BrokersIntegrationTest}.
  */
 @SpringBootTest(properties = {"storage.provider=local", "storage.local-path=target/brokers-test-storage",
-        "app.redis.enabled=true", "app.queue.enabled=true", "ai.model=test-model"})
+        "app.redis.enabled=true", "app.queue.enabled=true", "app.queue.name-prefix=it-", "ai.model=test-model"})
 @AutoConfigureMockMvc
 @EnabledIfEnvironmentVariable(named = "BROKERS_UP", matches = "true")
 @EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = ".*local.*")

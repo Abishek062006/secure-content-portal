@@ -14,26 +14,43 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "app.queue.enabled", havingValue = "true")
 public class QueueConfig {
 
-    public static final String GENERATION_QUEUE = "question-generation";
-    public static final String DEAD_LETTER_QUEUE = "question-generation.failed";
+    @Bean
+    QueueNames queueNames(@org.springframework.beans.factory.annotation.Value("${app.queue.name-prefix:}") String prefix) {
+        return new QueueNames(prefix);
+    }
 
     /** Messages a consumer rejects land in the dead-letter queue, where they can be inspected instead of looping. */
     @Bean
-    Queue generationQueue() {
-        return QueueBuilder.durable(GENERATION_QUEUE)
+    Queue generationQueue(QueueNames names) {
+        return QueueBuilder.durable(names.getGeneration())
                 .withArgument("x-dead-letter-exchange", "")
-                .withArgument("x-dead-letter-routing-key", DEAD_LETTER_QUEUE)
+                .withArgument("x-dead-letter-routing-key", names.getDeadLetter())
                 .build();
     }
 
     @Bean
-    Queue deadLetterQueue() {
-        return QueueBuilder.durable(DEAD_LETTER_QUEUE).build();
+    Queue deadLetterQueue(QueueNames names) {
+        return QueueBuilder.durable(names.getDeadLetter()).build();
     }
 
     @Bean
-    RabbitJobDispatcher rabbitJobDispatcher(RabbitTemplate template) {
-        return new RabbitJobDispatcher(template);
+    Queue transcodeQueue(QueueNames names) {
+        return QueueBuilder.durable(names.getTranscode()).build();
+    }
+
+    @Bean
+    com.secureportal.video.RabbitTranscodeDispatcher rabbitTranscodeDispatcher(RabbitTemplate template, QueueNames names) {
+        return new com.secureportal.video.RabbitTranscodeDispatcher(template, names);
+    }
+
+    @Bean
+    com.secureportal.video.TranscodeListener transcodeListener(com.secureportal.video.TranscodeService service) {
+        return new com.secureportal.video.TranscodeListener(service);
+    }
+
+    @Bean
+    RabbitJobDispatcher rabbitJobDispatcher(RabbitTemplate template, QueueNames names) {
+        return new RabbitJobDispatcher(template, names);
     }
 
     @Bean

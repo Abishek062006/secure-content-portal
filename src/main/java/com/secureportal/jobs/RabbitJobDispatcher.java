@@ -8,13 +8,15 @@ import java.util.UUID;
 public class RabbitJobDispatcher implements JobDispatcher {
 
     private final RabbitTemplate template;
+    private final QueueNames names;
 
-    public RabbitJobDispatcher(RabbitTemplate template) {
+    public RabbitJobDispatcher(RabbitTemplate template, QueueNames names) {
         this.template = template;
+        this.names = names;
     }
 
     @Override
     public void dispatch(UUID jobId) {
-        template.convertAndSend(QueueConfig.GENERATION_QUEUE, jobId.toString());
+        template.convertAndSend(names.getGeneration(), jobId.toString());
     }
 }

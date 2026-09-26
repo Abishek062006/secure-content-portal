@@ -6,7 +6,12 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -14,6 +19,7 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.InputStream;
+import java.util.List;
 
 @Service
 @ConditionalOnProperty(name = "storage.provider", havingValue = "s3", matchIfMissing = true)
@@ -73,6 +79,22 @@ public class S3StorageService implements StorageService {
     @Override
     public void delete(String key) {
         s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+    }
+
+    @Override
+    public void deletePrefix(String prefix) {
+        String token = null;
+        do {
+            ListObjectsV2Response page = s3Client.listObjectsV2(ListObjectsV2Request.builder()
+                    .bucket(bucket).prefix(prefix).continuationToken(token).build());
+            List<ObjectIdentifier> ids = page.contents().stream()
+                    .map(o -> ObjectIdentifier.builder().key(o.key()).build()).toList();
+            if (!ids.isEmpty()) {
+                s3Client.deleteObjects(DeleteObjectsRequest.builder().bucket(bucket)
+                        .delete(Delete.builder().objects(ids).quiet(true).build()).build());
+            }
+            token = Boolean.TRUE.equals(page.isTruncated()) ? page.nextContinuationToken() : null;
+        } while (token != null);
     }
 
     @Override

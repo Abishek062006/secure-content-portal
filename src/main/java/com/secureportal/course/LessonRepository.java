@@ -17,6 +17,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
     long countByCourseId(UUID courseId);
 
+    java.util.List<Lesson> findByHlsStatus(HlsStatus status);
+
     /** {course id, number of lessons} for every course, for the catalog. */
     @Query("SELECT l.courseId, COUNT(l) FROM Lesson l GROUP BY l.courseId")
     List<Object[]> countLessonsPerCourse();

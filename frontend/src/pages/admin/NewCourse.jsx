@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import Alert from '../../components/Alert';
 import CoverPicker from '../../components/CoverPicker';
+import { addLessonWithVideo } from '../../lib/directUpload';
 import PricingFields, { pricingPayload } from '../../components/PricingFields';
 
 const MAX_VIDEO_BYTES = 5 * 1024 ** 3;
@@ -100,7 +101,7 @@ export default function NewCourse() {
           if (video.transcript) data.set('transcript', video.transcript);
           try {
             // eslint-disable-next-line no-await-in-loop
-            await api.uploadWithProgress(`/api/admin/modules/${module.id}/lessons`, data, setProgress);
+            await addLessonWithVideo(module.id, data, setProgress);
           } catch (err) {
             failed.push(`${video.title}: ${err.message}`);
           }

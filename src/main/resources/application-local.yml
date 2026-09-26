@@ -12,4 +12,5 @@ spring:
     password: ${LOCAL_DB_PASSWORD:secureportal}
 
 storage:
-  provider: local
+  # Files on disk by default; set STORAGE_PROVIDER=s3 (and the endpoint/keys) in .env.local to use the docker `s3` service.
+  provider: ${STORAGE_PROVIDER:local}

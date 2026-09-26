@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import CoverPicker from '../../components/CoverPicker';
+import { addLessonWithVideo } from '../../lib/directUpload';
 import PricingFields, { pricingFromCourse, pricingPayload } from '../../components/PricingFields';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { API_BASE, api } from '../../api';
@@ -55,6 +56,14 @@ export default function CourseEditor() {
 
   const swallow = (promise) => promise.catch(() => {});
 
+  // A video being prepared for adaptive streaming finishes on its own; check back until it does.
+  const processing = Boolean(outline?.modules.some((m) => m.lessons.some((l) => l.hlsStatus === 'PROCESSING')));
+  useEffect(() => {
+    if (!processing) return undefined;
+    const timer = setTimeout(() => { load().catch(() => {}); }, 4000);
+    return () => clearTimeout(timer);
+  }, [processing, outline, load]);
+
   if (!outline) {
     return (
       <div className="container">
@@ -94,7 +103,7 @@ export default function CourseEditor() {
       if (next) swallow(run(() => api.put(`/api/admin/courses/${id}/modules/order`, { ids: next })));
     },
     addLesson: (moduleId, formData, onProgress) =>
-      run(() => api.uploadWithProgress(`/api/admin/modules/${moduleId}/lessons`, formData, onProgress), 'Lesson added.'),
+      run(() => addLessonWithVideo(moduleId, formData, onProgress), 'Lesson added.'),
     editLesson: (lessonId, body) => run(() => api.put(`/api/admin/lessons/${lessonId}`, body), 'Lesson updated.'),
     replaceTranscript: (lessonId, file) => {
       const formData = new FormData();
@@ -102,6 +111,7 @@ export default function CourseEditor() {
       swallow(run(() => api.upload(`/api/admin/lessons/${lessonId}/transcript`, formData), 'Transcript replaced.'));
     },
     deleteLesson: (lesson) => setPendingDelete({ type: 'lesson', item: lesson }),
+    retryStreaming: (lesson) => swallow(run(() => api.post(`/api/admin/lessons/${lesson.id}/transcode`), 'Preparing adaptive streaming again.')),
     addMaterial: (moduleId, formData, onProgress) =>
       run(() => api.uploadWithProgress(`/api/admin/modules/${moduleId}/materials`, formData, onProgress), 'Material added.'),
     updateMaterial: (material, changes) => swallow(run(() => api.put(`/api/admin/materials/${material.id}`, {

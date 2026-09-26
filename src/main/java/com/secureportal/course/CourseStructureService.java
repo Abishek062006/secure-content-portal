@@ -65,14 +65,17 @@ public class CourseStructureService {
     public void deleteModule(UUID moduleId) {
         CourseModule module = findModule(moduleId);
         List<String> keys = new ArrayList<>();
+        List<String> prefixes = new ArrayList<>();
         for (Lesson lesson : lessonRepository.findByModuleIdOrderByPositionAsc(moduleId)) {
             keys.add(lesson.getVideoKey());
             keys.add(lesson.getTranscriptKey());
+            prefixes.add(lesson.hlsPrefix());
         }
         materialRepository.findByModuleIdOrderByCreatedAtAsc(moduleId).forEach(m -> keys.add(m.getStorageKey()));
         moduleRepository.delete(module);
         renumberModules(module.getCourseId());
         keys.forEach(fileStore::deleteQuietly);
+        prefixes.forEach(fileStore::deletePrefixQuietly);
     }
 
     @Transactional
@@ -116,6 +119,14 @@ public class CourseStructureService {
         }
     }
 
+    /** Adds a lesson whose video is already in storage (it was uploaded straight to the bucket). */
+    public Lesson registerLesson(UUID moduleId, String title, String description, String videoKey, String filename,
+                                 String mime, long size) {
+        CourseModule module = findModule(moduleId);
+        return lessonRepository.save(new Lesson(moduleId, module.getCourseId(), title, description,
+                (int) lessonRepository.countByModuleId(moduleId), videoKey, filename, mime, size));
+    }
+
     @Transactional
     public Lesson editLesson(UUID lessonId, String title, String description) {
         Lesson lesson = findLesson(lessonId);
@@ -148,6 +159,7 @@ public class CourseStructureService {
         renumberLessons(lesson.getModuleId());
         fileStore.deleteQuietly(lesson.getVideoKey());
         fileStore.deleteQuietly(lesson.getTranscriptKey());
+        fileStore.deletePrefixQuietly(lesson.hlsPrefix());
     }
 
     @Transactional

@@ -44,4 +44,12 @@ class CourseFileStore {
             log.warn("Could not delete storage object {}", key, e);
         }
     }
+
+    void deletePrefixQuietly(String prefix) {
+        try {
+            storageService.deletePrefix(prefix);
+        } catch (RuntimeException e) {
+            log.warn("Could not delete storage prefix {}", prefix, e);
+        }
+    }
 }

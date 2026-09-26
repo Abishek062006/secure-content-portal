@@ -16,3 +16,6 @@ app:
     analytics-seconds: 0
   rate-limit:
     enabled: false
+
+transcode:
+  enabled: false

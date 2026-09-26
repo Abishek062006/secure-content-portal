@@ -2,6 +2,8 @@ package com.secureportal.course;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -49,6 +51,13 @@ public class Lesson {
     @Column(name = "transcript_filename")
     private String transcriptFilename;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hls_status", nullable = false, length = 12)
+    private HlsStatus hlsStatus = HlsStatus.NONE;
+
+    @Column(name = "hls_message", length = 500)
+    private String hlsMessage;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -82,6 +91,25 @@ public class Lesson {
         this.transcriptKey = key;
         this.transcriptFilename = filename;
         this.updatedAt = Instant.now();
+    }
+
+    public void setHls(HlsStatus status, String message) {
+        this.hlsStatus = status;
+        this.hlsMessage = message == null ? null : message.substring(0, Math.min(500, message.length()));
+        this.updatedAt = Instant.now();
+    }
+
+    public HlsStatus getHlsStatus() {
+        return hlsStatus;
+    }
+
+    public String getHlsMessage() {
+        return hlsMessage;
+    }
+
+    /** Where this lesson's HLS playlists and segments are stored. */
+    public String hlsPrefix() {
+        return "hls/" + id + "/";
     }
 
     public UUID getId() {

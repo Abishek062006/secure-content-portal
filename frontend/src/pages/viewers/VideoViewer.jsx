@@ -24,8 +24,10 @@ function buildWatermarkTile(text) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/stream', src, videoRef: externalRef }) {
+export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/stream', src, hlsSrc, videoRef: externalRef }) {
   const [failed, setFailed] = useState(false);
+  // Adaptive streaming when the server has prepared it; the original file otherwise, or if that fails to start.
+  const [adaptive, setAdaptive] = useState(Boolean(hlsSrc));
   const internalRef = useRef(null);
   const videoRef = externalRef || internalRef;
   const watermarkTile = useMemo(
@@ -52,6 +54,34 @@ export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/st
     return () => video.removeEventListener('webkitbeginfullscreen', exitNativeFullscreen);
   }, [videoRef]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!hlsSrc || !adaptive || !video) return undefined;
+    let hls = null;
+    let cancelled = false;
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari plays HLS itself; it needs to send the sign-in cookie to the API.
+      video.crossOrigin = 'use-credentials';
+      video.src = `${API_BASE}${hlsSrc}`;
+    } else {
+      import('hls.js').then(({ default: Hls }) => {
+        if (cancelled) return;
+        if (!Hls.isSupported()) {
+          setAdaptive(false);
+          return;
+        }
+        hls = new Hls({ xhrSetup: (xhr) => { xhr.withCredentials = true; } });
+        hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) setAdaptive(false); });
+        hls.loadSource(`${API_BASE}${hlsSrc}`);
+        hls.attachMedia(video);
+      }).catch(() => setAdaptive(false));
+    }
+    return () => {
+      cancelled = true;
+      if (hls) hls.destroy();
+    };
+  }, [hlsSrc, adaptive, videoRef]);
+
   return (
     <div className="video-wrap">
       <video
@@ -62,7 +92,7 @@ export default function VideoViewer({ ticket, viewerEmail, streamPath = '/api/st
         playsInline
         webkit-playsinline="true"
         className="media-player"
-        src={`${API_BASE}${src || `${streamPath}/${ticket}`}`}
+        src={adaptive ? undefined : `${API_BASE}${src || `${streamPath}/${ticket}`}`}
         onError={() => setFailed(true)}
         onContextMenu={(e) => e.preventDefault()}
       >

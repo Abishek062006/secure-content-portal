@@ -21,4 +21,7 @@ public interface StorageService {
     void delete(String key);
 
     boolean exists(String key);
+
+    /** Removes every object whose key starts with {@code prefix} (used for a lesson's whole HLS folder). */
+    void deletePrefix(String prefix);
 }

@@ -72,6 +72,21 @@ public class LocalFileStorageService implements StorageService {
     }
 
     @Override
+    public void deletePrefix(String prefix) {
+        Path dir = resolve(prefix);
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (java.util.stream.Stream<Path> walk = Files.walk(dir)) {
+            for (Path path : walk.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not delete " + prefix, e);
+        }
+    }
+
+    @Override
     public boolean exists(String key) {
         return Files.isRegularFile(resolve(key));
     }

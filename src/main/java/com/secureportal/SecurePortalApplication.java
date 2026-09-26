@@ -8,7 +8,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({AppProperties.class, StorageProperties.class, AiProperties.class})
+@EnableConfigurationProperties({AppProperties.class, StorageProperties.class, AiProperties.class,
+        com.secureportal.video.TranscodeProperties.class})
 public class SecurePortalApplication {
 
     public static void main(String[] args) {
