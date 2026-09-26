@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars (which is git-ignored) and fill in. Nothing here is committed with real values.
+
+region      = "ap-south-1"
+name_prefix = "gradientnova"
+
+google_client_id     = "xxxxxxxx.apps.googleusercontent.com"
+google_client_secret = "GOCSPX-..."
+admin_emails         = "you@gmail.com"
+
+# Optional: AI question generation (Groq by default)
+# ai_api_key = "gsk_..."
+# ai_model   = "llama-3.3-70b-versatile"
+
+# Alarm emails (confirm the subscription email AWS sends)
+# alarm_email = "you@gmail.com"
+
+# Sizing for a real launch; the defaults are a modest starting point (see docs/aws-deploy.md)
+# min_tasks         = 2
+# max_tasks         = 10
+# db_instance_class = "db.t4g.medium"
+# db_multi_az       = true
+# enable_redis      = true
+# enable_queue      = true
+# enable_waf        = true

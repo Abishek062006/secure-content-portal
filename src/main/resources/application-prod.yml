@@ -1,20 +1,25 @@
-# Vercel (and, before it, Render) terminates TLS upstream of the app; without
-# forward-headers-strategy Spring builds the OAuth redirect_uri as http://
-# and Google rejects it.
+# Production behind CloudFront -> ALB -> ECS (see infra/terraform). TLS ends at CloudFront, so the app sees plain HTTP
+# from the load balancer; without forward-headers-strategy Spring builds the OAuth redirect_uri as http:// and Google
+# rejects it. (The redirect URI is also pinned explicitly with APP_OAUTH_REDIRECT_URI.)
 server:
   forward-headers-strategy: native
   servlet:
     session:
       cookie:
         secure: true
-        # The React frontend (Vercel) and this API (Render) are different
-        # registrable domains — genuinely cross-site, not just cross-port
-        # like local dev. SameSite=Lax would never be sent on those
-        # cross-site fetch() calls at all; None is required for the session
-        # cookie to reach the API. Secure=true (above) is mandatory whenever
-        # SameSite=None is used — browsers reject None on a non-HTTPS cookie.
-        same-site: none
+        # The site and its API share one address (CloudFront routes /api/* to the load balancer), so the session
+        # cookie is first-party. Lax is enough and keeps the built-in CSRF protection that SameSite=None would give up.
+        same-site: lax
         http-only: true
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+  tomcat:
+    # Keep a slow or stalled video client from holding a worker forever.
+    connection-timeout: 20s
+    threads:
+      max: 200
 
 logging:
   level:

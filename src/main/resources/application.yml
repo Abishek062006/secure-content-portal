@@ -1,7 +1,11 @@
 server:
   port: ${PORT:8080}
+  # On a deploy the load balancer drains the old task; finish in-flight requests (and video ranges) first.
+  shutdown: graceful
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   application:
     name: secure-content-portal
 
@@ -10,7 +14,7 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: 5
+      maximum-pool-size: ${DB_POOL_SIZE:5}
 
   jpa:
     hibernate:
@@ -32,6 +36,8 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       timeout: 2s
+      ssl:
+        enabled: ${REDIS_SSL:false}
       # We use Redis for sessions, limits and a cache, never as a repository store; this silences the startup noise.
       repositories:
         enabled: false
@@ -41,6 +47,8 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:secureportal}
     password: ${RABBITMQ_PASSWORD:secureportal}
+    ssl:
+      enabled: ${RABBITMQ_SSL:false}
     listener:
       simple:
         prefetch: 1
@@ -106,7 +114,8 @@ storage:
   bucket: ${STORAGE_BUCKET:content}
   access-key: ${STORAGE_ACCESS_KEY:}
   secret-key: ${STORAGE_SECRET_KEY:}
-  path-style-access: true
+  # Local S3-compatible servers want path-style; real AWS S3 wants STORAGE_PATH_STYLE=false.
+  path-style-access: ${STORAGE_PATH_STYLE:true}
   create-bucket: ${STORAGE_CREATE_BUCKET:true}
 
 # Adaptive streaming (HLS) is made from each uploaded video by ffmpeg in the background. Without ffmpeg the original

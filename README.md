@@ -375,6 +375,10 @@ anyone in until a backend is hosted again.
 | File storage | Supabase Storage (or local disk with the `local` profile) | 1GB, 50MB per-file cap on Supabase |
 | OAuth | Google Cloud | Free, no verification needed for the non-sensitive scopes used here |
 
+**AWS production deployment.** `infra/terraform` builds the whole stack — CloudFront, an Application Load Balancer, ECS Fargate with
+auto scaling, RDS MySQL, S3 and Secrets Manager (optionally ElastiCache Redis, Amazon MQ and WAF) — and
+`scripts/deploy-aws.sh` ships releases. Costs, first-deploy steps, scaling and teardown are in [infra/README.md](infra/README.md).
+
 On Vercel, set the project's Root Directory to `frontend/` and leave `VITE_API_URL` **unset** in the
 dashboard — the committed `frontend/.env.production` sets it to empty intentionally, and a dashboard
 value would silently override that (see gotcha #2 below).

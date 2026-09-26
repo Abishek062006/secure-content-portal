@@ -1,0 +1,10 @@
+target
+node_modules
+frontend
+local-storage
+.git
+.idea
+.env
+.env.local
+infra
+*.log

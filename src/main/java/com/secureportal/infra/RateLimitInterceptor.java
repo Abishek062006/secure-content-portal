@@ -79,6 +79,20 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         if (auth != null && auth.getPrincipal() instanceof AppPrincipal principal) {
             return "u" + principal.getUserId();
         }
-        return "ip" + request.getRemoteAddr();
+        return "ip" + clientAddress(request);
+    }
+
+    /**
+     * Behind CloudFront the socket peer is a CloudFront edge, shared by unrelated visitors. CloudFront overwrites
+     * {@code CloudFront-Viewer-Address} ("ip:port") with the real visitor, and in production the load balancer only
+     * accepts traffic that came through CloudFront, so the header can be believed there.
+     */
+    static String clientAddress(HttpServletRequest request) {
+        String viewer = request.getHeader("CloudFront-Viewer-Address");
+        if (viewer != null && !viewer.isBlank()) {
+            int colon = viewer.lastIndexOf(':');
+            return colon > 0 ? viewer.substring(0, colon) : viewer;
+        }
+        return request.getRemoteAddr();
     }
 }
