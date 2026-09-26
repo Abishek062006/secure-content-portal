@@ -50,6 +50,10 @@ else below was chosen deliberately, not defaulted to.
   answer, unlimited retakes) or a graded **assessment** (pass mark, optional time limit and attempt limit,
   optionally required before the next module opens); a course can also have a final assessment. Every attempt
   draws random approved questions by the admin's difficulty mix, with shuffled options.
+- **Question difficulty and the final's mix.** Generating questions has a difficulty slider (Mixed, Easy, Medium
+  or Hard: pick Hard and all of them are hard) and takes up to 100 at a time. Questions can be saved as *final
+  assessment only*. A final assessment has a slider for what share of its questions is recycled from the course's
+  regular questions versus new final-only ones; if one kind runs short, the other fills the gap.
 - **My learning and certificates.** "My learning" lists enrolled courses with progress and a Continue button.
   A certificate is earned by completing every lesson and passing every graded assessment (quizzes are practice
   and never required). It is issued once, rendered as a PDF on the server, and carries an ID that anyone can
@@ -191,8 +195,10 @@ set -a; source .env; source .env.local; set +a
 mvn test
 ```
 
-`AccessControlTest` and `CourseFlowTest` boot the full app against your local MySQL database (same as
-running the app), so they need `.env` and `.env.local` sourced. `FileValidatorTest` and `StreamTicketServiceTest` are plain unit
+The integration tests boot the full app against a **separate** MySQL database, `secureportal_test`, because
+they empty tables between cases and must never touch the data you develop with. Create it once
+(`create database secureportal_test; grant all on secureportal_test.* to 'secureportal'@'localhost';`); the
+app's migrations build its tables on the first run. They need `.env` and `.env.local` sourced. `FileValidatorTest` and `StreamTicketServiceTest` are plain unit
 tests with no external dependencies.
 
 ### How quizzes and assessments behave

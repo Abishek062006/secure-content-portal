@@ -6,6 +6,13 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import QuestionCard from './question-bank/QuestionCard';
 import QuestionForm from './question-bank/QuestionForm';
 
+const LEVELS = [
+  { key: null, label: 'Mixed', hint: 'A mix of easy, medium and hard.' },
+  { key: 'EASY', label: 'Easy', hint: 'All questions test recall of stated facts.' },
+  { key: 'MEDIUM', label: 'Medium', hint: 'All questions test understanding.' },
+  { key: 'HARD', label: 'Hard', hint: 'All questions test applying ideas.' },
+];
+
 const TEMPLATE = 'question,difficulty,option1,option2,option3,option4,correct,explanation\n'
   + '"What does HMAC stand for?",easy,Hash-based Message Authentication Code,Hyper Media Access Control,'
   + 'High-speed Memory Access Cache,Host Machine Address Check,1,"It signs data with a secret key"\n';
@@ -17,6 +24,8 @@ export default function QuestionBank() {
   const [questions, setQuestions] = useState([]);
   const [lessonId, setLessonId] = useState('');
   const [count, setCount] = useState(10);
+  const [level, setLevel] = useState(0);
+  const [finalOnly, setFinalOnly] = useState(false);
   const [filters, setFilters] = useState({ lesson: '', difficulty: '', status: '', source: '' });
   const [adding, setAdding] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -78,13 +87,16 @@ export default function QuestionBank() {
     setApproved: (question, approve) => run(async () => {
       replace(await api.post(`/api/admin/questions/${question.id}/${approve ? 'approve' : 'unapprove'}`));
     }),
+    setScope: (question, toFinal) => run(async () => {
+      replace(await api.put(`/api/admin/questions/${question.id}/scope`, { finalOnly: toFinal }));
+    }),
     remove: (question) => setPendingDelete(question),
   };
 
   async function generate() {
     setGenerating(true);
     await run(async () => {
-      const created = await api.post(`/api/admin/lessons/${lessonId}/questions/generate`, { count });
+      const created = await api.post(`/api/admin/lessons/${lessonId}/questions/generate`, { count, difficulty: LEVELS[level].key, finalOnly });
       setQuestions((prev) => [...prev, ...created]);
       notify(`${created.length} draft question${created.length === 1 ? '' : 's'} generated — review and approve the ones you want.`);
     });
@@ -96,6 +108,7 @@ export default function QuestionBank() {
     await run(async () => {
       const formData = new FormData();
       formData.set('file', file);
+      formData.set('finalOnly', finalOnly);
       const result = await api.upload(`/api/admin/lessons/${lessonId}/questions/import`, formData);
       setQuestions(await api.get(`/api/admin/courses/${id}/questions`));
       setImportErrors(result.errors);
@@ -163,15 +176,40 @@ export default function QuestionBank() {
               {lessons.map((l) => <option key={l.id} value={l.id}>{l.label}{l.hasTranscript ? '' : ' (no transcript)'}</option>)}
             </select>
           </div>
+          <div className="field">
+            <label htmlFor="difficulty">Difficulty of generated questions: <strong>{LEVELS[level].label}</strong></label>
+            <input id="difficulty" className="level-slider" type="range" min={0} max={3} step={1} value={level}
+                   onChange={(e) => setLevel(Number(e.target.value))} />
+            <div className="level-ticks" aria-hidden="true">
+              {LEVELS.map((l) => <span key={l.label}>{l.label}</span>)}
+            </div>
+            <p className="field-hint">
+              {LEVELS[level].hint}{level > 0 && ` All ${count} will be ${LEVELS[level].label.toLowerCase()}.`}
+            </p>
+          </div>
+          <div className="field">
+            <label htmlFor="count">How many questions: <strong>{count}</strong></label>
+            <div className="count-row">
+              <input id="count-range" type="range" min={1} max={100} value={count} aria-label="Number of questions"
+                     onChange={(e) => setCount(Number(e.target.value))} />
+              <input id="count" type="number" min={1} max={100} value={count}
+                     onChange={(e) => setCount(Math.min(100, Math.max(1, Number(e.target.value) || 1)))} />
+            </div>
+          </div>
+          <div className="field">
+            <label>Use these questions for</label>
+            <div className="type-choice">
+              <label><input type="radio" name="pool" checked={!finalOnly} onChange={() => setFinalOnly(false)} />
+                Module quizzes and assessments <span className="field-hint">(also reusable in the final)</span></label>
+              <label><input type="radio" name="pool" checked={finalOnly} onChange={() => setFinalOnly(true)} />
+                Final assessment only <span className="field-hint">(new questions learners haven't seen in module quizzes)</span></label>
+            </div>
+          </div>
           <div className="qb-actions">
-            <label className="qb-count">
-              Questions
-              <input type="number" min={1} max={30} value={count}
-                     onChange={(e) => setCount(Math.min(30, Math.max(1, Number(e.target.value) || 1)))} />
-            </label>
+
             <button type="button" className="btn btn-primary" onClick={generate} disabled={generating || !selected?.hasTranscript}
                     title={selected?.hasTranscript ? '' : 'This lesson needs a transcript (.vtt) first'}>
-              {generating ? 'Generating…' : 'Generate with AI'}
+              {generating ? (count > 20 ? 'Generating… this can take a minute or two' : 'Generating…') : `Generate ${count} with AI`}
             </button>
             <button type="button" className="btn" onClick={() => setAdding(!adding)}>{adding ? 'Close form' : 'Add a question'}</button>
             <label className="btn file-btn">
@@ -194,7 +232,7 @@ export default function QuestionBank() {
               onSubmit={async (values) => {
                 const created = await api.post(`/api/admin/lessons/${lessonId}/questions`, {
                   text: values.text, difficulty: values.difficulty, explanation: values.explanation,
-                  options: values.options, correctIndex: values.correctIndex,
+                  options: values.options, correctIndex: values.correctIndex, finalOnly,
                 });
                 setQuestions((prev) => [...prev, created]);
                 setAdding(false);

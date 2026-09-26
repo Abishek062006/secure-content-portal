@@ -3,6 +3,7 @@ import AssessmentForm from './AssessmentForm';
 
 function summary(a) {
   const parts = [`${a.questionCount} question${a.questionCount === 1 ? '' : 's'} (${a.easyCount} easy, ${a.mediumCount} medium, ${a.hardCount} hard)`];
+  if (a.reusePercent != null) parts.push(`${a.reusePercent}% earlier / ${100 - a.reusePercent}% new`);
   if (a.type === 'ASSESSMENT') {
     parts.push(`pass mark ${a.passPercent}%`);
     parts.push(a.timeLimitMinutes ? `${a.timeLimitMinutes} min` : 'untimed');
@@ -13,7 +14,7 @@ function summary(a) {
 }
 
 /** A module's (or the course's final) quiz or assessment: skip it, or set it up. */
-export default function AssessmentPanel({ assessment, available, allowGate, isFinal, flat, onSave, onRemove }) {
+export default function AssessmentPanel({ assessment, available, availableNew, questionsPath, allowGate, isFinal, flat, onSave, onRemove }) {
   const [editing, setEditing] = useState(false);
 
   return (
@@ -22,6 +23,8 @@ export default function AssessmentPanel({ assessment, available, allowGate, isFi
         <AssessmentForm
           initial={assessment}
           available={available}
+          availableNew={availableNew}
+          questionsPath={questionsPath}
           allowGate={allowGate}
           isFinal={isFinal}
           onCancel={() => setEditing(false)}

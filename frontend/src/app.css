@@ -2142,3 +2142,13 @@ select:focus, input[type="number"]:focus, input[type="datetime-local"]:focus {
 .transcript-pick:hover { text-decoration: underline; }
 .video-actions { display: flex; gap: 4px; }
 .sections-hint { margin: 4px 0 0; color: var(--ink-soft, #6b7280); font-size: 0.9rem; }
+
+/* Sliders */
+.level-slider, .count-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+.level-ticks { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--ink-mid); margin-top: -2px; }
+.level-ticks span { flex: 1; text-align: center; }
+.level-ticks span:first-child { text-align: left; }
+.level-ticks span:last-child { text-align: right; }
+.count-row { display: flex; align-items: center; gap: 14px; }
+.count-row input[type="range"] { flex: 1; }
+.count-row input[type="number"] { width: 90px; }

@@ -65,9 +65,11 @@ export default function CourseEditor() {
   const flat = modules.length === 1 && !sectioned;
 
   /** Approved questions by difficulty across the given lessons: what an attempt could be drawn from. */
-  function availability(lessonIds) {
+  function availability(lessonIds, finalOnly = false) {
     const counts = { EASY: 0, MEDIUM: 0, HARD: 0 };
-    questions.filter((q) => q.status === 'APPROVED' && lessonIds.has(q.lessonId)).forEach((q) => { counts[q.difficulty] += 1; });
+    questions
+      .filter((q) => q.status === 'APPROVED' && lessonIds.has(q.lessonId) && q.finalOnly === finalOnly)
+      .forEach((q) => { counts[q.difficulty] += 1; });
     return counts;
   }
 
@@ -202,20 +204,18 @@ export default function CourseEditor() {
         </form>
       )}
 
-      {!flat && (
-        <>
-      <h2 className="editor-heading">Final assessment</h2>
-        <section className="module-card">
-          <AssessmentPanel
-            isFinal
-            assessment={outline.finalAssessment}
-            available={availability(new Set(modules.flatMap((m) => m.lessons.map((l) => l.id))))}
-            onSave={(values) => run(() => api.put(`/api/admin/courses/${id}/final-assessment`, values), 'Final assessment saved.')}
-            onRemove={() => setPendingDelete({ type: 'assessment', item: { ...outline.finalAssessment, kind: 'final' } })}
-          />
-        </section>
-        </>
-      )}
+      <h2 className="editor-heading">Final assessment{flat ? ' (optional)' : ''}</h2>
+      <section className="module-card">
+        <AssessmentPanel
+          isFinal
+          assessment={outline.finalAssessment}
+          available={availability(new Set(modules.flatMap((m) => m.lessons.map((l) => l.id))))}
+          availableNew={availability(new Set(modules.flatMap((m) => m.lessons.map((l) => l.id))), true)}
+          questionsPath={`/admin/courses/${id}/questions`}
+          onSave={(values) => run(() => api.put(`/api/admin/courses/${id}/final-assessment`, values), 'Final assessment saved.')}
+          onRemove={() => setPendingDelete({ type: 'assessment', item: { ...outline.finalAssessment, kind: 'final' } })}
+        />
+      </section>
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}

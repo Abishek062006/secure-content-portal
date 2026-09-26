@@ -35,6 +35,7 @@ export default function QuestionCard({ question, actions }) {
           <span className={`badge difficulty-${question.difficulty.toLowerCase()}`}>{question.difficulty}</span>
           <span className={`badge status-${approved ? 'published' : 'draft'}`}>{approved ? 'Approved' : 'Draft'}</span>
           <span className="badge">{SOURCE_LABEL[question.source]}</span>
+          {question.finalOnly && <span className="badge admin">Final assessment only</span>}
         </div>
         <span className="field-hint">
           {question.lessonTitle}{question.sourceSeconds != null ? ` · at ${clock(question.sourceSeconds)}` : ''}
@@ -56,6 +57,9 @@ export default function QuestionCard({ question, actions }) {
       <div className="row-actions">
         <button type="button" className={approved ? 'btn' : 'btn btn-primary'} onClick={() => actions.setApproved(question, !approved)}>
           {approved ? 'Move to drafts' : 'Approve'}
+        </button>
+        <button type="button" className="btn" onClick={() => actions.setScope(question, !question.finalOnly)}>
+          {question.finalOnly ? 'Use in module quizzes' : 'Move to final only'}
         </button>
         <button type="button" className="btn" onClick={() => setEditing(true)}>Edit</button>
         <button type="button" className="btn btn-danger-outline" onClick={() => actions.remove(question)}>Delete</button>
