@@ -161,3 +161,21 @@ terraform destroy
 That deletes the database (a final snapshot is skipped unless deletion protection was on) and every uploaded file.
 Back up what you want to keep first. The image repository, both buckets, the CloudFront distribution and all networking
 are removed. Billing stops when the resources are gone; double-check the RDS, ECS and CloudFront pages afterward.
+
+## Cheap development profile
+
+While nobody is using it, deploy the small profile instead of the defaults:
+
+```bash
+cd infra/terraform
+cp dev.tfvars.example dev.tfvars     # add the Google client and your admin email
+terraform apply -var-file=dev.tfvars
+```
+
+It runs one small task and a micro database: roughly $55–70/month left on, and about $0.10/hour, so you can
+`terraform destroy -var-file=dev.tfvars` after a demo and apply again later (the database and uploads are deleted with
+it, so keep anything you care about in the real local database). Storage for a few GB and light traffic add only
+cents. The ALB (about $20/month) and the Fargate task are the largest parts of the bill; there's no way to make those
+free while the site is up.
+
+When the company takes over, they run the normal `terraform.tfvars` with the launch sizing described above.

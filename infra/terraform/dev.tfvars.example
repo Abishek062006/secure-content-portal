@@ -1,0 +1,35 @@
+# Small, cheap profile for development and demos (roughly $55-70/month running 24/7; about $0.10/hour, so
+# `terraform destroy` between demos costs almost nothing). Use it with:
+#   terraform apply -var-file=dev.tfvars
+# Copy this file to dev.tfvars (git-ignored via *.tfvars) and add the Google/admin values below.
+
+region      = "ap-south-1"
+name_prefix = "gradientnova-dev"
+
+google_client_id     = "xxxxxxxx.apps.googleusercontent.com"
+google_client_secret = "GOCSPX-..."
+admin_emails         = "you@gmail.com"
+
+# One small task. Fine for a handful of people and short videos; ffmpeg packaging is slower on half a CPU.
+min_tasks                  = 1
+max_tasks                  = 2
+task_cpu                   = 512
+task_memory                = 1024
+task_ephemeral_storage_gib = 30
+db_pool_size               = 5
+
+# Smallest database, no standby, one day of backups.
+db_instance_class        = "db.t4g.micro"
+db_allocated_storage_gib = 20
+db_multi_az              = false
+db_backup_days           = 1
+
+# Nothing optional: no Redis, RabbitMQ or WAF.
+enable_redis = false
+enable_queue = false
+enable_waf   = false
+
+cloudfront_price_class = "PriceClass_100"
+
+# Lets `terraform destroy` remove the buckets even when they hold uploads. Only for a throwaway dev stack.
+force_destroy_buckets = true
