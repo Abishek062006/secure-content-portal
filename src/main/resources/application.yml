@@ -83,6 +83,9 @@ spring:
       max-request-size: 5GB
 
 app:
+  features:
+    # Hackathons, mock interviews and the admin gamification tools are being redesigned; their endpoints are off until then.
+    engagement-modules: ${ENGAGEMENT_MODULES_ENABLED:false}
   admin-emails: ${APP_ADMIN_EMAILS:}
   ticket-secret: ${APP_TICKET_SECRET:dev-only-insecure-ticket-secret-change-me}
   pdf-render-dpi: 90

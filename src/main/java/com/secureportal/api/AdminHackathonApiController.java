@@ -1,5 +1,6 @@
 package com.secureportal.api;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import com.secureportal.api.dto.HackathonDto;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.hackathon.HackathonService;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /** Admins list, edit and remove hackathons. Every change is validated by the service and written to the audit log. */
+@ConditionalOnProperty(name = "app.features.engagement-modules", havingValue = "true")
 @RestController
 @RequestMapping("/api/admin/hackathons")
 @PreAuthorize("hasRole('ADMIN')")

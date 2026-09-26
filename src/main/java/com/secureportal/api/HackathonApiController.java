@@ -1,5 +1,6 @@
 package com.secureportal.api;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import com.secureportal.api.dto.HackathonDto;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.AdminNotALearnerException;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /** Hackathons for signed-in members to browse and register for. */
+@ConditionalOnProperty(name = "app.features.engagement-modules", havingValue = "true")
 @RestController
 @RequestMapping("/api/hackathons")
 public class HackathonApiController {

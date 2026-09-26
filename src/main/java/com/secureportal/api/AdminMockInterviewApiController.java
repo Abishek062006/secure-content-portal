@@ -1,5 +1,6 @@
 package com.secureportal.api;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import com.secureportal.api.dto.AdminInterviewDetailDto;
 import com.secureportal.api.dto.InterviewAnalyticsDto;
 import com.secureportal.interview.MockInterviewService;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Admins see how mock interviews are being used, and can open any one to review it. */
+@ConditionalOnProperty(name = "app.features.engagement-modules", havingValue = "true")
 @RestController
 @RequestMapping("/api/admin/interviews")
 @PreAuthorize("hasRole('ADMIN')")

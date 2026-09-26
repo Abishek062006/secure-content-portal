@@ -1,5 +1,6 @@
 package com.secureportal.api;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import com.secureportal.api.dto.InterviewDetailDto;
 import com.secureportal.api.dto.InterviewQuestionDto;
 import com.secureportal.api.dto.InterviewSessionDto;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /** AI mock interviews for learners. Each interview is private to the learner who started it. */
+@ConditionalOnProperty(name = "app.features.engagement-modules", havingValue = "true")
 @RestController
 @RequestMapping("/api/interviews")
 public class MockInterviewApiController {

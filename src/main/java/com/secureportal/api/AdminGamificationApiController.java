@@ -1,5 +1,6 @@
 package com.secureportal.api;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import com.secureportal.api.dto.PointRuleDto;
 import com.secureportal.api.dto.PointTransactionDto;
 import com.secureportal.auth.AppPrincipal;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /** Admin controls over the points system: the leaderboard with contact details, the point rules, and audited manual adjustments. */
+@ConditionalOnProperty(name = "app.features.engagement-modules", havingValue = "true")
 @RestController
 @RequestMapping("/api/admin/gamification")
 @PreAuthorize("hasRole('ADMIN')")
