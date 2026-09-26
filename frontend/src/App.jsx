@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useMatch } from 'react-router-dom';
 import Nav from './components/Nav';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import Home from './pages/Home';
@@ -25,9 +25,11 @@ import Users from './pages/admin/Users';
 import AuditLog from './pages/admin/AuditLog';
 
 export default function App() {
+  // Lessons and resources use their own focused player bar instead of the site navigation.
+  const inPlayer = Boolean(useMatch('/courses/:courseId/lessons/:lessonId') || useMatch('/courses/:courseId/materials/:id'));
   return (
     <>
-      <Nav />
+      {!inPlayer && <Nav />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />

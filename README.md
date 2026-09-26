@@ -45,6 +45,10 @@ else below was chosen deliberately, not defaulted to.
   admins build and reorder the outline, add a cover image, and publish it (new courses start as drafts)
 - Learners browse the catalog, enroll for free, watch through the signed-ticket, watermarked player with a
   click-to-seek transcript, and see progress: completed lessons, resume position, and percent complete
+- Lessons and resources open in a focused **player layout**: a frosted top bar with a progress ring, a large player
+  with Overview / Notes / Transcript / Resources tabs, and a sticky "Course content" outline (folding sections,
+  per-lesson ticks, each module's resources and quiz). **Notes** are private to the learner, pinned to a moment in
+  the video (click the time to jump back), and stored per lesson (`lesson_notes`, migration V15)
 - A **question bank** per course: questions belong to a lesson, carry a difficulty (easy/medium/hard) and an
   explanation. Admins generate them from a lesson's transcript with AI, type them in, or import a CSV, then
   review, edit and approve. AI questions start as drafts; hand-written and imported ones are approved.
