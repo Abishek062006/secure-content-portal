@@ -5,6 +5,8 @@ target/
 # Env / secrets — never commit real values
 .env
 .env.local
+# any copy of the local env file made to share with someone (holds the Google secret)
+*env.local
 
 # IDE
 .idea/
