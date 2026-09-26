@@ -2394,3 +2394,4 @@ select:focus, input[type="number"]:focus, input[type="datetime-local"]:focus {
 .ap-sign-card .ap-sign-fine { margin: 18px 0 0; font-size: 0.82rem; color: var(--ink-soft); }
 .ap-sign-back { margin-top: 26px; color: var(--accent-deep); text-decoration: none; font-size: 0.95rem; }
 .ap-sign-back:hover { text-decoration: underline; }
+.gen-progress { margin-top: 12px; }

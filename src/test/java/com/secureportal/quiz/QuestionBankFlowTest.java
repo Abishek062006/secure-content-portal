@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** The question bank through the real API, with the AI model faked (no key or network needed). */
-@SpringBootTest(properties = {"storage.provider=local", "storage.local-path=target/question-test-storage"})
+@SpringBootTest(properties = {"storage.provider=local", "storage.local-path=target/question-test-storage", "ai.model=test-model"})
 @AutoConfigureMockMvc
 @EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = ".*local.*")
 class QuestionBankFlowTest {
@@ -87,15 +87,23 @@ class QuestionBankFlowTest {
                 + q("Why bind to the session?", "HARD", 1, 66) + ","
                 + "{\"question\":\"Broken\",\"difficulty\":\"EASY\",\"options\":[\"only one\"],\"correctIndex\":0}]}");
 
-        MvcResult generated = mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate")
+        MvcResult started = mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"count\":5}").with(csrf()).with(as(admin)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.requested").value(5))
+                .andReturn();
+        JsonNode job = awaitJob(json(started).get("id").asText());
+        assertThat(job.get("status").asText()).isEqualTo("DONE");
+        assertThat(job.get("produced").asInt()).isEqualTo(2);
+
+        MvcResult listed = mockMvc.perform(get("/api/admin/courses/" + ids.course + "/questions").with(as(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].status").value("DRAFT"))
                 .andExpect(jsonPath("$[0].source").value("AI"))
                 .andExpect(jsonPath("$[0].lessonTitle").value("Signed tickets"))
                 .andReturn();
-        JsonNode first = json(generated).get(0);
+        JsonNode first = json(listed).get(0);
         String questionId = first.get("id").asText();
         assertThat(first.get("options")).hasSize(4).filteredOn(o -> o.get("correct").asBoolean()).hasSize(1);
 
@@ -115,8 +123,9 @@ class QuestionBankFlowTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
 
         // Asking again must not re-add a question that is already in the bank.
-        mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate").with(csrf()).with(as(admin)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        JsonNode again = awaitJob(json(mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate")
+                .with(csrf()).with(as(admin))).andExpect(status().isAccepted()).andReturn()).get("id").asText());
+        assertThat(again.get("produced").asInt()).isEqualTo(1);
 
         mockMvc.perform(delete("/api/admin/questions/" + questionId).with(csrf()).with(as(admin)))
                 .andExpect(status().isNoContent());
@@ -201,16 +210,40 @@ class QuestionBankFlowTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value(containsString("transcript")));
 
+        // Problems with the AI service happen inside the background job, so they show up on the job.
         Ids ids = createLesson(true);
         when(llmClient.complete(anyString(), anyString())).thenThrow(new AiException("The AI service answered HTTP 429"));
-        mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate").with(csrf()).with(as(admin)))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.error").value(containsString("429")));
+        JsonNode rateLimited = awaitJob(json(mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate")
+                .with(csrf()).with(as(admin))).andExpect(status().isAccepted()).andReturn()).get("id").asText());
+        assertThat(rateLimited.get("status").asText()).isEqualTo("FAILED");
+        assertThat(rateLimited.get("message").asText()).contains("429");
 
         doThrow(new AiNotConfiguredException()).when(llmClient).complete(anyString(), anyString());
+        JsonNode notConfigured = awaitJob(json(mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate")
+                .with(csrf()).with(as(admin))).andExpect(status().isAccepted()).andReturn()).get("id").asText());
+        assertThat(notConfigured.get("status").asText()).isEqualTo("FAILED");
+        assertThat(notConfigured.get("message").asText()).contains("AI_MODEL");
+    }
+
+    @Test
+    void aSecondGenerationForTheSameLessonIsRefusedWhileOneIsRunning() throws Exception {
+        Ids ids = createLesson(true);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        when(llmClient.complete(anyString(), anyString())).thenAnswer(invocation -> {
+            release.await(10, java.util.concurrent.TimeUnit.SECONDS);
+            return "{\"questions\":[" + q("Slow one?", "EASY", 0, 3) + "]}";
+        });
+
+        String id = json(mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate").with(csrf()).with(as(admin)))
+                .andExpect(status().isAccepted()).andReturn()).get("id").asText();
         mockMvc.perform(post("/api/admin/lessons/" + ids.lesson + "/questions/generate").with(csrf()).with(as(admin)))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.error").value(containsString("AI_MODEL")));
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value(containsString("already being generated")));
+        mockMvc.perform(get("/api/admin/courses/" + ids.course + "/generation-jobs").with(as(admin)))
+                .andExpect(jsonPath("$[0].id").value(id)).andExpect(jsonPath("$[0].status").exists());
+
+        release.countDown();
+        assertThat(awaitJob(id).get("status").asText()).isEqualTo("DONE");
+        mockMvc.perform(get("/api/admin/generation-jobs/" + id).with(as(viewer))).andExpect(status().isForbidden());
     }
 
     @Test
@@ -226,6 +259,19 @@ class QuestionBankFlowTest {
     }
 
     // ---- helpers ----
+
+    /** Waits for a background job to finish and returns its final state. */
+    private JsonNode awaitJob(String id) throws Exception {
+        for (int i = 0; i < 150; i++) {
+            JsonNode job = json(mockMvc.perform(get("/api/admin/generation-jobs/" + id).with(as(admin))).andExpect(status().isOk()).andReturn());
+            String status = job.get("status").asText();
+            if (status.equals("DONE") || status.equals("FAILED")) {
+                return job;
+            }
+            Thread.sleep(100);
+        }
+        throw new AssertionError("The generation job did not finish in time");
+    }
 
     private record Ids(String course, String module, String lesson) {
     }

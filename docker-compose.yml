@@ -1,0 +1,44 @@
+# Local services for GradientNovaAI. The app runs fine with only MySQL; these add:
+#   redis     - shared login sessions, rate limits and a small cache      (REDIS_ENABLED=true)
+#   rabbitmq  - background jobs such as AI question generation           (QUEUE_ENABLED=true)
+#
+#   docker compose up -d redis rabbitmq        start them
+#   docker compose ps                          check they are healthy
+#   docker compose down                        stop them (data is kept; add -v to wipe it)
+#
+# RabbitMQ's dashboard is at http://localhost:15672 (log in with RABBITMQ_USERNAME / RABBITMQ_PASSWORD).
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-secureportal}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-secureportal}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  rabbitmq-data:

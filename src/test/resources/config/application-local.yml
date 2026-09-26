@@ -3,3 +3,10 @@
 spring:
   datasource:
     url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/secureportal_test}
+
+# Tests expect fresh numbers and fire many requests as one user, so the cache and the limiter are off unless a test turns them on.
+app:
+  cache:
+    analytics-seconds: 0
+  rate-limit:
+    enabled: false

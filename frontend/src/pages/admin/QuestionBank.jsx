@@ -28,7 +28,7 @@ export default function QuestionBank() {
   const [finalOnly, setFinalOnly] = useState(false);
   const [filters, setFilters] = useState({ lesson: '', difficulty: '', status: '', source: '' });
   const [adding, setAdding] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [job, setJob] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [importErrors, setImportErrors] = useState([]);
@@ -93,14 +93,47 @@ export default function QuestionBank() {
     remove: (question) => setPendingDelete(question),
   };
 
+  const generating = Boolean(job && (job.status === 'QUEUED' || job.status === 'RUNNING'));
+
+  // Generation runs in the background: pick up a job that was already running when the page opened...
+  useEffect(() => {
+    api.get(`/api/admin/courses/${id}/generation-jobs`)
+      .then((jobs) => setJob(jobs.find((j) => j.status === 'QUEUED' || j.status === 'RUNNING') || null))
+      .catch(() => {});
+  }, [id]);
+
+  // ...and follow it until it finishes, then show what it made.
+  useEffect(() => {
+    if (!generating) return undefined;
+    const timer = setInterval(async () => {
+      try {
+        const latest = await api.get(`/api/admin/generation-jobs/${job.id}`);
+        setJob(latest);
+        if (latest.status === 'DONE' || latest.status === 'FAILED') {
+          setQuestions(await api.get(`/api/admin/courses/${id}/questions`));
+          if (latest.status === 'FAILED') {
+            setSuccessMessage(null);
+            setErrorMessage(latest.produced > 0 ? `${latest.message} ${latest.produced} question${latest.produced === 1 ? ' was' : 's were'} made before that.` : latest.message);
+          } else {
+            setErrorMessage(null);
+            setSuccessMessage(`${latest.produced} draft question${latest.produced === 1 ? '' : 's'} generated — review and approve the ones you want.${latest.message ? ` ${latest.message}` : ''}`);
+          }
+        }
+      } catch (err) {
+        setErrorMessage(err.message);
+      }
+    }, 1500);
+    return () => clearInterval(timer);
+  }, [generating, job?.id, id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function generate() {
-    setGenerating(true);
-    await run(async () => {
-      const created = await api.post(`/api/admin/lessons/${lessonId}/questions/generate`, { count, difficulty: LEVELS[level].key, finalOnly });
-      setQuestions((prev) => [...prev, ...created]);
-      notify(`${created.length} draft question${created.length === 1 ? '' : 's'} generated — review and approve the ones you want.`);
-    });
-    setGenerating(false);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      setJob(await api.post(`/api/admin/lessons/${lessonId}/questions/generate`, { count, difficulty: LEVELS[level].key, finalOnly }));
+    } catch (err) {
+      setErrorMessage(err.message);
+    }
   }
 
   async function importCsv(file) {
@@ -209,7 +242,7 @@ export default function QuestionBank() {
 
             <button type="button" className="btn btn-primary" onClick={generate} disabled={generating || !selected?.hasTranscript}
                     title={selected?.hasTranscript ? '' : 'This lesson needs a transcript (.vtt) first'}>
-              {generating ? (count > 20 ? 'Generating… this can take a minute or two' : 'Generating…') : `Generate ${count} with AI`}
+              {generating ? 'Generating…' : `Generate ${count} with AI`}
             </button>
             <button type="button" className="btn" onClick={() => setAdding(!adding)}>{adding ? 'Close form' : 'Add a question'}</button>
             <label className="btn file-btn">
@@ -222,6 +255,17 @@ export default function QuestionBank() {
             </label>
             <a className="btn" href={templateUrl} download="questions-template.csv">CSV template</a>
           </div>
+          {generating && (
+            <div className="gen-progress" role="status">
+              <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={job.requested} aria-valuenow={job.produced}>
+                <div className="progress-bar" style={{ width: `${Math.max(4, (job.produced / job.requested) * 100)}%` }} />
+                <span className="progress-label">
+                  {job.status === 'QUEUED' ? 'Waiting to start…' : `${job.produced} of ${job.requested} questions made`}
+                </span>
+              </div>
+              <p className="field-hint">This runs in the background, so you can leave this page and come back.</p>
+            </div>
+          )}
           {!selected?.hasTranscript && (
             <p className="field-hint">AI generation reads the lesson's transcript, so add a .vtt transcript to it in the course editor.</p>
           )}

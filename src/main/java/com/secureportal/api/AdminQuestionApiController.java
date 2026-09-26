@@ -1,6 +1,9 @@
 package com.secureportal.api;
 
+import com.secureportal.api.dto.GenerationJobDto;
 import com.secureportal.api.dto.QuestionDto;
+import com.secureportal.jobs.GenerationJob;
+import com.secureportal.jobs.GenerationJobService;
 import com.secureportal.audit.AuditService;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.CourseStructureService;
@@ -47,14 +50,14 @@ public class AdminQuestionApiController {
     private static final int DEFAULT_COUNT = 10;
 
     private final QuestionService questionService;
-    private final QuestionGenerationService generationService;
+    private final GenerationJobService jobService;
     private final CourseStructureService structureService;
     private final AuditService auditService;
 
-    public AdminQuestionApiController(QuestionService questionService, QuestionGenerationService generationService,
+    public AdminQuestionApiController(QuestionService questionService, GenerationJobService jobService,
                                       CourseStructureService structureService, AuditService auditService) {
         this.questionService = questionService;
-        this.generationService = generationService;
+        this.jobService = jobService;
         this.structureService = structureService;
         this.auditService = auditService;
     }
@@ -84,18 +87,30 @@ public class AdminQuestionApiController {
         return questions.stream().map(q -> QuestionDto.from(q, titles.get(q.getLessonId()))).toList();
     }
 
+    /** Starts generation in the background and answers right away; follow it with {@code GET /generation-jobs/{id}}. */
     @PostMapping("/lessons/{lessonId}/questions/generate")
-    public List<QuestionDto> generate(@PathVariable UUID lessonId,
-                                      @Valid @RequestBody(required = false) GenerateRequest request,
-                                      @AuthenticationPrincipal AppPrincipal principal) {
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public GenerationJobDto generate(@PathVariable UUID lessonId,
+                                     @Valid @RequestBody(required = false) GenerateRequest request,
+                                     @AuthenticationPrincipal AppPrincipal principal) {
         Lesson lesson = structureService.findLesson(lessonId);
         int count = request != null && request.count() != null ? request.count() : DEFAULT_COUNT;
-        List<QuestionDto> created = generationService.generate(lessonId, count,
-                request == null ? null : request.difficulty(), request != null && request.finalOnly()).stream()
-                .map(q -> QuestionDto.from(q, lesson.getTitle())).toList();
+        GenerationJob job = jobService.submit(lessonId, count, request == null ? null : request.difficulty(),
+                request != null && request.finalOnly(), principal.getUserId());
         auditService.log(principal.getEmail(), "QUESTIONS_GENERATE", lesson.getCourseId(),
-                created.size() + " draft questions for \"" + lesson.getTitle() + "\"");
-        return created;
+                "requested " + count + " questions for \"" + lesson.getTitle() + "\"");
+        return GenerationJobDto.of(job);
+    }
+
+    @GetMapping("/generation-jobs/{jobId}")
+    public GenerationJobDto job(@PathVariable UUID jobId) {
+        return GenerationJobDto.of(jobService.find(jobId));
+    }
+
+    /** The course's latest jobs, so a page that was reloaded can pick a running one back up. */
+    @GetMapping("/courses/{courseId}/generation-jobs")
+    public List<GenerationJobDto> jobs(@PathVariable UUID courseId) {
+        return jobService.recent(courseId).stream().map(GenerationJobDto::of).toList();
     }
 
     @PostMapping("/lessons/{lessonId}/questions")

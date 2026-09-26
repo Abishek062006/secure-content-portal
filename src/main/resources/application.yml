@@ -25,10 +25,23 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
-  session:
-    store-type: jdbc
-    jdbc:
-      initialize-schema: never
+  # Sessions live in MySQL by default and move to Redis when app.redis.enabled=true (see SessionStoreConfig).
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:secureportal}
+    password: ${RABBITMQ_PASSWORD:secureportal}
+    listener:
+      simple:
+        prefetch: 1
+        default-requeue-rejected: false
 
   security:
     oauth2:
@@ -62,6 +75,15 @@ app:
   pdf-render-dpi: 90
   pdf-max-pages: 300
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  # Off by default so the app runs with just MySQL. Turn them on once Redis / RabbitMQ are up (docker compose).
+  redis:
+    enabled: ${REDIS_ENABLED:false}
+  queue:
+    enabled: ${QUEUE_ENABLED:false}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+  cache:
+    analytics-seconds: ${ANALYTICS_CACHE_SECONDS:60}
 
 # Groq by default; any OpenAI-compatible provider works. Set AI_API_KEY and AI_MODEL to enable question generation.
 ai:

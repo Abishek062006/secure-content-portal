@@ -66,6 +66,17 @@ else below was chosen deliberately, not defaulted to.
   monthly change, a 30-day activity chart (enrollments, new learners, quiz attempts, posts), quiz pass rate and
   average score, the learner journey (enrolled, started, finished, certified), top courses with completion,
   content and community totals, and recent admin activity. Numbers come from `GET /api/admin/analytics`.
+- **Background jobs, Redis and RabbitMQ.** Generating questions no longer holds the browser request open: the
+  request returns at once with a job, the page shows "23 of 89 questions made" and you can leave and come back.
+  Questions are saved batch by batch, so nothing is lost if a later batch fails. Two switches, both off by default so
+  the app still needs only MySQL:
+  - `QUEUE_ENABLED=true` sends jobs through **RabbitMQ** (a durable queue with a dead-letter queue, two consumers per
+    instance) so any app instance can pick them up; off, a small thread pool inside the app runs them.
+  - `REDIS_ENABLED=true` moves login sessions to **Redis** (shared by every instance behind a load balancer) and
+    shares the request limits and the dashboard cache; off, sessions stay in MySQL and limits and cache live in the
+    process.
+  Per-user request limits (for example 6 generations, 20 comments and 8 posts a minute, and a generous overall cap)
+  answer HTTP 429 with a retry time; `RATE_LIMIT_ENABLED=false` turns them off.
 - **Module materials.** Each module can carry extra study material: PDFs, web pages, small videos (up to 500 MB),
   Word/PowerPoint/Excel/text/CSV/ZIP files, and links. The admin ticks per item whether learners may download it.
   View-only PDFs, web pages and videos open inside the portal with the same protections as library content
@@ -232,6 +243,31 @@ they empty tables between cases and must never touch the data you develop with. 
 (`create database secureportal_test; grant all on secureportal_test.* to 'secureportal'@'localhost';`); the
 app's migrations build its tables on the first run. They need `.env` and `.env.local` sourced. `FileValidatorTest` and `StreamTicketServiceTest` are plain unit
 tests with no external dependencies.
+
+### Redis and RabbitMQ with Docker
+
+They are optional. To try them, install Docker Desktop, then from the project folder:
+
+```bash
+docker compose up -d redis rabbitmq
+docker compose ps
+```
+
+Add these to `.env.local` and restart the backend:
+
+```
+REDIS_ENABLED=true
+QUEUE_ENABLED=true
+```
+
+RabbitMQ's dashboard is at http://localhost:15672 (user and password `secureportal` unless you set
+`RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD`). If Redis is switched on but not running, sign-in will fail because
+sessions can't be stored; switch it off or start it. To check the real brokers end to end:
+
+```bash
+set -a; source .env; source .env.local; set +a
+BROKERS_UP=true mvn test -Dtest=BrokersIntegrationTest
+```
 
 ### How quizzes and assessments behave
 

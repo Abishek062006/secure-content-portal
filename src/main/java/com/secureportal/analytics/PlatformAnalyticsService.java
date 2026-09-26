@@ -8,10 +8,13 @@ import com.secureportal.analytics.PlatformAnalytics.Funnel;
 import com.secureportal.analytics.PlatformAnalytics.Quiz;
 import com.secureportal.analytics.PlatformAnalytics.Series;
 import com.secureportal.analytics.PlatformAnalytics.Totals;
+import com.secureportal.infra.TtlCache;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -40,12 +43,22 @@ public class PlatformAnalyticsService {
                 = (SELECT COUNT(*) FROM lessons l2 WHERE l2.course_id = e.course_id)""";
 
     private final JdbcTemplate jdbc;
+    private final TtlCache cache;
+    private final Duration cacheTtl;
 
-    public PlatformAnalyticsService(JdbcTemplate jdbc) {
+    public PlatformAnalyticsService(JdbcTemplate jdbc, TtlCache cache,
+                                    @Value("${app.cache.analytics-seconds:60}") long cacheSeconds) {
         this.jdbc = jdbc;
+        this.cache = cache;
+        this.cacheTtl = Duration.ofSeconds(cacheSeconds);
     }
 
+    /** The dashboard is many aggregate queries, so it's cached briefly; a few seconds of staleness is fine here. */
     public PlatformAnalytics compute() {
+        return cache.get("platform-analytics", cacheTtl, this::load);
+    }
+
+    private PlatformAnalytics load() {
         return new PlatformAnalytics(totals(), funnel(), quiz(), content(), community(), topCourses(), series(), recent());
     }
 

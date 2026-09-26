@@ -59,6 +59,22 @@
             <artifactId>spring-session-jdbc</artifactId>
         </dependency>
 
+        <!-- Redis: shared sessions, response caching and rate limits when app.redis.enabled=true -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-data-redis</artifactId>
+        </dependency>
+
+        <!-- RabbitMQ: background jobs (AI question generation) when app.queue.enabled=true -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!-- Persistence -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

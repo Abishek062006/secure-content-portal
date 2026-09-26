@@ -63,6 +63,14 @@ public class QuestionGenerationService {
      * @param finalOnly save them as new questions for the final assessment rather than the module quizzes
      */
     public List<Question> generate(UUID lessonId, int count, Difficulty only, boolean finalOnly) {
+        return generate(lessonId, count, only, finalOnly, produced -> { });
+    }
+
+    /**
+     * As above, saving each batch of questions as it arrives (so nothing is lost if a later batch fails) and telling
+     * {@code onProgress} how many have been made so far.
+     */
+    public List<Question> generate(UUID lessonId, int count, Difficulty only, boolean finalOnly, java.util.function.IntConsumer onProgress) {
         Lesson lesson = structureService.findLesson(lessonId);
         List<TranscriptCue> cues = structureService.transcript(lesson);
         if (cues.isEmpty()) {
@@ -91,10 +99,16 @@ public class QuestionGenerationService {
                     int ask = Math.min(BATCH, remaining);
                     try {
                         String reply = llmClient.complete(SYSTEM_PROMPT, userPrompt(ask, chunks.get(i), only, round));
+                        List<Question> fresh = new ArrayList<>();
                         for (Question question : parse(reply, lesson.getCourseId(), lessonId, lastSecond, only, finalOnly)) {
-                            if (accepted.size() < count && seen.add(question.getText().toLowerCase(Locale.ROOT))) {
-                                accepted.add(question);
+                            if (accepted.size() + fresh.size() < count && seen.add(question.getText().toLowerCase(Locale.ROOT))) {
+                                fresh.add(question);
                             }
+                        }
+                        if (!fresh.isEmpty()) {
+                            questionRepository.saveAll(fresh);
+                            accepted.addAll(fresh);
+                            onProgress.accept(accepted.size());
                         }
                     } catch (AiException e) {
                         log.warn("Question generation failed for chunk {} of lesson {}", i, lessonId, e);
@@ -114,7 +128,7 @@ public class QuestionGenerationService {
             }
             throw new QuestionGenerationException("The AI didn't return any new usable questions. Try again.");
         }
-        return questionRepository.saveAll(accepted);
+        return accepted;
     }
 
     static List<String> chunk(List<TranscriptCue> cues) {
