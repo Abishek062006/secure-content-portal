@@ -30,6 +30,7 @@ import Hackathons from './pages/Hackathons';
 import MockInterviews from './pages/MockInterviews';
 import AdminHackathons from './pages/admin/AdminHackathons';
 import AdminMockInterviews from './pages/admin/AdminMockInterviews';
+import Notifications from './pages/Notifications';
 
 export default function App() {
   // Lessons and resources use their own focused player bar instead of the site navigation.
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/courses/:courseId/materials/:id" element={<MaterialView />} />
           <Route path="/courses/:courseId/assessments/:assessmentId" element={<AssessmentView />} />
           <Route path="/attempts/:attemptId" element={<AttemptView />} />
+          <Route path="/notifications" element={<Notifications />} />
         </Route>
 
         <Route element={<AdminRoute />}>

@@ -151,4 +151,20 @@ export const api = {
   getMockInterviewHistory: () => request('/api/interviews/history'),
   getAdminMockInterviewAnalytics: () => request('/api/admin/interviews/analytics'),
   getAdminMockInterviewSession: (sessionId) => request(`/api/admin/interviews/sessions/${sessionId}`),
+
+  // Notification APIs
+  getNotifications: (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.category) q.append('category', params.category);
+    if (params.unreadOnly) q.append('unreadOnly', 'true');
+    if (params.page !== undefined) q.append('page', params.page);
+    if (params.size !== undefined) q.append('size', params.size);
+    const qs = q.toString();
+    return request(`/api/notifications${qs ? `?${qs}` : ''}`);
+  },
+  getRecentNotifications: () => request('/api/notifications/recent'),
+  getUnreadNotificationCount: () => request('/api/notifications/unread-count'),
+  markNotificationRead: (id) => api.put(`/api/notifications/${id}/read`),
+  markAllNotificationsRead: () => api.put('/api/notifications/read-all'),
+  sendAdminAnnouncement: (data) => api.post('/api/admin/notifications/announcement', data),
 };

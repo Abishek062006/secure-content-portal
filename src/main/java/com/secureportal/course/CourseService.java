@@ -93,9 +93,6 @@ public class CourseService {
     @Transactional
     public Course setStatus(UUID id, CourseStatus status) {
         Course course = find(id);
-        if (status == CourseStatus.PUBLISHED && lessonRepository.countByCourseId(id) == 0) {
-            throw new CourseStructureException("Add at least one lesson before publishing this course.");
-        }
         course.setStatus(status);
         course.setUpdatedAt(Instant.now());
         return course;

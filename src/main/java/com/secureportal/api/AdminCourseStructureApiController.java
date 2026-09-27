@@ -39,15 +39,25 @@ public class AdminCourseStructureApiController {
     private final CourseStructureService structureService;
     private final CourseOutlineAssembler assembler;
     private final AuditService auditService;
+    private final com.secureportal.course.CourseService courseService;
+    private final com.secureportal.course.EnrollmentRepository enrollmentRepository;
+    private final com.secureportal.notification.NotificationService notificationService;
 
     private final com.secureportal.video.TranscodeRequests transcodeRequests;
 
-    public AdminCourseStructureApiController(com.secureportal.video.TranscodeRequests transcodeRequests, CourseStructureService structureService, CourseOutlineAssembler assembler,
-                                             AuditService auditService) {
+    public AdminCourseStructureApiController(com.secureportal.video.TranscodeRequests transcodeRequests,
+                                             CourseStructureService structureService, CourseOutlineAssembler assembler,
+                                             AuditService auditService,
+                                             com.secureportal.course.CourseService courseService,
+                                             com.secureportal.course.EnrollmentRepository enrollmentRepository,
+                                             com.secureportal.notification.NotificationService notificationService) {
         this.transcodeRequests = transcodeRequests;
         this.structureService = structureService;
         this.assembler = assembler;
         this.auditService = auditService;
+        this.courseService = courseService;
+        this.enrollmentRepository = enrollmentRepository;
+        this.notificationService = notificationService;
     }
 
     public record TitleRequest(
@@ -100,6 +110,23 @@ public class AdminCourseStructureApiController {
         Lesson lesson = structureService.addLesson(moduleId, form);
         auditService.log(principal.getEmail(), "LESSON_ADD", lesson.getCourseId(), "\"" + lesson.getTitle() + "\"");
         transcodeRequests.request(lesson.getId());
+
+        try {
+            var course = courseService.find(lesson.getCourseId());
+            var enrollments = enrollmentRepository.findByCourseId(lesson.getCourseId());
+            for (var enrollment : enrollments) {
+                notificationService.createNotification(
+                        enrollment.getUserId(),
+                        com.secureportal.notification.NotificationCategory.COURSE,
+                        "New Content Added",
+                        "A new lesson \"" + lesson.getTitle() + "\" has been added to " + (course != null ? course.getTitle() : "the course") + ".",
+                        com.secureportal.notification.NotificationPriority.NORMAL,
+                        "/courses/" + lesson.getCourseId() + "/lessons/" + lesson.getId()
+                );
+            }
+        } catch (Exception ignored) {
+        }
+
         return assembler.lessonDto(structureService.findLesson(lesson.getId()), null, true);
     }
 

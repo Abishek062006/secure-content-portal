@@ -28,4 +28,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> search(@Param("search") String search, Pageable pageable);
 
     long countByRole(Role role);
+
+    java.util.List<User> findByRole(Role role);
 }

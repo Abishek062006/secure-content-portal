@@ -27,10 +27,13 @@ public class AssessmentApiController {
 
     private final AttemptService attemptService;
     private final AssessmentAssembler assembler;
+    private final com.secureportal.notification.NotificationService notificationService;
 
-    public AssessmentApiController(AttemptService attemptService, AssessmentAssembler assembler) {
+    public AssessmentApiController(AttemptService attemptService, AssessmentAssembler assembler,
+                                   com.secureportal.notification.NotificationService notificationService) {
         this.attemptService = attemptService;
         this.assembler = assembler;
+        this.notificationService = notificationService;
     }
 
     public record AnswerRequest(@NotNull(message = "Send the question id") UUID questionId,
@@ -68,6 +71,23 @@ public class AssessmentApiController {
 
     @PostMapping("/attempts/{attemptId}/submit")
     public AttemptDto submit(@PathVariable UUID attemptId, @AuthenticationPrincipal AppPrincipal principal) {
-        return assembler.attempt(attemptService.submit(attemptId, principal.getUserId()));
+        var detail = attemptService.submit(attemptId, principal.getUserId());
+        try {
+            var attempt = detail.attempt();
+            var assessment = detail.assessment();
+            String title = assessment != null ? assessment.getTitle() : "Quiz";
+            String scoreText = (attempt != null && attempt.getScorePercent() != null) ? attempt.getScorePercent() + "%" : "completed";
+            String passText = (attempt != null && Boolean.TRUE.equals(attempt.getPassed())) ? "Passed" : "Completed";
+            notificationService.createNotification(
+                    principal.getUserId(),
+                    com.secureportal.notification.NotificationCategory.QUIZ,
+                    "Quiz Result Available",
+                    "Your result for " + title + " is available: score " + scoreText + " (" + passText + ").",
+                    com.secureportal.notification.NotificationPriority.NORMAL,
+                    "/attempts/" + attemptId
+            );
+        } catch (Exception ignored) {
+        }
+        return assembler.attempt(detail);
     }
 }

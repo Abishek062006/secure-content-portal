@@ -35,15 +35,18 @@ public class CertificateService {
     private final LearningService learningService;
     private final AssessmentRepository assessmentRepository;
     private final AttemptRepository attemptRepository;
+    private final com.secureportal.notification.NotificationService notificationService;
 
     public CertificateService(CertificateRepository certificateRepository, CourseStructureService structureService,
                               LearningService learningService, AssessmentRepository assessmentRepository,
-                              AttemptRepository attemptRepository) {
+                              AttemptRepository attemptRepository,
+                              com.secureportal.notification.NotificationService notificationService) {
         this.certificateRepository = certificateRepository;
         this.structureService = structureService;
         this.learningService = learningService;
         this.assessmentRepository = assessmentRepository;
         this.attemptRepository = attemptRepository;
+        this.notificationService = notificationService;
     }
 
     /** What is still standing between this learner and the certificate; empty means it's earned. */
@@ -103,8 +106,20 @@ public class CertificateService {
         String name = recipientName == null || recipientName.isBlank() ? "Learner" : recipientName.trim();
         for (int attempt = 0; ; attempt++) {
             try {
-                return certificateRepository.saveAndFlush(
+                Certificate cert = certificateRepository.saveAndFlush(
                         new Certificate(newCode(), userId, course.getId(), name, course.getTitle()));
+                try {
+                    notificationService.createNotification(
+                            userId,
+                            com.secureportal.notification.NotificationCategory.COURSE,
+                            "Course Completed",
+                            "Congratulations! You completed \"" + course.getTitle() + "\" and earned a certificate.",
+                            com.secureportal.notification.NotificationPriority.NORMAL,
+                            "/courses/" + course.getId()
+                    );
+                } catch (Exception ignored) {
+                }
+                return cert;
             } catch (DataIntegrityViolationException e) {
                 // Either a concurrent claim won (return theirs) or the code collided (try another).
                 Optional<Certificate> winner = find(userId, course.getId());

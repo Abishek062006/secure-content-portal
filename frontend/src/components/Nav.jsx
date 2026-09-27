@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Logo } from './Icons';
+import NotificationBell from './NotificationBell';
 import { api } from '../api';
 
 function initials(displayName) {
@@ -177,6 +178,7 @@ export default function Nav() {
                 ⚡ {points} XP
               </Link>
             )}
+            <NotificationBell />
             {user.admin && <span className="badge admin">Admin</span>}
             <Link to="/profile" className="nav-profile-link" title="Your profile">
               {user.pictureUrl ? (

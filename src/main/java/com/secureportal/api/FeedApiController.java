@@ -43,13 +43,16 @@ public class FeedApiController {
     private final PostAssembler assembler;
     private final StorageService storageService;
     private final UserRepository userRepository;
+    private final com.secureportal.notification.NotificationService notificationService;
 
     public FeedApiController(FeedService feedService, PostAssembler assembler, StorageService storageService,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             com.secureportal.notification.NotificationService notificationService) {
         this.feedService = feedService;
         this.assembler = assembler;
         this.storageService = storageService;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     public record ReactionRequest(@NotNull ReactionType type) {
@@ -135,6 +138,20 @@ public class FeedApiController {
                               @AuthenticationPrincipal AppPrincipal principal) {
         PostComment comment = feedService.comment(id, principal.getUserId(), request == null ? null : request.body(),
                 principal.isAdmin());
+        try {
+            Post post = feedService.visible(id, true);
+            if (post != null && post.getAuthorId() != null && !principal.getUserId().equals(post.getAuthorId())) {
+                notificationService.createNotification(
+                        post.getAuthorId(),
+                        com.secureportal.notification.NotificationCategory.COMMUNITY,
+                        "New Reply",
+                        "Someone replied to your comment/post.",
+                        com.secureportal.notification.NotificationPriority.NORMAL,
+                        "/feed"
+                );
+            }
+        } catch (Exception ignored) {
+        }
         return assembler.comment(comment, userRepository.findById(principal.getUserId()).orElse(null),
                 principal.getUserId(), principal.isAdmin());
     }

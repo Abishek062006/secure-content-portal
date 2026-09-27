@@ -91,4 +91,14 @@ public class CourseCreateForm {
     public void setDiscountEnd(java.time.Instant discountEnd) {
         this.discountEnd = discountEnd;
     }
+
+    private Boolean publishImmediately = true;
+
+    public Boolean getPublishImmediately() {
+        return publishImmediately;
+    }
+
+    public void setPublishImmediately(Boolean publishImmediately) {
+        this.publishImmediately = publishImmediately;
+    }
 }

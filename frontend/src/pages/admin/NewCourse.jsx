@@ -30,6 +30,7 @@ export default function NewCourse() {
   const [coverFile, setCoverFile] = useState(null);
   const [videos, setVideos] = useState([]);
   const [pricing, setPricing] = useState({ paid: false, price: '', percent: 0, start: '', end: '' });
+  const [publishImmediately, setPublishImmediately] = useState(true);
 
   function addVideos(fileList) {
     setErrorMessage(null);
@@ -76,6 +77,7 @@ export default function NewCourse() {
     details.set('discountPercent', price.discountPercent);
     if (price.discountStart) details.set('discountStart', price.discountStart);
     if (price.discountEnd) details.set('discountEnd', price.discountEnd);
+    details.set('publishImmediately', publishImmediately);
 
     let course;
     try {
@@ -111,10 +113,20 @@ export default function NewCourse() {
       }
     }
 
+    if (publishImmediately && course?.id) {
+      try {
+        await api.post(`/api/admin/courses/${course.id}/publish`);
+      } catch {
+        // Ignored
+      }
+    }
+
     navigate(`/admin/courses/${course.id}/edit`, {
       state: failed.length
         ? { error: `Course created, but some videos didn't upload — add them again below. ${failed.join(' · ')}` }
-        : { success: videos.length ? 'Course created with your videos.' : 'Course created. Add your videos below.' },
+        : { success: publishImmediately
+            ? 'Course created and published! Learners can now see and enroll in it.'
+            : (videos.length ? 'Course created with your videos.' : 'Course created. Add your videos below.') },
     });
   }
 
@@ -203,6 +215,22 @@ export default function NewCourse() {
             <p className="field-hint">Keep this page open until the uploads finish.</p>
           </div>
         )}
+
+        <div style={{ margin: '20px 0', padding: '16px 20px', background: 'var(--surface-alt)', borderRadius: '12px', border: '1px solid var(--line)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', margin: 0, fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              style={{ width: 18, height: 18, accentColor: 'var(--accent)' }}
+              checked={publishImmediately}
+              onChange={(e) => setPublishImmediately(e.target.checked)}
+              disabled={submitting}
+            />
+            <span>Publish immediately (Make course visible to learners right away)</span>
+          </label>
+          <p style={{ margin: '4px 0 0 28px', fontSize: '0.84rem', color: 'var(--ink-mid)' }}>
+            When checked, the course will be published as soon as it is created, notifying all learners and showing up in their course catalog.
+          </p>
+        </div>
 
         <div className="form-actions">
           <Link className="btn" to="/admin/courses" aria-disabled={submitting}>Cancel</Link>

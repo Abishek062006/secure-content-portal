@@ -16,7 +16,7 @@ export default function CourseList() {
   const [pendingDelete, setPendingDelete] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const [successMessage] = useState(location.state?.success || null);
+  const [successMessage, setSuccessMessage] = useState(location.state?.success || null);
 
   useEffect(() => {
     api.get('/api/admin/courses')
@@ -31,6 +31,21 @@ export default function CourseList() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function togglePublish(course) {
+    const isPublishing = course.status === 'DRAFT';
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const updated = await api.post(`/api/admin/courses/${course.id}/${isPublishing ? 'publish' : 'unpublish'}`);
+      setCourses((prev) => prev.map((c) => (c.id === course.id ? { ...c, status: updated.status } : c)));
+      setSuccessMessage(isPublishing
+        ? `"${course.title}" published! Learners can now see and enroll in this course.`
+        : `"${course.title}" unpublished.`);
+    } catch (err) {
+      setErrorMessage(err.message);
+    }
+  }
 
   async function confirmDelete() {
     const course = pendingDelete;
@@ -91,6 +106,25 @@ export default function CourseList() {
                   <td>{course.viewCount}</td>
                   <td>{formatDate(course.createdAt)}</td>
                   <td className="row-actions">
+                    {course.status === 'DRAFT' ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => togglePublish(course)}
+                        title="Publish course so learners can see it"
+                      >
+                        Publish
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => togglePublish(course)}
+                        title="Unpublish course from catalog"
+                      >
+                        Unpublish
+                      </button>
+                    )}
                     <Link className="btn" to={`/admin/courses/${course.id}/edit`}>Edit</Link>
                     <Link className="btn" to={`/admin/courses/${course.id}/questions`}>Questions</Link>
                     <Link className="btn" to={`/courses/${course.id}`}>Preview</Link>

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Turns a freshly verified Google identity into an application principal.
@@ -31,10 +32,13 @@ public class AppOidcUserService extends OidcUserService {
 
     private final UserRepository userRepository;
     private final AppProperties appProperties;
+    private final com.secureportal.notification.NotificationService notificationService;
 
-    public AppOidcUserService(UserRepository userRepository, AppProperties appProperties) {
+    public AppOidcUserService(UserRepository userRepository, AppProperties appProperties,
+                              com.secureportal.notification.NotificationService notificationService) {
         this.userRepository = userRepository;
         this.appProperties = appProperties;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -56,12 +60,17 @@ public class AppOidcUserService extends OidcUserService {
         }
 
         String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmailIgnoreCase(normalisedEmail)
-                .orElseGet(() -> {
-                    Role initialRole = appProperties.isAdminEmail(normalisedEmail) ? Role.ADMIN : Role.VIEWER;
-                    log.info("Provisioning new user {} with role {}", normalisedEmail, initialRole);
-                    return new User(normalisedEmail, delegate.getFullName(), delegate.getPicture(), initialRole);
-                });
+        boolean isNewUser = false;
+        Optional<User> existingUser = userRepository.findByEmailIgnoreCase(normalisedEmail);
+        if (existingUser.isEmpty()) {
+            isNewUser = true;
+        }
+
+        User user = existingUser.orElseGet(() -> {
+            Role initialRole = appProperties.isAdminEmail(normalisedEmail) ? Role.ADMIN : Role.VIEWER;
+            log.info("Provisioning new user {} with role {}", normalisedEmail, initialRole);
+            return new User(normalisedEmail, delegate.getFullName(), delegate.getPicture(), initialRole);
+        });
 
         user.setDisplayName(delegate.getFullName());
         user.setPictureUrl(delegate.getPicture());
@@ -77,6 +86,21 @@ public class AppOidcUserService extends OidcUserService {
         }
 
         User saved = userRepository.save(user);
+
+        if (isNewUser) {
+            try {
+                notificationService.notifyAllAdmins(
+                        com.secureportal.notification.NotificationCategory.SYSTEM,
+                        "New User Registered",
+                        (saved.getDisplayName() != null ? saved.getDisplayName() : saved.getEmail()) + " joined the platform as " + saved.getRole() + ".",
+                        com.secureportal.notification.NotificationPriority.NORMAL,
+                        "/admin/users"
+                );
+            } catch (Exception ex) {
+                log.warn("Failed to notify admins of new user registration: {}", ex.getMessage());
+            }
+        }
+
         return new AppPrincipal(saved, delegate);
     }
 }

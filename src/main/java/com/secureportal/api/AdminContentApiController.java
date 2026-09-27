@@ -45,13 +45,16 @@ public class AdminContentApiController {
     private final ContentService contentService;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final com.secureportal.notification.NotificationService notificationService;
 
     public AdminContentApiController(ContentRepository contentRepository, ContentService contentService,
-                                      UserRepository userRepository, AuditService auditService) {
+                                      UserRepository userRepository, AuditService auditService,
+                                      com.secureportal.notification.NotificationService notificationService) {
         this.contentRepository = contentRepository;
         this.contentService = contentService;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -67,10 +70,34 @@ public class AdminContentApiController {
         User uploadedBy = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new IllegalStateException("Signed-in user not found: " + principal.getUserId()));
 
-        ContentItem created = contentService.create(form, uploadedBy);
-        auditService.log(principal.getEmail(), "UPLOAD", created.getId(),
-                created.getContentType() + " \"" + created.getTitle() + "\"");
-        return ContentItemDto.from(created);
+        try {
+            ContentItem created = contentService.create(form, uploadedBy);
+            auditService.log(principal.getEmail(), "UPLOAD", created.getId(),
+                    created.getContentType() + " \"" + created.getTitle() + "\"");
+            try {
+                notificationService.notifyAllAdmins(
+                        com.secureportal.notification.NotificationCategory.CONTENT,
+                        "Upload Completed",
+                        created.getContentType() + " \"" + created.getTitle() + "\" was uploaded successfully.",
+                        com.secureportal.notification.NotificationPriority.NORMAL,
+                        "/courses"
+                );
+            } catch (Exception ignored) {
+            }
+            return ContentItemDto.from(created);
+        } catch (Exception e) {
+            try {
+                notificationService.notifyAllAdmins(
+                        com.secureportal.notification.NotificationCategory.CONTENT,
+                        "Content Upload Failed",
+                        "Content upload failed: " + e.getMessage(),
+                        com.secureportal.notification.NotificationPriority.CRITICAL,
+                        "/admin/courses"
+                );
+            } catch (Exception ignored) {
+            }
+            throw e;
+        }
     }
 
     @PutMapping("/{id}")

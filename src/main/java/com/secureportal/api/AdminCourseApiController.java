@@ -44,15 +44,18 @@ public class AdminCourseApiController {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final CourseOutlineAssembler assembler;
+    private final com.secureportal.notification.NotificationService notificationService;
 
     public AdminCourseApiController(CourseRepository courseRepository, CourseService courseService,
                                     UserRepository userRepository, AuditService auditService,
-                                    CourseOutlineAssembler assembler) {
+                                    CourseOutlineAssembler assembler,
+                                    com.secureportal.notification.NotificationService notificationService) {
         this.courseRepository = courseRepository;
         this.courseService = courseService;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.assembler = assembler;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -71,6 +74,23 @@ public class AdminCourseApiController {
                 .orElseThrow(() -> new IllegalStateException("Signed-in user not found: " + principal.getUserId()));
         Course created = courseService.create(form, createdBy);
         auditService.log(principal.getEmail(), "COURSE_CREATE", created.getId(), "\"" + created.getTitle() + "\"");
+
+        if (Boolean.TRUE.equals(form.getPublishImmediately())) {
+            created = courseService.setStatus(created.getId(), CourseStatus.PUBLISHED);
+            try {
+                auditService.log(principal.getEmail(), "COURSE_PUBLISH", created.getId(), "\"" + created.getTitle() + "\"");
+                notificationService.notifyAllLearners(
+                        com.secureportal.notification.NotificationCategory.COURSE,
+                        "New Course Available",
+                        "\"" + created.getTitle() + "\" is now available.",
+                        com.secureportal.notification.NotificationPriority.NORMAL,
+                        "/courses/" + created.getId()
+                );
+            } catch (Exception ignored) {
+                // Non-fatal if notification dispatch encounters an error
+            }
+        }
+
         return assembler.adminCourse(created);
     }
 
@@ -94,6 +114,13 @@ public class AdminCourseApiController {
     public CourseDto publish(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
         Course course = courseService.setStatus(id, CourseStatus.PUBLISHED);
         auditService.log(principal.getEmail(), "COURSE_PUBLISH", id, "\"" + course.getTitle() + "\"");
+        notificationService.notifyAllLearners(
+                com.secureportal.notification.NotificationCategory.COURSE,
+                "New Course Available",
+                "\"" + course.getTitle() + "\" is now available.",
+                com.secureportal.notification.NotificationPriority.NORMAL,
+                "/courses/" + course.getId()
+        );
         return assembler.adminCourse(course);
     }
 

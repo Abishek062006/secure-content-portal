@@ -14,6 +14,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
     long countByCourseId(UUID courseId);
 
+    List<Enrollment> findByCourseId(UUID courseId);
+
     /** Rows of (course id, number of enrolled learners). */
     @org.springframework.data.jpa.repository.Query("SELECT e.courseId, COUNT(e) FROM Enrollment e GROUP BY e.courseId")
     List<Object[]> countEnrollmentsPerCourse();
