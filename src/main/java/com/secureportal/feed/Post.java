@@ -44,6 +44,9 @@ public class Post {
     @Column(name = "course_id")
     private UUID courseId;
 
+    @Column(name = "hackathon_id")
+    private Long hackathonId;
+
     @Column(nullable = false)
     private boolean pinned;
 
@@ -68,6 +71,14 @@ public class Post {
         if (publishAt != null) {
             this.publishAt = publishAt;
         }
+    }
+
+    public Long getHackathonId() {
+        return hackathonId;
+    }
+
+    public void setHackathonId(Long hackathonId) {
+        this.hackathonId = hackathonId;
     }
 
     public void edit(String body, UUID courseId, boolean pinned, Instant publishAt) {

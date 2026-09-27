@@ -12,7 +12,7 @@ const MODES = {
 };
 
 /** "Start a post" — one dialog for posts, photos/videos, articles and sharing a certificate; admins get extra options. */
-export default function ComposerModal({ open, mode, me, courses, presetCourseId, onClose, onCreated }) {
+export default function ComposerModal({ open, mode, me, courses, hackathons = [], presetCourseId, presetHackathonId, onClose, onCreated }) {
   const { user } = useAuth();
   const [body, setBody] = useState('');
   const [title, setTitle] = useState('');
@@ -20,6 +20,7 @@ export default function ComposerModal({ open, mode, me, courses, presetCourseId,
   const [preview, setPreview] = useState(null);
   const [certificateId, setCertificateId] = useState('');
   const [courseId, setCourseId] = useState('');
+  const [hackathonId, setHackathonId] = useState('');
   const [pinned, setPinned] = useState(false);
   const [publishAt, setPublishAt] = useState('');
   const [busy, setBusy] = useState(false);
@@ -32,14 +33,16 @@ export default function ComposerModal({ open, mode, me, courses, presetCourseId,
   useEffect(() => {
     if (!open) return;
     setError(null);
-    setBody(presetCourseId ? 'New course is live! ' : '');
+    const shared = presetHackathonId ? hackathons.find((h) => String(h.id) === String(presetHackathonId)) : null;
+    setBody(presetCourseId ? 'New course is live! ' : shared ? `${shared.title} is open. Take a look and join in!` : '');
     setCourseId(presetCourseId || '');
+    setHackathonId(presetHackathonId ? String(presetHackathonId) : '');
     setTitle('');
     setMedia(null);
     setPinned(false);
     setPublishAt('');
     setCertificateId(mode === 'certificate' && certificates[0] ? certificates[0].id : '');
-  }, [open, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, mode, hackathons.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!media) { setPreview(null); return undefined; }
@@ -56,10 +59,11 @@ export default function ComposerModal({ open, mode, me, courses, presetCourseId,
       const form = new FormData();
       form.append('body', body);
       if (media) form.append(media.type.startsWith('video/') ? 'video' : 'image', media);
-      const adminExtras = user?.admin && !article && (pinned || publishAt || courseId);
+      const adminExtras = user?.admin && !article && (pinned || publishAt || courseId || hackathonId);
       if (adminExtras) {
         form.append('pinned', pinned);
         if (courseId) form.append('courseId', courseId);
+        if (hackathonId) form.append('hackathonId', hackathonId);
         if (publishAt) form.append('publishAt', new Date(publishAt).toISOString());
       } else {
         if (article) { form.append('article', 'true'); form.append('title', title); }
@@ -116,6 +120,10 @@ export default function ComposerModal({ open, mode, me, courses, presetCourseId,
             <select value={courseId} onChange={(e) => setCourseId(e.target.value)} aria-label="Promote a course">
               <option value="">No course attached</option>
               {courses.map((c) => <option key={c.id} value={c.id}>Promote: {c.title}</option>)}
+            </select>
+            <select value={hackathonId} onChange={(e) => setHackathonId(e.target.value)} aria-label="Share a hackathon">
+              <option value="">No hackathon attached</option>
+              {hackathons.map((h) => <option key={h.id} value={h.id}>Share hackathon: {h.title}</option>)}
             </select>
             <label><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} /> Pin to top</label>
             <label>Schedule <input type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} /></label>

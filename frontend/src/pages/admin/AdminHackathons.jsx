@@ -188,6 +188,7 @@ export default function AdminHackathons() {
                   <td>{h.kind === 'HOSTED' ? `Hosted: ${(PHASE_LABEL[h.phase] || '').toLowerCase()}` : h.status.charAt(0) + h.status.slice(1).toLowerCase()}{h.featured ? ', featured' : ''}</td>
                   <td className="row-actions">
                     {h.kind === 'HOSTED' && <Link className="btn btn-sm" to={`/admin/hackathons/${h.id}/manage`}>Manage</Link>}
+                    <Link className="btn btn-sm" to={`/feed?hackathon=${h.id}`}>Share to feed</Link>
                     <button type="button" className="btn btn-sm" onClick={() => setEditing(toForm(h))}>Edit</button>
                     <button type="button" className="btn btn-sm btn-danger" onClick={() => setToDelete(h)}>Delete</button>
                   </td>

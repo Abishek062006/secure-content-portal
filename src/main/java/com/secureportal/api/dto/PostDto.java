@@ -28,10 +28,17 @@ public record PostDto(
         Map<String, Long> reactions,
         long reactionTotal,
         String myReaction,
-        long commentCount
+        long commentCount,
+        PostHackathonDto hackathon
 ) {
     public record PostCourseDto(UUID id, String title, String description, String category, String thumbnailUrl,
                                 boolean enrolled, CourseDto.Pricing pricing) {
+    }
+
+    /** A hackathon shared to the feed: enough to show a card and link to it. */
+    public record PostHackathonDto(Long id, String title, String organizer, String bannerUrl, String kind, String mode, String stream,
+                                   String location, Instant eventStartDate, Instant registrationDeadline, boolean registrationOpen,
+                                   String phase, String registrationUrl) {
     }
 
     public record CommentDto(UUID id, String userName, String userPictureUrl, String body, Instant createdAt,

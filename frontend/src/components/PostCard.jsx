@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import PriceTag from './PriceTag';
 import Avatar from './Avatar';
 import Icon from './Icon';
+import { mediaUrl } from '../lib/media';
+import { MODE_LABEL, PHASE_LABEL, dateRange, deadlineLabel } from '../lib/hackathons';
 
 /** Emoji artwork: Twemoji (CC-BY 4.0), stored in /public/reactions. */
 const REACTIONS = [
@@ -27,6 +29,34 @@ function ago(iso) {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   if (seconds < 86400 * 30) return `${Math.floor(seconds / 86400)}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+/** A hackathon an admin shared: banner, the facts that matter, and where to go next. */
+function HackathonPromo({ h }) {
+  const hosted = h.kind === 'HOSTED';
+  const dates = dateRange(h.eventStartDate, null);
+  const status = hosted ? (h.phase === 'REGISTRATION' ? deadlineLabel(h) : PHASE_LABEL[h.phase]) : deadlineLabel(h);
+  return (
+    <div className="promo-card">
+      {h.bannerUrl && <img className="promo-banner" src={mediaUrl(h.bannerUrl)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+      <div className="promo-info">
+        <div className="hack-tags">
+          <span className="badge">{MODE_LABEL[h.mode] || h.mode}</span>
+          <span className="badge">{h.stream}</span>
+          {hosted && <span className="badge status-featured">Hosted here</span>}
+        </div>
+        <h3>{h.title}</h3>
+        {h.organizer && <p>{h.organizer}</p>}
+        <p className="field-hint">{[dates, h.location, status].filter(Boolean).join(' · ')}</p>
+        <div className="hack-actions">
+          <Link className="btn btn-primary" to={hosted ? `/hackathons/${h.id}` : '/hackathons'}>{hosted ? 'Open event' : 'See hackathons'}</Link>
+          {!hosted && h.registrationOpen && h.registrationUrl && (
+            <a className="btn" href={h.registrationUrl} target="_blank" rel="noopener noreferrer">Register</a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const ThumbIcon = () => <Icon name="thumbs-up" />;
@@ -227,6 +257,8 @@ export default function PostCard({ initial, onDelete, onTogglePin }) {
           </div>
         </div>
       )}
+
+      {post.hackathon && <HackathonPromo h={post.hackathon} />}
 
       {(post.reactionTotal > 0 || post.commentCount > 0) && (
         <div className="post-stats">

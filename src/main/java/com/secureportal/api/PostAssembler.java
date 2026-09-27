@@ -9,6 +9,8 @@ import com.secureportal.profile.Profile;
 import com.secureportal.profile.ProfileService;
 import com.secureportal.api.dto.CertificateDto;
 import com.secureportal.course.Course;
+import com.secureportal.hackathon.Hackathon;
+import com.secureportal.hackathon.HackathonRepository;
 import com.secureportal.course.CourseRepository;
 import com.secureportal.course.CourseStatus;
 import com.secureportal.course.Enrollment;
@@ -43,6 +45,7 @@ public class PostAssembler {
 
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
+    private final HackathonRepository hackathonRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final PostReactionRepository reactionRepository;
     private final PostCommentRepository commentRepository;
@@ -50,12 +53,13 @@ public class PostAssembler {
     private final ProfileService profileService;
     private final CertificateService certificateService;
 
-    public PostAssembler(UserRepository userRepository, CourseRepository courseRepository,
+    public PostAssembler(UserRepository userRepository, CourseRepository courseRepository, HackathonRepository hackathonRepository,
                          EnrollmentRepository enrollmentRepository, PostReactionRepository reactionRepository,
                          PostCommentRepository commentRepository, StreamTicketService ticketService,
                          ProfileService profileService, CertificateService certificateService) {
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
+        this.hackathonRepository = hackathonRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.reactionRepository = reactionRepository;
         this.commentRepository = commentRepository;
@@ -76,6 +80,10 @@ public class PostAssembler {
         Map<UUID, Course> courses = courseRepository.findAllById(
                 posts.stream().map(Post::getCourseId).filter(java.util.Objects::nonNull).collect(Collectors.toSet()))
                 .stream().collect(Collectors.toMap(Course::getId, c -> c));
+        Map<Long, Hackathon> hackathons = hackathonRepository.findAllById(
+                posts.stream().map(Post::getHackathonId).filter(java.util.Objects::nonNull).collect(Collectors.toSet()))
+                .stream().collect(Collectors.toMap(Hackathon::getId, h -> h));
+        java.time.Instant now = java.time.Instant.now();
         Map<Long, Profile> profiles = profileService.profiles(authors.keySet());
         Map<UUID, Certificate> certificates = new HashMap<>();
         certificateService.findAllById(posts.stream().map(Post::getCertificateId).filter(java.util.Objects::nonNull).collect(Collectors.toSet()))
@@ -123,8 +131,18 @@ public class PostAssembler {
                     viewerIsAdmin || post.getAuthorId().equals(viewerId),
                     post.getPublishAt(), post.isPinned(), !post.isPublished(), courseDto, counts,
                     counts.values().stream().mapToLong(Long::longValue).sum(), mine.get(post.getId()),
-                    commentCounts.getOrDefault(post.getId(), 0L));
+                    commentCounts.getOrDefault(post.getId(), 0L), hackathonDto(hackathons.get(post.getHackathonId()), now));
         }).toList();
+    }
+
+    private static PostDto.PostHackathonDto hackathonDto(Hackathon h, java.time.Instant now) {
+        if (h == null) {
+            return null;
+        }
+        return new PostDto.PostHackathonDto(h.getId(), h.getTitle(), h.getOrganizer(),
+                h.getBannerKey() != null ? "/api/hackathons/" + h.getId() + "/banner" : h.getBannerUrl(), h.getKind(), h.getMode(),
+                h.getStream(), h.getLocation(), h.getEventStartDate(), h.getRegistrationDeadline(), h.registrationOpen(now),
+                h.phase(now) == null ? null : h.phase(now).name(), h.getRegistrationUrl());
     }
 
     /** Feed videos are delivered like lesson videos: a short-lived ticket tied to this viewer's session. */

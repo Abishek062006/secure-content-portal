@@ -43,6 +43,7 @@ export default function Feed() {
   const [posts, setPosts] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [hackathons, setHackathons] = useState([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -68,11 +69,12 @@ export default function Feed() {
     loadScheduled();
     loadMe();
     api.get('/api/courses').then(setCourses).catch(() => setCourses([]));
+    if (user?.admin) api.getAdminHackathons().then(setHackathons).catch(() => setHackathons([]));
   }, [load, loadScheduled, loadMe]);
 
   // "Promote this course" on the course editor lands here with the composer already open.
   useEffect(() => {
-    if (params.get('promote')) setComposer({ open: true, mode: 'post' });
+    if (params.get('promote') || params.get('hackathon')) setComposer({ open: true, mode: 'post' });
   }, [params]);
 
   useEffect(() => {
@@ -149,7 +151,7 @@ export default function Feed() {
       <div className="social-right"><RecommendedCourses courses={courses} /></div>
 
       <ComposerModal open={composer.open} mode={composer.mode} me={me} courses={courses.filter((c) => c.status !== 'DRAFT')}
-                     presetCourseId={params.get('promote')} onClose={() => setComposer((c) => ({ ...c, open: false }))}
+                     hackathons={hackathons} presetCourseId={params.get('promote')} presetHackathonId={params.get('hackathon')} onClose={() => setComposer((c) => ({ ...c, open: false }))}
                      onCreated={refresh} />
       <ConfirmDialog open={!!toDelete} title={toDelete ? (toDelete.title || toDelete.body).slice(0, 60) : ''}
                      detail="Its reactions and comments go with it"

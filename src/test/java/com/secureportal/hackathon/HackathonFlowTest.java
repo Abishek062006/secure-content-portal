@@ -216,6 +216,30 @@ class HackathonFlowTest {
     }
 
     @Test
+    void anAdminCanShareAHackathonToTheFeedAndLearnersSeeItsCard() throws Exception {
+        long id = create(hackathon("title", "\"Shared Sprint\""));
+
+        mockMvc.perform(multipart("/api/admin/posts").param("body", "New hackathon is open!").param("hackathonId", String.valueOf(id))
+                        .with(csrf()).with(as(admin)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.hackathon.title").value("Shared Sprint"))
+                .andExpect(jsonPath("$.hackathon.registrationOpen").value(true));
+        mockMvc.perform(multipart("/api/admin/posts").param("body", "Ghost").param("hackathonId", "999999").with(csrf()).with(as(admin)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(multipart("/api/admin/posts").param("body", "Sneaky").param("hackathonId", String.valueOf(id)).with(csrf()).with(as(learner)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/feed").with(as(learner)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.posts[0].hackathon.id").value(id))
+                .andExpect(jsonPath("$.posts[0].hackathon.kind").value("EXTERNAL"))
+                .andExpect(jsonPath("$.posts[0].hackathon.registrationUrl").value("https://example.com/sprint"));
+
+        // Deleting the hackathon keeps the post, as plain text.
+        mockMvc.perform(delete("/api/admin/hackathons/" + id).with(csrf()).with(as(admin))).andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/feed").with(as(learner))).andExpect(jsonPath("$.posts[0].body").value("New hackathon is open!"))
+                .andExpect(jsonPath("$.posts[0].hackathon").doesNotExist());
+    }
+
+    @Test
     void anAdminCanUploadABannerThatIsStoredPrivatelyServedAndCleanedUp() throws Exception {
         long id = create(hackathon());
         byte[] image = png();

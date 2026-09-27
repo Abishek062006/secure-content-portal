@@ -48,12 +48,13 @@ public class AdminFeedApiController {
     @PostMapping(consumes = "multipart/form-data")
     public PostDto create(@RequestParam String body,
                           @RequestParam(required = false) UUID courseId,
+                          @RequestParam(required = false) Long hackathonId,
                           @RequestParam(defaultValue = "false") boolean pinned,
                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant publishAt,
                           @RequestParam(required = false) MultipartFile image,
                           @RequestParam(required = false) MultipartFile video,
                           @AuthenticationPrincipal AppPrincipal principal) {
-        return assembler.post(feedService.create(principal.getUserId(), body, courseId, pinned, publishAt, image, video),
+        return assembler.post(feedService.create(principal.getUserId(), body, courseId, hackathonId, pinned, publishAt, image, video),
                 principal.getUserId());
     }
 

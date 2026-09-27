@@ -6,6 +6,7 @@ import com.secureportal.common.ValidatedFile;
 import com.secureportal.course.Course;
 import com.secureportal.course.CourseRepository;
 import com.secureportal.course.CourseStatus;
+import com.secureportal.hackathon.HackathonRepository;
 import com.secureportal.storage.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,17 +39,20 @@ public class FeedService {
     private final PostReactionRepository reactionRepository;
     private final PostCommentRepository commentRepository;
     private final CourseRepository courseRepository;
+    private final HackathonRepository hackathonRepository;
     private final FileValidator fileValidator;
     private final StorageService storageService;
     private final CertificateService certificateService;
 
     public FeedService(PostRepository postRepository, PostReactionRepository reactionRepository,
                        PostCommentRepository commentRepository, CourseRepository courseRepository,
+                       HackathonRepository hackathonRepository,
                        FileValidator fileValidator, StorageService storageService, CertificateService certificateService) {
         this.postRepository = postRepository;
         this.reactionRepository = reactionRepository;
         this.commentRepository = commentRepository;
         this.courseRepository = courseRepository;
+        this.hackathonRepository = hackathonRepository;
         this.fileValidator = fileValidator;
         this.storageService = storageService;
         this.certificateService = certificateService;
@@ -77,7 +81,22 @@ public class FeedService {
     @Transactional
     public Post create(Long authorId, String body, UUID courseId, boolean pinned, Instant publishAt, MultipartFile image,
                        MultipartFile video) {
-        return createInternal(authorId, false, null, body, courseId, null, pinned, publishAt, image, video);
+        return create(authorId, body, courseId, null, pinned, publishAt, image, video);
+    }
+
+    /** An admin's post, optionally promoting a course or sharing a hackathon. */
+    @Transactional
+    public Post create(Long authorId, String body, UUID courseId, Long hackathonId, boolean pinned, Instant publishAt,
+                       MultipartFile image, MultipartFile video) {
+        if (hackathonId != null && !hackathonRepository.existsById(hackathonId)) {
+            throw new InvalidPostException("That hackathon doesn't exist.");
+        }
+        Post post = createInternal(authorId, false, null, body, courseId, null, pinned, publishAt, image, video);
+        if (hackathonId != null) {
+            post.setHackathonId(hackathonId);
+            post = postRepository.save(post);
+        }
+        return post;
     }
 
     /**
