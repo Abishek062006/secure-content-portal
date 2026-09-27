@@ -1,6 +1,10 @@
 package com.secureportal.hackathon;
 
 import com.secureportal.audit.AuditService;
+import com.secureportal.common.FileValidator;
+import com.secureportal.common.ValidatedFile;
+import com.secureportal.storage.StorageService;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +27,16 @@ public class HackathonService {
     private final HackathonRepository hackathons;
     private final HackathonSaveRepository saves;
     private final AuditService audit;
+    private final FileValidator fileValidator;
+    private final StorageService storage;
 
-    public HackathonService(HackathonRepository hackathons, HackathonSaveRepository saves, AuditService audit) {
+    public HackathonService(HackathonRepository hackathons, HackathonSaveRepository saves, AuditService audit,
+                            FileValidator fileValidator, StorageService storage) {
         this.hackathons = hackathons;
         this.saves = saves;
         this.audit = audit;
+        this.fileValidator = fileValidator;
+        this.storage = storage;
     }
 
     /** What an admin submits. Text is validated and tidied by the service; nothing here is trusted. */
@@ -114,10 +123,42 @@ public class HackathonService {
         return views(List.of(hackathon), null).get(0);
     }
 
+    /** Replaces the banner with an uploaded image (checked by its contents, not its name). The old file is removed afterwards. */
+    @Transactional
+    public View replaceBanner(Long id, MultipartFile file, String adminEmail) {
+        Hackathon hackathon = hackathons.findById(id).orElseThrow(HackathonNotFoundException::new);
+        ValidatedFile validated = fileValidator.validateThumbnail(file);
+        String previous = hackathon.getBannerKey();
+        String key = "hackathons/" + id + "/banner/" + java.util.UUID.randomUUID() + "-"
+                + validated.originalFilename().replaceAll("[^a-zA-Z0-9._-]", "_");
+        try (java.io.InputStream in = file.getInputStream()) {
+            storage.put(key, in, validated.sizeBytes(), validated.detectedMimeType());
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("Could not read the uploaded banner", e);
+        }
+        hackathon.setBanner(key, validated.detectedMimeType());
+        hackathons.save(hackathon);
+        deleteQuietly(previous);
+        audit.log(adminEmail, "HACKATHON_UPDATE", null, "Changed the banner of \"" + hackathon.getTitle() + "\"");
+        return views(List.of(hackathon), null).get(0);
+    }
+
+    private void deleteQuietly(String key) {
+        if (key == null) {
+            return;
+        }
+        try {
+            storage.delete(key);
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(HackathonService.class).warn("Could not delete storage object {}", key, e);
+        }
+    }
+
     @Transactional
     public void delete(Long id, String adminEmail) {
         Hackathon hackathon = hackathons.findById(id).orElseThrow(HackathonNotFoundException::new);
         hackathons.delete(hackathon);
+        deleteQuietly(hackathon.getBannerKey());
         audit.log(adminEmail, "HACKATHON_DELETE", null, "Removed hackathon \"" + hackathon.getTitle() + "\"");
     }
 

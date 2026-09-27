@@ -45,6 +45,7 @@ function toPayload(form) {
 
 function HackathonForm({ initial, onSaved, onClose }) {
   const [form, setForm] = useState(initial);
+  const [banner, setBanner] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
@@ -55,7 +56,8 @@ function HackathonForm({ initial, onSaved, onClose }) {
     setError(null);
     try {
       const payload = toPayload(form);
-      if (form.id) await api.updateAdminHackathon(form.id, payload); else await api.createAdminHackathon(payload);
+      const saved = form.id ? await api.updateAdminHackathon(form.id, payload) : await api.createAdminHackathon(payload);
+      if (banner) await api.uploadHackathonBanner(saved.id, banner);
       await onSaved();
       onClose();
     } catch (err) {
@@ -129,7 +131,10 @@ function HackathonForm({ initial, onSaved, onClose }) {
         <div className="field"><label htmlFor="h-prize">Prize pool</label>
           <input id="h-prize" type="text" maxLength={100} value={form.prizePool} onChange={set('prizePool')} placeholder="e.g. Rs 2,00,000" /></div>
       </div>
-      <div className="field"><label htmlFor="h-banner">Banner image link</label>
+      <div className="field"><label htmlFor="h-banner-file">Banner image</label>
+        <input id="h-banner-file" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setBanner(e.target.files?.[0] || null)} />
+        <p className="field-hint">PNG, JPG or WebP, up to 5 MB. {form.id && 'Choose a file only to replace the current banner.'}</p></div>
+      <div className="field"><label htmlFor="h-banner">Or a banner image link (optional)</label>
         <input id="h-banner" type="text" maxLength={500} value={form.bannerUrl} onChange={set('bannerUrl')} placeholder="https://" /></div>
       <div className="field"><label htmlFor="h-desc">Description</label>
         <textarea id="h-desc" rows={5} maxLength={5000} value={form.description} onChange={set('description')} /></div>

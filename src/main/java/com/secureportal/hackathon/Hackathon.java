@@ -72,6 +72,12 @@ public class Hackathon {
     @Column(name = "max_team_size", nullable = false)
     private int maxTeamSize = 4;
 
+    @Column(name = "banner_key", length = 300)
+    private String bannerKey;
+
+    @Column(name = "banner_mime", length = 60)
+    private String bannerMime;
+
     @Column(name = "results_published_at")
     private Instant resultsPublishedAt;
 
@@ -157,6 +163,20 @@ public class Hackathon {
             return phase(now) == HackathonPhase.REGISTRATION && !now.isAfter(registrationDeadline);
         }
         return !HackathonStatus.COMPLETED.name().equals(status) && (registrationDeadline == null || !now.isAfter(registrationDeadline));
+    }
+
+    public void setBanner(String key, String mime) {
+        this.bannerKey = key;
+        this.bannerMime = mime;
+        this.updatedAt = Instant.now();
+    }
+
+    public String getBannerKey() {
+        return bannerKey;
+    }
+
+    public String getBannerMime() {
+        return bannerMime;
     }
 
     public void publishResults(Instant now) {

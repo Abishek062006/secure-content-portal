@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import Alert from '../components/Alert';
 import Icon from '../components/Icon';
+import { mediaUrl } from '../lib/media';
 import { MODE_LABEL, PHASE_LABEL, closingSoon, dateRange, deadlineLabel } from '../lib/hackathons';
 
 const MODES = [
@@ -108,7 +109,7 @@ function Card({ h, busy, onSave, onCalendar }) {
   const deadline = hosted ? (h.phase === 'REGISTRATION' ? deadlineLabel(h) : PHASE_LABEL[h.phase]) : deadlineLabel(h);
   return (
     <article className={`hack-card${hosted ? (h.phase === 'RESULTS' ? ' closed' : '') : (h.registrationOpen ? '' : ' closed')}`}>
-      {h.bannerUrl && <img className="hack-banner" src={h.bannerUrl} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+      {h.bannerUrl && <img className="hack-banner" src={mediaUrl(h.bannerUrl)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
       <div className="hack-body">
         <div className="hack-tags">
           <span className="badge">{MODE_LABEL[h.mode] || h.mode}</span>

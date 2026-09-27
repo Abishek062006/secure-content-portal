@@ -13,7 +13,8 @@ public record HackathonDto(Long id, String title, String organizer, String descr
 
     public static HackathonDto of(HackathonService.View view) {
         Hackathon h = view.hackathon();
-        return new HackathonDto(h.getId(), h.getTitle(), h.getOrganizer(), h.getDescription(), h.getBannerUrl(), h.getStream(),
+        return new HackathonDto(h.getId(), h.getTitle(), h.getOrganizer(), h.getDescription(),
+                h.getBannerKey() != null ? "/api/hackathons/" + h.getId() + "/banner" : h.getBannerUrl(), h.getStream(),
                 h.getMode(), h.getLocation(), h.getPrizePool(), h.getRegistrationUrl(), h.getRegistrationDeadline(),
                 h.getEventStartDate(), h.getEventEndDate(), h.isFeatured(), h.getStatus(), view.saved(), view.registrationOpen(),
                 h.getKind(), h.phase(java.time.Instant.now()) == null ? null : h.phase(java.time.Instant.now()).name(), h.getRules(), h.getTracks(),

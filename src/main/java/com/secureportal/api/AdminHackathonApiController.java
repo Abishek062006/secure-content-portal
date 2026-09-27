@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -46,6 +47,11 @@ public class AdminHackathonApiController {
     @PutMapping("/{id}")
     public HackathonDto update(@PathVariable Long id, @RequestBody Input input, @AuthenticationPrincipal AppPrincipal admin) {
         return HackathonDto.of(hackathonService.update(id, input, admin.getEmail()));
+    }
+
+    @PostMapping("/{id}/banner")
+    public HackathonDto banner(@PathVariable Long id, @RequestParam("file") MultipartFile file, @AuthenticationPrincipal AppPrincipal admin) {
+        return HackathonDto.of(hackathonService.replaceBanner(id, file, admin.getEmail()));
     }
 
     @DeleteMapping("/{id}")

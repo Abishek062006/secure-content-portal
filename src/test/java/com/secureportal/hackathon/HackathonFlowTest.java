@@ -3,6 +3,11 @@ package com.secureportal.hackathon;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.secureportal.audit.AuditRepository;
 import com.secureportal.gamification.GamificationService;
+import com.secureportal.storage.StorageObject;
+import com.secureportal.storage.StorageService;
+import org.mockito.ArgumentCaptor;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import com.secureportal.user.Role;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
@@ -25,6 +30,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,6 +60,8 @@ class HackathonFlowTest {
     private AuditRepository auditRepository;
     @Autowired
     private ObjectMapper objectMapper;
+    @MockitoBean
+    private StorageService storage;
 
     private User admin;
     private User learner;
@@ -193,5 +201,48 @@ class HackathonFlowTest {
         mockMvc.perform(delete("/api/admin/hackathons/" + id).with(csrf()).with(as(admin))).andExpect(status().isNoContent());
         create(hackathon());
         mockMvc.perform(get("/api/hackathons?saved=true").with(as(learner))).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private static byte[] png() throws Exception {
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(8, 8, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "png", out);
+        return out.toByteArray();
+    }
+
+    private org.springframework.test.web.servlet.ResultActions uploadBanner(User who, long id, String name, byte[] bytes) throws Exception {
+        return mockMvc.perform(multipart("/api/admin/hackathons/" + id + "/banner")
+                .file(new MockMultipartFile("file", name, "image/png", bytes)).with(csrf()).with(as(who)));
+    }
+
+    @Test
+    void anAdminCanUploadABannerThatIsStoredPrivatelyServedAndCleanedUp() throws Exception {
+        long id = create(hackathon());
+        byte[] image = png();
+
+        // Only real images, and only from admins.
+        uploadBanner(admin, id, "poster.png", "this is not an image".getBytes()).andExpect(status().isBadRequest());
+        uploadBanner(learner, id, "poster.png", image).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/hackathons/" + id + "/banner").with(as(learner))).andExpect(status().isNotFound());
+
+        uploadBanner(admin, id, "poster.png", image).andExpect(status().isOk())
+                .andExpect(jsonPath("$.bannerUrl").value("/api/hackathons/" + id + "/banner"));
+        ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(storage).put(key.capture(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.eq("image/png"));
+        assertThat(key.getValue()).startsWith("hackathons/" + id + "/banner/");
+
+        org.mockito.Mockito.doReturn(new StorageObject(new java.io.ByteArrayInputStream(image), 0, image.length - 1, image.length, "image/png"))
+                .when(storage).get(org.mockito.ArgumentMatchers.eq(key.getValue()), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        mockMvc.perform(get("/api/hackathons/" + id + "/banner").with(as(learner)))
+                .andExpect(status().isOk()).andExpect(header().string("Content-Type", containsString("image/png")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"));
+        mockMvc.perform(get("/api/hackathons").with(as(learner))).andExpect(jsonPath("$[0].bannerUrl").value("/api/hackathons/" + id + "/banner"));
+
+        // Replacing removes the old file; deleting the hackathon removes the current one.
+        uploadBanner(admin, id, "second.png", image).andExpect(status().isOk());
+        org.mockito.Mockito.verify(storage).delete(key.getValue());
+        mockMvc.perform(delete("/api/admin/hackathons/" + id).with(csrf()).with(as(admin))).andExpect(status().isNoContent());
+        org.mockito.Mockito.verify(storage, org.mockito.Mockito.times(2)).delete(org.mockito.ArgumentMatchers.anyString());
     }
 }

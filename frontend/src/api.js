@@ -137,6 +137,11 @@ export const api = {
   getHackathonProjects: (id) => request(`/api/admin/hackathons/${id}/submissions`),
   getHackathonStandings: (id) => request(`/api/admin/hackathons/${id}/standings`),
   publishHackathon: (id) => api.post(`/api/admin/hackathons/${id}/publish`),
+  uploadHackathonBanner: (id, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.upload(`/api/admin/hackathons/${id}/banner`, form);
+  },
   getAdminHackathons: () => request('/api/admin/hackathons'),
   createAdminHackathon: (data) => api.post('/api/admin/hackathons', data),
   updateAdminHackathon: (id, data) => api.put(`/api/admin/hackathons/${id}`, data),

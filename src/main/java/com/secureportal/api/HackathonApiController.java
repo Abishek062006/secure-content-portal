@@ -5,6 +5,14 @@ import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.AdminNotALearnerException;
 import com.secureportal.hackathon.HackathonCalendar;
 import com.secureportal.hackathon.HackathonService;
+import com.secureportal.hackathon.Hackathon;
+import com.secureportal.storage.StorageObject;
+import com.secureportal.storage.StorageService;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import java.io.IOException;
+import java.time.Duration;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,9 +35,30 @@ import java.util.List;
 public class HackathonApiController {
 
     private final HackathonService hackathonService;
+    private final StorageService storageService;
 
-    public HackathonApiController(HackathonService hackathonService) {
+    public HackathonApiController(HackathonService hackathonService, StorageService storageService) {
         this.hackathonService = hackathonService;
+        this.storageService = storageService;
+    }
+
+    /** Banners are catalog art: behind sign-in like everything else, but not ticketed. */
+    @GetMapping("/{id}/banner")
+    public ResponseEntity<byte[]> banner(@PathVariable Long id) {
+        Hackathon hackathon = hackathonService.find(id);
+        if (hackathon.getBannerKey() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        try (StorageObject object = storageService.get(hackathon.getBannerKey(), null, null)) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(hackathon.getBannerMime()))
+                    .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate())
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(object.content().readAllBytes());
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not read the banner of hackathon " + id, e);
+        }
     }
 
     @GetMapping
