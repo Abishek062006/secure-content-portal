@@ -20,7 +20,7 @@ const clock = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s 
  * Record an answer instead of typing it. The transcript is put in the answer box for the learner to read and edit; the recording
  * itself is sent once for transcription and never kept.
  */
-export default function VoiceAnswer({ onText, onError, disabled }) {
+export default function VoiceAnswer({ sessionId, onText, onError, disabled }) {
   const [state, setState] = useState('idle'); // idle | consent | recording | transcribing
   const [seconds, setSeconds] = useState(0);
   const [notes, setNotes] = useState(null);
@@ -50,14 +50,18 @@ export default function VoiceAnswer({ onText, onError, disabled }) {
     onError(null);
     setNotes(null);
     try {
-      stream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Clean, single-channel audio with the room noise and echo removed: the biggest single help to what gets heard correctly.
+      stream.current = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
     } catch {
       onError('Microphone access was blocked. Allow it in your browser, or type your answer instead.');
       setState('idle');
       return;
     }
     const type = TYPES.find((t) => window.MediaRecorder.isTypeSupported?.(t));
-    recorder.current = type ? new MediaRecorder(stream.current, { mimeType: type }) : new MediaRecorder(stream.current);
+    const options = { audioBitsPerSecond: 128000, ...(type ? { mimeType: type } : {}) };
+    recorder.current = new MediaRecorder(stream.current, options);
     chunks.current = [];
     cancelled.current = false;
     recorder.current.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
@@ -90,7 +94,7 @@ export default function VoiceAnswer({ onText, onError, disabled }) {
     const blob = new Blob(chunks.current, { type: recorder.current?.mimeType || 'audio/webm' });
     setState('transcribing');
     try {
-      const result = await api.transcribeAnswer(blob, length);
+      const result = await api.transcribeAnswer(blob, length, sessionId);
       onText(result.text);
       setNotes(result);
     } catch (err) {

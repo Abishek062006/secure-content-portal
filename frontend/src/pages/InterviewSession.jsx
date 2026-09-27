@@ -116,7 +116,7 @@ function Running({ session, questions, reload }) {
           <h1>{next.questionText}</h1>
           <textarea ref={boxRef} rows={9} maxLength={MAX_ANSWER} value={answer} onChange={(e) => setAnswer(e.target.value)}
                     placeholder="Answer as you would in the room. Explain your reasoning." aria-label="Your answer" />
-          <VoiceAnswer disabled={busy} onError={setError}
+          <VoiceAnswer sessionId={session.id} disabled={busy} onError={setError}
                        onText={(text) => setAnswer((current) => (current.trim() ? `${current.trim()} ${text}` : text).slice(0, MAX_ANSWER))} />
           <div className="interview-answer-foot">
             <span className="field-hint">{answer.length}/{MAX_ANSWER}</span>

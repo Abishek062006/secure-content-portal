@@ -172,8 +172,9 @@ export const api = {
   completeInterview: (id) => api.post(`/api/interviews/sessions/${id}/complete`),
   getInterviewHistory: () => request('/api/interviews/history'),
   getInterviewQuota: () => request('/api/interviews/quota'),
-  transcribeAnswer: (blob, durationSeconds) => {
+  transcribeAnswer: (blob, durationSeconds, sessionId) => {
     const form = new FormData();
+    if (sessionId) form.append('sessionId', String(sessionId));
     form.append('audio', blob, 'answer');
     form.append('consent', 'true');
     form.append('durationSeconds', String(durationSeconds));

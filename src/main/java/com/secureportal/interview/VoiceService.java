@@ -43,7 +43,7 @@ public class VoiceService {
     record AudioKind(String contentType, String extension) {
     }
 
-    public Transcript transcribe(Long userId, byte[] audio, int durationSeconds) {
+    public Transcript transcribe(Long userId, byte[] audio, int durationSeconds, String hint) {
         if (audio == null || audio.length == 0) {
             throw new InvalidInterviewException("No recording was received.");
         }
@@ -59,7 +59,7 @@ public class VoiceService {
             throw new InterviewLimitException(MAX_PER_DAY, "voice answers");
         }
         try {
-            String text = speech.transcribe(audio, "answer." + kind.extension(), kind.contentType());
+            String text = speech.transcribe(audio, "answer." + kind.extension(), kind.contentType(), hint);
             if (text == null || text.isBlank()) {
                 throw new InvalidInterviewException("We couldn't hear anything in that recording. Check your microphone and try again.");
             }

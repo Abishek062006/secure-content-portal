@@ -3,6 +3,7 @@ package com.secureportal.api;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.AdminNotALearnerException;
 import com.secureportal.interview.InvalidInterviewException;
+import com.secureportal.interview.MockInterviewService;
 import com.secureportal.interview.VoiceService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,15 +20,18 @@ import java.io.IOException;
 public class VoiceApiController {
 
     private final VoiceService voiceService;
+    private final MockInterviewService interviews;
 
-    public VoiceApiController(VoiceService voiceService) {
+    public VoiceApiController(VoiceService voiceService, MockInterviewService interviews) {
         this.voiceService = voiceService;
+        this.interviews = interviews;
     }
 
     @PostMapping
     public VoiceService.Transcript transcribe(@RequestParam("audio") MultipartFile audio,
                                               @RequestParam(defaultValue = "false") boolean consent,
                                               @RequestParam(defaultValue = "0") int durationSeconds,
+                                              @RequestParam(required = false) Long sessionId,
                                               @AuthenticationPrincipal AppPrincipal principal) {
         if (principal.isAdmin()) {
             throw new AdminNotALearnerException();
@@ -39,7 +43,8 @@ public class VoiceApiController {
             throw new InvalidInterviewException("That recording is too long. Keep each answer under 3 minutes.");
         }
         try {
-            return voiceService.transcribe(principal.getUserId(), audio.getBytes(), durationSeconds);
+            return voiceService.transcribe(principal.getUserId(), audio.getBytes(), durationSeconds,
+                    interviews.speechHint(principal.getUserId(), sessionId));
         } catch (IOException e) {
             throw new InvalidInterviewException("We couldn't read that recording. Please try again.");
         }

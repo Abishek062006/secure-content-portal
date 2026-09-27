@@ -19,7 +19,10 @@ public class AiProperties {
     private int timeoutSeconds = 120;
 
     /** The speech-to-text model used for spoken interview answers, on the same provider and key. */
-    private String transcriptionModel = "whisper-large-v3-turbo";
+    private String transcriptionModel = "whisper-large-v3";
+
+    /** The language spoken, as an ISO code (en). Telling Whisper avoids it guessing wrong on short or accented clips. Blank lets it detect. */
+    private String transcriptionLanguage = "en";
 
     /** Asks the provider for strict JSON output; turn off for a provider that rejects the parameter. */
     private boolean jsonMode = true;
@@ -32,6 +35,14 @@ public class AiProperties {
     public boolean isTranscriptionConfigured() {
         return baseUrl != null && !baseUrl.isBlank() && apiKey != null && !apiKey.isBlank()
                 && transcriptionModel != null && !transcriptionModel.isBlank();
+    }
+
+    public String getTranscriptionLanguage() {
+        return transcriptionLanguage;
+    }
+
+    public void setTranscriptionLanguage(String transcriptionLanguage) {
+        this.transcriptionLanguage = transcriptionLanguage;
     }
 
     public String getTranscriptionModel() {

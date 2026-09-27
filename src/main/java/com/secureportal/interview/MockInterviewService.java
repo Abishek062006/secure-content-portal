@@ -196,6 +196,21 @@ public class MockInterviewService {
         return clean.length() > 590 ? clean.substring(0, 590) : clean;
     }
 
+    /**
+     * A short line of context for the speech model: the role and skills of the learner's own interview. It helps spell technical words
+     * (Redis, Kubernetes) correctly. Null when the interview isn't theirs, so nothing about anyone else's leaks into a request.
+     */
+    public String speechHint(Long userId, Long sessionId) {
+        if (sessionId == null) {
+            return null;
+        }
+        return sessions.findByIdAndUserId(sessionId, userId).map(s -> {
+            String hint = "Interview answer for a " + s.getTargetRole() + "."
+                    + (s.getSkills() == null ? "" : " Terms: " + s.getSkills() + ".");
+            return hint.length() > 220 ? hint.substring(0, 220) : hint;
+        }).orElse(null);
+    }
+
     public Quota quota(Long userId) {
         VoiceService.Usage spoken = voice.usage(userId);
         return new Quota(sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)), MAX_PER_DAY,

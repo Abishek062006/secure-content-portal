@@ -30,12 +30,12 @@ public class OpenAiSpeechClient implements SpeechToText {
     }
 
     @Override
-    public String transcribe(byte[] audio, String filename, String contentType) {
+    public String transcribe(byte[] audio, String filename, String contentType, String hint) {
         if (!properties.isTranscriptionConfigured()) {
             throw new AiNotConfiguredException();
         }
         String boundary = "----gradientnova" + UUID.randomUUID().toString().replace("-", "");
-        byte[] body = multipart(boundary, audio, filename, contentType);
+        byte[] body = multipart(boundary, audio, filename, contentType, hint);
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint()))
                     .timeout(TIMEOUT)
@@ -58,11 +58,18 @@ public class OpenAiSpeechClient implements SpeechToText {
         }
     }
 
-    private byte[] multipart(String boundary, byte[] audio, String filename, String contentType) {
+    private byte[] multipart(String boundary, byte[] audio, String filename, String contentType, String hint) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream(audio.length + 512)) {
             field(out, boundary, "model", properties.getTranscriptionModel());
             field(out, boundary, "response_format", "json");
             field(out, boundary, "temperature", "0");
+            String language = properties.getTranscriptionLanguage();
+            if (language != null && !language.isBlank()) {
+                field(out, boundary, "language", language.strip());
+            }
+            if (hint != null && !hint.isBlank()) {
+                field(out, boundary, "prompt", hint.replaceAll("[\\r\\n]+", " "));
+            }
             out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n"
                     + "Content-Type: " + contentType + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
             out.write(audio);

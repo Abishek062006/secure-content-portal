@@ -52,6 +52,8 @@ class VoiceFlowTest {
     private MockMvc mockMvc;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private MockInterviewSessionRepository sessionRepository;
     @MockitoBean
     private SpeechToText speech;
 
@@ -65,7 +67,7 @@ class VoiceFlowTest {
         one = user(ONE, Role.VIEWER);
         two = user(TWO, Role.VIEWER);
         doReturn("Um, I would use a cache, you know, and basically measure first. Then I would index the table.")
-                .when(speech).transcribe(any(), anyString(), anyString());
+                .when(speech).transcribe(any(), anyString(), anyString(), any());
     }
 
     @AfterEach
@@ -95,6 +97,26 @@ class VoiceFlowTest {
     }
 
     @Test
+    void theSpeechModelIsToldTheRoleAndSkillsOfTheLearnersOwnInterviewOnly() throws Exception {
+        MockInterviewSession mine = sessionRepository.save(new MockInterviewSession(one.getId(), InterviewTrack.STUDENT,
+                InterviewDifficulty.MEDIUM, new MockInterviewSession.Goal(InterviewSource.SKILLS, "Backend developer", "Java, Redis", null, null), 5));
+        MockInterviewSession theirs = sessionRepository.save(new MockInterviewSession(two.getId(), InterviewTrack.STUDENT,
+                InterviewDifficulty.MEDIUM, new MockInterviewSession.Goal(InterviewSource.SKILLS, "Secret role", "Secret skill", null, null), 5));
+
+        mockMvc.perform(multipart("/api/interviews/transcribe").file(new MockMultipartFile("audio", "a.webm", "audio/webm", WEBM))
+                .param("consent", "true").param("sessionId", String.valueOf(mine.getId())).with(csrf()).with(as(one))).andExpect(status().isOk());
+        mockMvc.perform(multipart("/api/interviews/transcribe").file(new MockMultipartFile("audio", "a.webm", "audio/webm", WEBM))
+                .param("consent", "true").param("sessionId", String.valueOf(theirs.getId())).with(csrf()).with(as(one))).andExpect(status().isOk());
+        send(one, WEBM, true, 10).andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<String> hint = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(speech, org.mockito.Mockito.times(3)).transcribe(any(), anyString(), anyString(), hint.capture());
+        assertThat(hint.getAllValues().get(0)).contains("Backend developer").contains("Java, Redis"); // their own interview
+        assertThat(hint.getAllValues().get(1)).isNull();                                                // someone else's: nothing leaks
+        assertThat(hint.getAllValues().get(2)).isNull();                                                // no interview named
+    }
+
+    @Test
     void onlyConsentedLearnerRecordingsOfARealAudioTypeAreSentOn() throws Exception {
         send(one, WEBM, false, 10).andExpect(status().isBadRequest());
         send(one, "this is not audio at all, just text".getBytes(), true, 10).andExpect(status().isBadRequest());
@@ -103,16 +125,16 @@ class VoiceFlowTest {
         System.arraycopy(WEBM, 0, huge, 0, WEBM.length);
         send(one, huge, true, 10).andExpect(status().isBadRequest());
         send(admin, WEBM, true, 10).andExpect(status().isForbidden());
-        verify(speech, never()).transcribe(any(), anyString(), anyString());
+        verify(speech, never()).transcribe(any(), anyString(), anyString(), any());
     }
 
     @Test
     void aFailedOrSilentTranscriptionCostsNothingAndProblemsAreReportedHonestly() throws Exception {
-        doThrow(new AiException("The speech service answered HTTP 500.")).when(speech).transcribe(any(), anyString(), anyString());
+        doThrow(new AiException("The speech service answered HTTP 500.")).when(speech).transcribe(any(), anyString(), anyString(), any());
         send(one, WEBM, true, 10).andExpect(status().isBadGateway());
-        doThrow(new AiNotConfiguredException()).when(speech).transcribe(any(), anyString(), anyString());
+        doThrow(new AiNotConfiguredException()).when(speech).transcribe(any(), anyString(), anyString(), any());
         send(one, WEBM, true, 10).andExpect(status().isServiceUnavailable());
-        doReturn("   ").when(speech).transcribe(any(), anyString(), anyString());
+        doReturn("   ").when(speech).transcribe(any(), anyString(), anyString(), any());
         send(one, WEBM, true, 10).andExpect(status().isBadRequest());
 
         mockMvc.perform(get("/api/interviews/quota").with(as(one))).andExpect(jsonPath("$.voiceUsed").value(0));
