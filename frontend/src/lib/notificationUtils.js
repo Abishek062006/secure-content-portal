@@ -32,24 +32,36 @@ export function getCategoryMeta(category) {
       return { label: 'Moderation', icon: 'shield-check', color: '#ea580c', bg: '#fff7ed' };
     case 'SECURITY':
       return { label: 'Security', icon: 'lock', color: '#dc2626', bg: '#fef2f2' };
+    case 'ACHIEVEMENT':
+      return { label: 'Achievement', icon: 'award', color: '#7c3aed', bg: '#f5f3ff' };
     case 'SYSTEM':
     default:
       return { label: 'System', icon: 'info', color: '#475569', bg: '#f1f5f9' };
   }
 }
 
-export function getActionLabel(notification) {
-  const cat = notification.category;
-  const url = notification.actionUrl || '';
+export function getActionLabel(notificationOrCategory, maybeUrl) {
+  let cat = '';
+  let url = '';
+  if (typeof notificationOrCategory === 'object' && notificationOrCategory !== null) {
+    cat = notificationOrCategory.category || '';
+    url = notificationOrCategory.actionUrl || '';
+  } else {
+    cat = notificationOrCategory || '';
+    url = maybeUrl || '';
+  }
+
   if (url.includes('/admin/users')) return 'Manage Users';
   if (url.includes('/admin/content')) return 'Manage Content';
   if (url.includes('/lessons/')) return 'View Lesson';
   if (url.includes('/assessments/') || url.includes('/attempts/')) return url.includes('/attempts/') ? 'View Result' : 'Take Quiz';
   if (url.includes('/courses/')) return 'Open Course';
+  if (url.includes('/profile') || url.includes('/leaderboard')) return 'View Achievements';
   if (url.includes('/feed')) return 'View Reply';
   if (cat === 'ANNOUNCEMENT') return 'View Announcement';
   if (cat === 'CONTENT') return 'View Content';
   if (cat === 'MODERATION') return 'Review';
   if (cat === 'SECURITY') return 'Security Alert';
+  if (cat === 'ACHIEVEMENT') return 'View Badge';
   return 'View Details';
 }

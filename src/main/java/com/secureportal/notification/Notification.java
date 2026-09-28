@@ -69,6 +69,11 @@ public class Notification {
         this.readAt = Instant.now();
     }
 
+    public void markAsUnread() {
+        this.isRead = false;
+        this.readAt = null;
+    }
+
     public Long getId() {
         return id;
     }

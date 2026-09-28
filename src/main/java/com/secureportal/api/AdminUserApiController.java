@@ -29,10 +29,13 @@ public class AdminUserApiController {
 
     private final UserRepository userRepository;
     private final UserService userService;
+    private final com.secureportal.notification.NotificationService notificationService;
 
-    public AdminUserApiController(UserRepository userRepository, UserService userService) {
+    public AdminUserApiController(UserRepository userRepository, UserService userService,
+                                  com.secureportal.notification.NotificationService notificationService) {
         this.userRepository = userRepository;
         this.userService = userService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -48,11 +51,33 @@ public class AdminUserApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void promote(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
         userService.promoteToAdmin(id, principal.getEmail());
+        try {
+            notificationService.createNotification(
+                    id,
+                    com.secureportal.notification.NotificationCategory.SECURITY,
+                    "Role Promoted to Administrator",
+                    "Your account has been elevated to Administrator by " + principal.getEmail() + ".",
+                    com.secureportal.notification.NotificationPriority.IMPORTANT,
+                    "/admin/courses"
+            );
+        } catch (Exception ignored) {
+        }
     }
 
     @PostMapping("/{id}/demote")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void demote(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
         userService.demoteToViewer(id, principal.getEmail(), principal.getUserId());
+        try {
+            notificationService.createNotification(
+                    id,
+                    com.secureportal.notification.NotificationCategory.SECURITY,
+                    "Role Updated to Learner",
+                    "Your account role has been updated to Viewer/Learner by " + principal.getEmail() + ".",
+                    com.secureportal.notification.NotificationPriority.NORMAL,
+                    "/courses"
+            );
+        } catch (Exception ignored) {
+        }
     }
 }

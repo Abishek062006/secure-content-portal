@@ -8,5 +8,6 @@ public enum NotificationCategory {
     CONTENT,
     MODERATION,
     SECURITY,
-    SYSTEM
+    SYSTEM,
+    ACHIEVEMENT
 }

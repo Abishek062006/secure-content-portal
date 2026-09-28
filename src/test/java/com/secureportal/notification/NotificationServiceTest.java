@@ -145,4 +145,46 @@ class NotificationServiceTest {
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).title()).isEqualTo("New Reply");
     }
+
+    @Test
+    void markAsUnread_onlyMarksForCorrectUser() {
+        Notification notification = new Notification(10L, NotificationCategory.QUIZ,
+                "Quiz Ready", "Check your quiz", NotificationPriority.NORMAL, null);
+        notification.markAsRead();
+        when(notificationRepository.findByIdAndRecipientUserId(1L, 10L)).thenReturn(Optional.of(notification));
+        when(notificationRepository.findByIdAndRecipientUserId(1L, 99L)).thenReturn(Optional.empty());
+
+        // Correct user marks unread
+        Optional<NotificationDto> result = notificationService.markAsUnread(1L, 10L);
+        assertThat(result).isPresent();
+        assertThat(result.get().isRead()).isFalse();
+        verify(notificationRepository).save(notification);
+
+        // Another user cannot mark it as unread
+        Optional<NotificationDto> unauthorizedResult = notificationService.markAsUnread(1L, 99L);
+        assertThat(unauthorizedResult).isEmpty();
+    }
+
+    @Test
+    void deleteNotification_delegatesToRepository() {
+        when(notificationRepository.deleteByIdAndRecipientUserId(5L, 10L)).thenReturn(1);
+        when(notificationRepository.deleteByIdAndRecipientUserId(99L, 10L)).thenReturn(0);
+
+        assertThat(notificationService.deleteNotification(5L, 10L)).isTrue();
+        assertThat(notificationService.deleteNotification(99L, 10L)).isFalse();
+    }
+
+    @Test
+    void clearReadNotifications_delegatesToRepository() {
+        when(notificationRepository.deleteByRecipientUserIdAndIsReadTrue(10L)).thenReturn(4);
+        int cleared = notificationService.clearReadNotifications(10L);
+        assertThat(cleared).isEqualTo(4);
+    }
+
+    @Test
+    void clearAllNotifications_delegatesToRepository() {
+        when(notificationRepository.deleteByRecipientUserId(10L)).thenReturn(8);
+        int cleared = notificationService.clearAllNotifications(10L);
+        assertThat(cleared).isEqualTo(8);
+    }
 }

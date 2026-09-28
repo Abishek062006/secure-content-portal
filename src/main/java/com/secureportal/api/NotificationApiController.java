@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -66,17 +67,45 @@ public class NotificationApiController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
     }
 
+    @PutMapping("/notifications/{id}/unread")
+    public NotificationDto markUnread(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
+        return notificationService.markAsUnread(id, principal.getUserId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
+    }
+
     @PutMapping("/notifications/read-all")
     public Map<String, Integer> markAllRead(@AuthenticationPrincipal AppPrincipal principal) {
         int updated = notificationService.markAllAsRead(principal.getUserId());
         return Map.of("markedRead", updated);
     }
 
+    @DeleteMapping("/notifications/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
+        boolean deleted = notificationService.deleteNotification(id, principal.getUserId());
+        if (!deleted) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found");
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/notifications/clear-read")
+    public Map<String, Integer> clearRead(@AuthenticationPrincipal AppPrincipal principal) {
+        int count = notificationService.clearReadNotifications(principal.getUserId());
+        return Map.of("cleared", count);
+    }
+
+    @DeleteMapping("/notifications/clear-all")
+    public Map<String, Integer> clearAll(@AuthenticationPrincipal AppPrincipal principal) {
+        int count = notificationService.clearAllNotifications(principal.getUserId());
+        return Map.of("cleared", count);
+    }
+
     public record AnnouncementRequest(
             @NotBlank(message = "Title is required") @Size(max = 200, message = "Title must be 200 characters or fewer") String title,
             @NotBlank(message = "Message is required") String message,
             NotificationPriority priority,
-            String actionUrl) {
+            String actionUrl,
+            String targetAudience) {
     }
 
     @PostMapping("/admin/notifications/announcement")
@@ -86,20 +115,43 @@ public class NotificationApiController {
             @AuthenticationPrincipal AppPrincipal principal) {
         String cleanActionUrl = (request.actionUrl() != null && !request.actionUrl().isBlank())
                 ? request.actionUrl().trim() : null;
-        notificationService.notifyAllLearners(
-                NotificationCategory.ANNOUNCEMENT,
-                request.title().trim(),
-                request.message().trim(),
-                request.priority() != null ? request.priority() : NotificationPriority.IMPORTANT,
-                cleanActionUrl
-        );
+        NotificationPriority priority = request.priority() != null ? request.priority() : NotificationPriority.IMPORTANT;
+        String audience = request.targetAudience() != null ? request.targetAudience().trim().toUpperCase() : "ALL";
+
+        if ("ADMINS".equals(audience)) {
+            notificationService.notifyAllAdmins(
+                    NotificationCategory.ANNOUNCEMENT,
+                    request.title().trim(),
+                    request.message().trim(),
+                    priority,
+                    cleanActionUrl
+            );
+        } else if ("LEARNERS".equals(audience)) {
+            notificationService.notifyAllLearners(
+                    NotificationCategory.ANNOUNCEMENT,
+                    request.title().trim(),
+                    request.message().trim(),
+                    priority,
+                    cleanActionUrl
+            );
+        } else {
+            notificationService.notifyAllUsers(
+                    NotificationCategory.ANNOUNCEMENT,
+                    request.title().trim(),
+                    request.message().trim(),
+                    priority,
+                    cleanActionUrl
+            );
+        }
+
         try {
             if (principal != null && principal.getEmail() != null) {
-                auditService.log(principal.getEmail(), "ANNOUNCEMENT", null, "\"" + request.title().trim() + "\"");
+                auditService.log(principal.getEmail(), "ANNOUNCEMENT", null,
+                        "\"" + request.title().trim() + "\" [Audience: " + audience + "]");
             }
         } catch (Exception ignored) {
             // Non-blocking
         }
-        return ResponseEntity.ok(Map.of("status", "success", "message", "Announcement sent to all users"));
+        return ResponseEntity.ok(Map.of("status", "success", "message", "Announcement broadcast successfully (" + audience + ")"));
     }
 }

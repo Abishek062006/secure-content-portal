@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon from '../components/Icon';
@@ -9,18 +9,21 @@ const ADMIN_FILTERS = [
   { id: 'ALL', label: 'All' },
   { id: 'UNREAD', label: 'Unread' },
   { id: 'SYSTEM', label: 'System & Users' },
+  { id: 'ANNOUNCEMENT', label: 'Announcements' },
   { id: 'CONTENT', label: 'Content Issues' },
   { id: 'MODERATION', label: 'Moderation' },
   { id: 'SECURITY', label: 'Security' },
+  { id: 'COMMUNITY', label: 'Community' },
 ];
 
 const LEARNER_FILTERS = [
   { id: 'ALL', label: 'All' },
   { id: 'UNREAD', label: 'Unread' },
   { id: 'COURSE', label: 'Courses' },
-  { id: 'QUIZ', label: 'Quiz' },
+  { id: 'QUIZ', label: 'Quizzes' },
   { id: 'COMMUNITY', label: 'Community' },
   { id: 'ANNOUNCEMENT', label: 'Announcements' },
+  { id: 'ACHIEVEMENT', label: 'Achievements' },
 ];
 
 export default function Notifications() {
@@ -31,26 +34,34 @@ export default function Notifications() {
   const filters = isAdmin ? ADMIN_FILTERS : LEARNER_FILTERS;
 
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [totalElements, setTotalElements] = useState(0);
+  const [actionFeedback, setActionFeedback] = useState('');
 
   // Announcement Modal for Admins
   const [announcementOpen, setAnnouncementOpen] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
-  const [announcementPriority, setAnnouncementPriority] = useState('NORMAL');
+  const [announcementPriority, setAnnouncementPriority] = useState('IMPORTANT');
   const [announcementActionUrl, setAnnouncementActionUrl] = useState('');
+  const [announcementTarget, setAnnouncementTarget] = useState('ALL');
   const [announcementSubmitting, setAnnouncementSubmitting] = useState(false);
   const [announcementSuccess, setAnnouncementSuccess] = useState('');
   const [announcementError, setAnnouncementError] = useState('');
 
+  const showFeedback = (msg) => {
+    setActionFeedback(msg);
+    setTimeout(() => setActionFeedback(''), 2500);
+  };
+
   const loadNotifications = useCallback(async (filterId, pageNum, append = false) => {
     setLoading(true);
     try {
-      const params = { page: pageNum, size: 15 };
+      const params = { page: pageNum, size: 20 };
       if (filterId === 'UNREAD') {
         params.unreadOnly = true;
       } else if (filterId !== 'ALL') {
@@ -75,6 +86,15 @@ export default function Notifications() {
     loadNotifications(activeFilter, 0, false);
   }, [activeFilter, loadNotifications]);
 
+  // Sync across tabs/components
+  useEffect(() => {
+    const handleSync = () => {
+      loadNotifications(activeFilter, 0, false);
+    };
+    window.addEventListener('portal-notification-change', handleSync);
+    return () => window.removeEventListener('portal-notification-change', handleSync);
+  }, [activeFilter, loadNotifications]);
+
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
@@ -88,6 +108,47 @@ export default function Notifications() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
+      window.dispatchEvent(new CustomEvent('portal-notification-change'));
+      showFeedback('Marked as read');
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleMarkUnread = async (id, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await api.markNotificationUnread(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: false } : n))
+      );
+      window.dispatchEvent(new CustomEvent('portal-notification-change'));
+      showFeedback('Marked as unread');
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleDelete = async (id, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await api.deleteNotification(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setTotalElements((t) => Math.max(0, t - 1));
+      window.dispatchEvent(new CustomEvent('portal-notification-change'));
+      showFeedback('Notification dismissed');
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleClearRead = async () => {
+    if (!window.confirm('Are you sure you want to clear all read notifications?')) return;
+    try {
+      const res = await api.clearReadNotifications();
+      setNotifications((prev) => prev.filter((n) => !n.isRead));
+      window.dispatchEvent(new CustomEvent('portal-notification-change'));
+      showFeedback(`Cleared ${res?.cleared ?? 'all'} read notifications`);
     } catch {
       // Ignore
     }
@@ -97,6 +158,8 @@ export default function Notifications() {
     try {
       await api.markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      window.dispatchEvent(new CustomEvent('portal-notification-change'));
+      showFeedback('All notifications marked as read');
     } catch {
       // Ignore
     }
@@ -124,13 +187,15 @@ export default function Notifications() {
         message: announcementMessage.trim(),
         priority: announcementPriority,
         actionUrl: announcementActionUrl.trim() || null,
+        targetAudience: announcementTarget,
       });
-      setAnnouncementSuccess('Announcement successfully broadcast to all users!');
+      setAnnouncementSuccess('Announcement successfully broadcast!');
       setAnnouncementTitle('');
       setAnnouncementMessage('');
       setAnnouncementActionUrl('');
-      // Reload notifications to display the new announcement
+      // Reload notifications & sync bell
       loadNotifications(activeFilter, 0, false);
+      window.dispatchEvent(new CustomEvent('portal-notification-change'));
       setTimeout(() => {
         setAnnouncementOpen(false);
         setAnnouncementSuccess('');
@@ -142,17 +207,30 @@ export default function Notifications() {
     }
   };
 
+  // Filtered by search query if user typed anything
+  const displayedNotifications = useMemo(() => {
+    if (!searchQuery.trim()) return notifications;
+    const q = searchQuery.toLowerCase().trim();
+    return notifications.filter(
+      (n) =>
+        (n.title && n.title.toLowerCase().includes(q)) ||
+        (n.message && n.message.toLowerCase().includes(q)) ||
+        (n.category && n.category.toLowerCase().includes(q))
+    );
+  }, [notifications, searchQuery]);
+
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const readCount = notifications.filter((n) => n.isRead).length;
 
   return (
     <div className="container-wide notifications-page">
       <div className="page-head notifications-head">
         <div>
           <h1 className="page-title">Notifications</h1>
-          <p className="page-subtitle" style={{ margin: '6px 0 0', color: 'var(--ink-mid)', fontSize: '1rem' }}>
+          <p className="page-subtitle" style={{ margin: '6px 0 0', color: 'var(--ink-mid)', fontSize: '0.96rem' }}>
             {isAdmin
-              ? 'Monitor system events, user registrations, content issues, and administrative alerts.'
-              : 'Stay updated with your courses, quizzes, community activity, and announcements.'}
+              ? 'Monitor system events, user registrations, moderation, and administrative alerts.'
+              : 'Stay up-to-date with your courses, quizzes, community replies, and announcements.'}
           </p>
         </div>
 
@@ -183,21 +261,66 @@ export default function Notifications() {
               Mark all as read
             </button>
           )}
+
+          {readCount > 0 && (
+            <button
+              type="button"
+              className="btn btn-outline notifications-clear-read-btn"
+              onClick={handleClearRead}
+              title="Delete all read notifications"
+            >
+              <Icon name="trash-2" size={15} />
+              Clear read ({readCount})
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="notifications-filter-bar">
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            className={`notifications-filter-chip ${activeFilter === f.id ? 'active' : ''}`}
-            onClick={() => setActiveFilter(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
+      {actionFeedback && (
+        <div className="notifications-feedback-toast" role="status">
+          <Icon name="check-circle" size={15} />
+          <span>{actionFeedback}</span>
+        </div>
+      )}
+
+      {/* Filter Tabs and Search Bar */}
+      <div className="notifications-controls-bar">
+        <div className="notifications-filter-bar">
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`notifications-filter-chip ${activeFilter === f.id ? 'active' : ''}`}
+              onClick={() => setActiveFilter(f.id)}
+            >
+              {f.label}
+              {f.id === 'UNREAD' && unreadCount > 0 && (
+                <span className="notifications-chip-count">{unreadCount}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="notifications-search-wrap">
+          <Icon name="search" size={15} className="notifications-search-icon" />
+          <input
+            type="text"
+            className="notifications-search-input"
+            placeholder="Filter notifications..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="notifications-search-clear"
+              onClick={() => setSearchQuery('')}
+              title="Clear search"
+            >
+              <Icon name="x" size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notification List */}
@@ -207,23 +330,25 @@ export default function Notifications() {
             <div className="spinner" />
             <p>Loading your notifications...</p>
           </div>
-        ) : notifications.length === 0 ? (
+        ) : displayedNotifications.length === 0 ? (
           <div className="notifications-empty-state">
             <div className="notifications-empty-icon">
-              <Icon name="bell" size={36} />
+              <Icon name="bell" size={32} />
             </div>
-            <h3>No notifications yet</h3>
+            <h3>No notifications found</h3>
             <p>
-              {activeFilter === 'ALL'
+              {searchQuery
+                ? `No notifications matching "${searchQuery}".`
+                : activeFilter === 'ALL'
                 ? isAdmin
-                  ? "You're all caught up! System events, user registrations, and administrative alerts will appear here."
+                  ? "You're all caught up! System events, user registrations, and platform alerts will appear here."
                   : "You're all caught up! Updates about your courses and community will appear here."
                 : `No notifications found under "${filters.find((f) => f.id === activeFilter)?.label}".`}
             </p>
           </div>
         ) : (
           <div className="notifications-grid">
-            {notifications.map((n) => {
+            {displayedNotifications.map((n) => {
               const meta = getCategoryMeta(n.category);
               return (
                 <div
@@ -239,54 +364,78 @@ export default function Notifications() {
                   </div>
 
                   <div className="notification-card-main">
-                    <div className="notification-card-meta">
-                      <span
-                        className="notification-category-pill"
-                        style={{ color: meta.color, borderColor: meta.border }}
-                      >
-                        {meta.label}
-                      </span>
-
-                      {n.priority && n.priority !== 'NORMAL' && (
-                        <span className={`notification-priority-tag ${n.priority.toLowerCase()}`}>
-                          {n.priority}
+                    <div className="notification-card-header">
+                      <div className="notification-card-tags">
+                        <span
+                          className="notification-category-badge"
+                          style={{ backgroundColor: meta.bg, color: meta.color }}
+                        >
+                          {meta.label}
                         </span>
-                      )}
 
-                      <span className="notification-card-time">
-                        {formatRelativeTime(n.createdAt)}
-                      </span>
+                        {n.priority && n.priority !== 'NORMAL' && (
+                          <span className={`notification-priority-badge ${n.priority.toLowerCase()}`}>
+                            {n.priority}
+                          </span>
+                        )}
 
-                      {!n.isRead && <span className="notification-card-dot" />}
+                        <span
+                          className="notification-card-date"
+                          title={n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}
+                        >
+                          {formatRelativeTime(n.createdAt)}
+                        </span>
+                      </div>
+
+                      <div className="notification-card-top-actions" onClick={(e) => e.stopPropagation()}>
+                        {n.isRead ? (
+                          <button
+                            type="button"
+                            className="notification-card-action-icon"
+                            title="Mark as unread"
+                            onClick={(e) => handleMarkUnread(n.id, e)}
+                          >
+                            <span className="notification-unread-dot-outline" />
+                            <span className="action-text">Unread</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="notification-card-action-icon active"
+                            title="Mark as read"
+                            onClick={(e) => handleMarkRead(n.id, e)}
+                          >
+                            <Icon name="check" size={14} />
+                            <span className="action-text">Read</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          className="notification-card-action-icon delete"
+                          title="Dismiss notification"
+                          onClick={(e) => handleDelete(n.id, e)}
+                        >
+                          <Icon name="trash-2" size={14} />
+                        </button>
+                      </div>
                     </div>
 
                     <h4 className="notification-card-title">{n.title}</h4>
-                    <p className="notification-card-message">{n.message}</p>
+                    <p className="notification-card-body">{n.message}</p>
 
-                    <div className="notification-card-footer">
+                    <div className="notification-card-actions">
                       {n.actionUrl && (
                         <button
                           type="button"
-                          className="btn btn-sm notification-action-btn"
+                          className="btn btn-sm notification-action-button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleItemClick(n);
                           }}
                         >
-                          <span>{getActionLabel(n.category, n.actionUrl)}</span>
+                          <span>{getActionLabel(n)}</span>
                           <Icon name="arrow-right" size={14} />
-                        </button>
-                      )}
-
-                      {!n.isRead && (
-                        <button
-                          type="button"
-                          className="notification-mark-read-btn"
-                          title="Mark as read"
-                          onClick={(e) => handleMarkRead(n.id, e)}
-                        >
-                          <Icon name="check" size={14} />
-                          <span>Mark read</span>
                         </button>
                       )}
                     </div>
@@ -298,7 +447,7 @@ export default function Notifications() {
         )}
 
         {/* Pagination Load More */}
-        {hasMore && !loading && (
+        {hasMore && !loading && !searchQuery && (
           <div className="notifications-load-more">
             <button
               type="button"
@@ -316,52 +465,33 @@ export default function Notifications() {
         <div
           className="announcement-modal-overlay"
           onClick={() => setAnnouncementOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.55)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
         >
           <div
             className="announcement-modal-card"
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'var(--surface, #ffffff)',
-              border: '1px solid var(--line, rgba(0,0,0,0.1))',
-              borderRadius: '16px',
-              padding: '28px',
-              width: '100%',
-              maxWidth: '540px',
-              boxShadow: '0 20px 48px rgba(0, 0, 0, 0.25)',
-              color: 'var(--ink, #1d1d1f)',
-              animation: 'fadeInUp 0.2s var(--ease) both',
-            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="announcement-modal-title"
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-wash, #e6f5f2)', color: 'var(--accent-deep, #06584c)', display: 'grid', placeItems: 'center' }}>
+            <div className="announcement-modal-header">
+              <div className="announcement-modal-title-wrap">
+                <div className="announcement-icon-badge">
                   <Icon name="megaphone" size={18} />
                 </div>
-                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Broadcast Announcement</h2>
+                <h2 id="announcement-modal-title" className="announcement-modal-title">Broadcast Announcement</h2>
               </div>
               <button
                 type="button"
+                className="announcement-modal-close"
                 onClick={() => setAnnouncementOpen(false)}
-                style={{ background: 'none', border: 0, cursor: 'pointer', padding: 6, borderRadius: '50%', color: 'var(--ink-mid)' }}
-                aria-label="Close"
+                aria-label="Close modal"
               >
                 <Icon name="x" size={20} />
               </button>
             </div>
 
-            <p style={{ margin: '0 0 16px', color: 'var(--ink-mid)', fontSize: '0.9rem' }}>
-              Broadcast an announcement notification to all registered learners across the platform.
+            <p className="announcement-modal-desc">
+              Broadcast an announcement notification with optional link and priority level.
             </p>
 
             {announcementSuccess && (
@@ -378,15 +508,20 @@ export default function Notifications() {
 
             <form onSubmit={handleSendAnnouncement}>
               <div className="form-group" style={{ marginBottom: 16 }}>
-                <label htmlFor="ann-title" style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', marginBottom: 6 }}>
-                  Announcement Title *
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label htmlFor="ann-title" style={{ fontWeight: 600, fontSize: '0.88rem' }}>
+                    Announcement Title *
+                  </label>
+                  <span style={{ fontSize: '0.75rem', color: announcementTitle.length > 180 ? '#dc2626' : 'var(--ink-soft)' }}>
+                    {announcementTitle.length}/200
+                  </span>
+                </div>
                 <input
                   id="ann-title"
                   type="text"
                   className="input"
                   style={{ width: '100%' }}
-                  placeholder="e.g. New Java Course & Quizzes Available"
+                  placeholder="e.g. New Java Masterclass & Hackathon Live"
                   value={announcementTitle}
                   onChange={(e) => setAnnouncementTitle(e.target.value)}
                   maxLength={200}
@@ -403,28 +538,47 @@ export default function Notifications() {
                   className="input textarea"
                   style={{ width: '100%', minHeight: '90px' }}
                   rows={3}
-                  placeholder="Describe what learners need to know..."
+                  placeholder="Provide concise details for learners..."
                   value={announcementMessage}
                   onChange={(e) => setAnnouncementMessage(e.target.value)}
                   required
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label htmlFor="ann-priority" style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', marginBottom: 6 }}>
-                  Priority
-                </label>
-                <select
-                  id="ann-priority"
-                  className="input"
-                  style={{ width: '100%' }}
-                  value={announcementPriority}
-                  onChange={(e) => setAnnouncementPriority(e.target.value)}
-                >
-                  <option value="NORMAL">Normal</option>
-                  <option value="IMPORTANT">Important</option>
-                  <option value="CRITICAL">Critical</option>
-                </select>
+              <div className="announcement-grid-cols">
+                <div className="form-group">
+                  <label htmlFor="ann-target" style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', marginBottom: 6 }}>
+                    Target Audience
+                  </label>
+                  <select
+                    id="ann-target"
+                    className="input"
+                    style={{ width: '100%' }}
+                    value={announcementTarget}
+                    onChange={(e) => setAnnouncementTarget(e.target.value)}
+                  >
+                    <option value="ALL">All Users (Learners & Admins)</option>
+                    <option value="LEARNERS">Learners Only</option>
+                    <option value="ADMINS">Admins Only</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="ann-priority" style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', marginBottom: 6 }}>
+                    Priority
+                  </label>
+                  <select
+                    id="ann-priority"
+                    className="input"
+                    style={{ width: '100%' }}
+                    value={announcementPriority}
+                    onChange={(e) => setAnnouncementPriority(e.target.value)}
+                  >
+                    <option value="NORMAL">Normal</option>
+                    <option value="IMPORTANT">Important</option>
+                    <option value="CRITICAL">Critical</option>
+                  </select>
+                </div>
               </div>
 
               <div className="form-group" style={{ marginBottom: 20 }}>
@@ -436,13 +590,13 @@ export default function Notifications() {
                   type="text"
                   className="input"
                   style={{ width: '100%' }}
-                  placeholder="e.g. /courses or /feed"
+                  placeholder="e.g. /courses or /hackathons or /feed"
                   value={announcementActionUrl}
                   onChange={(e) => setAnnouncementActionUrl(e.target.value)}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+              <div className="announcement-modal-actions">
                 <button
                   type="button"
                   className="btn"
@@ -456,7 +610,7 @@ export default function Notifications() {
                   className="btn btn-primary"
                   disabled={announcementSubmitting || !announcementTitle.trim() || !announcementMessage.trim()}
                 >
-                  {announcementSubmitting ? 'Sending...' : 'Broadcast to All Users'}
+                  {announcementSubmitting ? 'Broadcasting...' : 'Broadcast Announcement'}
                 </button>
               </div>
             </form>

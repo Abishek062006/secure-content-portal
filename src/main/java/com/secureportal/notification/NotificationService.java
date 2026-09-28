@@ -22,14 +22,22 @@ public class NotificationService {
             NotificationCategory.CONTENT,
             NotificationCategory.MODERATION,
             NotificationCategory.SECURITY,
-            NotificationCategory.SYSTEM
+            NotificationCategory.SYSTEM,
+            NotificationCategory.ANNOUNCEMENT,
+            NotificationCategory.COMMUNITY,
+            NotificationCategory.COURSE,
+            NotificationCategory.QUIZ,
+            NotificationCategory.ACHIEVEMENT
     );
 
     public static final Set<NotificationCategory> LEARNER_CATEGORIES = Set.of(
             NotificationCategory.COURSE,
             NotificationCategory.QUIZ,
             NotificationCategory.COMMUNITY,
-            NotificationCategory.ANNOUNCEMENT
+            NotificationCategory.ANNOUNCEMENT,
+            NotificationCategory.ACHIEVEMENT,
+            NotificationCategory.SYSTEM,
+            NotificationCategory.SECURITY
     );
 
     private final NotificationRepository notificationRepository;
@@ -177,7 +185,36 @@ public class NotificationService {
     }
 
     @Transactional
+    public Optional<NotificationDto> markAsUnread(Long notificationId, Long userId) {
+        Optional<Notification> opt = notificationRepository.findByIdAndRecipientUserId(notificationId, userId);
+        if (opt.isPresent()) {
+            Notification n = opt.get();
+            if (n.isRead()) {
+                n.markAsUnread();
+                notificationRepository.save(n);
+            }
+            return Optional.of(NotificationDto.from(n));
+        }
+        return Optional.empty();
+    }
+
+    @Transactional
     public int markAllAsRead(Long userId) {
         return notificationRepository.markAllAsRead(userId, Instant.now());
+    }
+
+    @Transactional
+    public boolean deleteNotification(Long notificationId, Long userId) {
+        return notificationRepository.deleteByIdAndRecipientUserId(notificationId, userId) > 0;
+    }
+
+    @Transactional
+    public int clearReadNotifications(Long userId) {
+        return notificationRepository.deleteByRecipientUserIdAndIsReadTrue(userId);
+    }
+
+    @Transactional
+    public int clearAllNotifications(Long userId) {
+        return notificationRepository.deleteByRecipientUserId(userId);
     }
 }

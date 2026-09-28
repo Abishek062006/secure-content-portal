@@ -165,6 +165,10 @@ export const api = {
   getRecentNotifications: () => request('/api/notifications/recent'),
   getUnreadNotificationCount: () => request('/api/notifications/unread-count'),
   markNotificationRead: (id) => api.put(`/api/notifications/${id}/read`),
+  markNotificationUnread: (id) => api.put(`/api/notifications/${id}/unread`),
   markAllNotificationsRead: () => api.put('/api/notifications/read-all'),
+  deleteNotification: (id) => api.del(`/api/notifications/${id}`),
+  clearReadNotifications: () => api.del('/api/notifications/clear-read'),
+  clearAllNotifications: () => api.del('/api/notifications/clear-all'),
   sendAdminAnnouncement: (data) => api.post('/api/admin/notifications/announcement', data),
 };

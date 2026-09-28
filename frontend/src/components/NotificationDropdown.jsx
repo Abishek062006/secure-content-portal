@@ -6,9 +6,12 @@ export default function NotificationDropdown({
   notifications = [],
   unreadCount = 0,
   onMarkRead,
+  onMarkUnread,
+  onDelete,
   onMarkAllRead,
   onClose,
   loading = false,
+  placement = 'right',
 }) {
   const navigate = useNavigate();
 
@@ -23,7 +26,11 @@ export default function NotificationDropdown({
   };
 
   return (
-    <div className="notification-dropdown">
+    <div
+      className={`notification-dropdown placement-${placement}`}
+      role="dialog"
+      aria-label="Notifications"
+    >
       <div className="notification-dropdown-header">
         <div className="notification-dropdown-title">
           <span>Notifications</span>
@@ -31,20 +38,31 @@ export default function NotificationDropdown({
             <span className="notification-pill-badge">{unreadCount} new</span>
           )}
         </div>
-        {unreadCount > 0 && (
+        <div className="notification-dropdown-header-actions">
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              className="notification-mark-all-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkAllRead();
+              }}
+              title="Mark all as read"
+            >
+              <Icon name="check-check" size={14} />
+              <span className="btn-label">Mark all read</span>
+            </button>
+          )}
           <button
             type="button"
-            className="notification-mark-all-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkAllRead();
-            }}
-            title="Mark all as read"
+            className="notification-dropdown-close-btn"
+            onClick={onClose}
+            title="Close notifications"
+            aria-label="Close notifications"
           >
-            <Icon name="check-check" size={14} />
-            Mark all read
+            <Icon name="x" size={16} />
           </button>
-        )}
+        </div>
       </div>
 
       <div className="notification-dropdown-list">
@@ -91,6 +109,44 @@ export default function NotificationDropdown({
                       </span>
                     )}
                   </div>
+                </div>
+                <div className="notification-item-actions" onClick={(e) => e.stopPropagation()}>
+                  {n.isRead ? (
+                    onMarkUnread && (
+                      <button
+                        type="button"
+                        className="notification-mini-btn"
+                        onClick={() => onMarkUnread(n.id)}
+                        title="Mark as unread"
+                        aria-label="Mark as unread"
+                      >
+                        <span className="notification-unread-marker" />
+                      </button>
+                    )
+                  ) : (
+                    onMarkRead && (
+                      <button
+                        type="button"
+                        className="notification-mini-btn"
+                        onClick={() => onMarkRead(n.id)}
+                        title="Mark as read"
+                        aria-label="Mark as read"
+                      >
+                        <Icon name="check" size={13} />
+                      </button>
+                    )
+                  )}
+                  {onDelete && (
+                    <button
+                      type="button"
+                      className="notification-mini-btn delete"
+                      onClick={() => onDelete(n.id)}
+                      title="Dismiss notification"
+                      aria-label="Dismiss notification"
+                    >
+                      <Icon name="trash-2" size={13} />
+                    </button>
+                  )}
                 </div>
                 {!n.isRead && <span className="notification-unread-dot" />}
               </div>

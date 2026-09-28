@@ -29,6 +29,7 @@ public class GamificationService {
     private final PointRuleRepository pointRuleRepository;
     private final AuditService auditService;
     private final com.secureportal.course.CourseRepository courseRepository;
+    private final com.secureportal.notification.NotificationService notificationService;
 
     public GamificationService(UserGamificationRepository gamificationRepository,
                                BadgeRepository badgeRepository,
@@ -38,6 +39,20 @@ public class GamificationService {
                                PointRuleRepository pointRuleRepository,
                                AuditService auditService,
                                com.secureportal.course.CourseRepository courseRepository) {
+        this(gamificationRepository, badgeRepository, userBadgeRepository, transactionRepository,
+                userRepository, pointRuleRepository, auditService, courseRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public GamificationService(UserGamificationRepository gamificationRepository,
+                               BadgeRepository badgeRepository,
+                               UserBadgeRepository userBadgeRepository,
+                               PointTransactionRepository transactionRepository,
+                               UserRepository userRepository,
+                               PointRuleRepository pointRuleRepository,
+                               AuditService auditService,
+                               com.secureportal.course.CourseRepository courseRepository,
+                               com.secureportal.notification.NotificationService notificationService) {
         this.gamificationRepository = gamificationRepository;
         this.badgeRepository = badgeRepository;
         this.userBadgeRepository = userBadgeRepository;
@@ -46,6 +61,7 @@ public class GamificationService {
         this.pointRuleRepository = pointRuleRepository;
         this.auditService = auditService;
         this.courseRepository = courseRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -288,6 +304,20 @@ public class GamificationService {
                     userId, badge.getPointsReward(), "BADGE_UNLOCKED",
                     "Unlocked badge: " + badge.getTitle(), null
             ));
+        }
+
+        if (notificationService != null) {
+            try {
+                notificationService.createNotification(
+                        userId,
+                        com.secureportal.notification.NotificationCategory.ACHIEVEMENT,
+                        "Badge Unlocked: " + badge.getTitle(),
+                        "Congratulations! You unlocked the \"" + badge.getTitle() + "\" badge (" + badge.getDescription() + ").",
+                        com.secureportal.notification.NotificationPriority.IMPORTANT,
+                        "/profile"
+                );
+            } catch (Exception ignored) {
+            }
         }
 
         return Optional.of(badge);
