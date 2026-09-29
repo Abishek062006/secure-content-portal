@@ -158,6 +158,21 @@ class ProfileFlowTest {
         mockMvc.perform(get("/api/profile")).andExpect(status().is3xxRedirection());
     }
 
+    @Test
+    void academicTranscriptIsAPdfVisibleToAnyoneSignedInLikeTheProfileItself() throws Exception {
+        MvcResult mine = mockMvc.perform(get("/api/profile/academic-transcript").with(as(me)))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_PDF))
+                .andReturn();
+        assertThat(mine.getResponse().getContentAsByteArray()).startsWith('%', 'P', 'D', 'F');
+
+        // Same visibility as the profile itself: anyone signed in can pull it, not just the owner.
+        mockMvc.perform(get("/api/profiles/" + me.getId() + "/academic-transcript").with(as(other)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/profiles/999999999/academic-transcript").with(as(me))).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/profile/academic-transcript")).andExpect(status().is3xxRedirection());
+    }
+
     private JsonNode json(MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }

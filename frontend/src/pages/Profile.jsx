@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../api';
+import { API_BASE, api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../components/Alert';
 import Avatar from '../components/Avatar';
@@ -261,7 +261,13 @@ export default function Profile() {
                 {profile.website && <a href={profile.website} target="_blank" rel="noopener noreferrer nofollow">{profile.website.replace(/^https?:\/\//, '')}</a>}
               </p>
             </div>
-            {mine && <button type="button" className="btn" onClick={() => setModal({ type: 'details' })}>Edit profile</button>}
+            <div className="row-actions">
+              <a className="btn" href={`${API_BASE}${id ? `/api/profiles/${id}` : '/api/profile'}/academic-transcript`}
+                 target="_blank" rel="noopener noreferrer" title="Download academic transcript">
+                <Icon name="file-text" size={16} /> Transcript
+              </a>
+              {mine && <button type="button" className="btn" onClick={() => setModal({ type: 'details' })}>Edit profile</button>}
+            </div>
           </div>
         </div>
       </section>

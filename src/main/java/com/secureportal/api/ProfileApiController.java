@@ -3,6 +3,17 @@ package com.secureportal.api;
 import com.secureportal.api.dto.ProfileDto;
 import com.secureportal.api.dto.ProfileDto.EntryDto;
 import com.secureportal.auth.AppPrincipal;
+import com.secureportal.certificate.Certificate;
+import com.secureportal.certificate.CertificateService;
+import com.secureportal.course.Course;
+import com.secureportal.course.CourseRepository;
+import com.secureportal.course.Enrollment;
+import com.secureportal.course.EnrollmentRepository;
+import com.secureportal.course.LearningService;
+import com.secureportal.course.LessonProgress;
+import com.secureportal.course.LessonRepository;
+import com.secureportal.gamification.GamificationService;
+import com.secureportal.pdf.AcademicTranscriptPdfRenderer;
 import com.secureportal.profile.EntryKind;
 import com.secureportal.profile.Profile;
 import com.secureportal.profile.ProfileNotFoundException;
@@ -30,6 +41,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** A member's own profile (edit) and anyone's profile (read). */
@@ -40,13 +54,30 @@ public class ProfileApiController {
     private final ProfileAssembler assembler;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final AcademicTranscriptPdfRenderer transcriptPdfRenderer;
+    private final CertificateService certificateService;
+    private final EnrollmentRepository enrollmentRepository;
+    private final CourseRepository courseRepository;
+    private final GamificationService gamificationService;
+    private final LearningService learningService;
+    private final LessonRepository lessonRepository;
 
     public ProfileApiController(ProfileService profileService, ProfileAssembler assembler, UserRepository userRepository,
-                                StorageService storageService) {
+                                StorageService storageService, AcademicTranscriptPdfRenderer transcriptPdfRenderer,
+                                CertificateService certificateService, EnrollmentRepository enrollmentRepository,
+                                CourseRepository courseRepository, GamificationService gamificationService,
+                                LearningService learningService, LessonRepository lessonRepository) {
         this.profileService = profileService;
         this.assembler = assembler;
         this.userRepository = userRepository;
         this.storageService = storageService;
+        this.transcriptPdfRenderer = transcriptPdfRenderer;
+        this.certificateService = certificateService;
+        this.enrollmentRepository = enrollmentRepository;
+        this.courseRepository = courseRepository;
+        this.gamificationService = gamificationService;
+        this.learningService = learningService;
+        this.lessonRepository = lessonRepository;
     }
 
     public record DetailsRequest(String headline, String about, String location, String website) {
@@ -149,5 +180,43 @@ public class ProfileApiController {
         } catch (IOException e) {
             throw new IllegalStateException("Could not read profile image " + key, e);
         }
+    }
+
+    /** Same visibility as the profile itself ({@code GET /api/profiles/{userId}}) — any signed-in member. */
+    @GetMapping("/api/profile/academic-transcript")
+    public ResponseEntity<byte[]> myAcademicTranscript(@AuthenticationPrincipal AppPrincipal principal) {
+        return academicTranscript(principal.getUserId());
+    }
+
+    @GetMapping("/api/profiles/{userId}/academic-transcript")
+    public ResponseEntity<byte[]> academicTranscript(@PathVariable Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(ProfileNotFoundException::new);
+        GamificationService.Summary summary = gamificationService.summary(userId);
+        List<Certificate> certs = certificateService.forUser(userId);
+        List<AcademicTranscriptPdfRenderer.BadgeRecord> badges = gamificationService.badgesOf(userId).stream()
+                .filter(GamificationService.BadgeStatus::unlocked)
+                .map(b -> new AcademicTranscriptPdfRenderer.BadgeRecord(b.title(), b.category(), b.unlockedAt()))
+                .toList();
+
+        List<AcademicTranscriptPdfRenderer.CourseProgressSummary> courses = new ArrayList<>();
+        for (Enrollment enrollment : enrollmentRepository.findByUserId(userId)) {
+            Course course = courseRepository.findById(enrollment.getCourseId()).orElse(null);
+            if (course == null) {
+                continue;
+            }
+            long totalLessons = lessonRepository.countByCourseId(course.getId());
+            Map<UUID, LessonProgress> progress = learningService.progress(userId, course.getId());
+            long completedLessons = progress.values().stream().filter(LessonProgress::isCompleted).count();
+            int percent = totalLessons == 0 ? 0 : (int) Math.round(completedLessons * 100.0 / totalLessons);
+            courses.add(new AcademicTranscriptPdfRenderer.CourseProgressSummary(course.getTitle(), course.getCategory(),
+                    enrollment.getEnrolledAt(), percent, totalLessons > 0 && completedLessons >= totalLessons));
+        }
+
+        byte[] pdf = transcriptPdfRenderer.render(user, summary.totalPoints(), summary.currentStreak(), courses, certs, badges);
+        String filename = "academic-transcript-" + user.getDisplayName().replaceAll("[^a-zA-Z0-9]", "_").toLowerCase() + ".pdf";
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .body(pdf);
     }
 }
