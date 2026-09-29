@@ -85,12 +85,6 @@ public class AppOidcUserService extends OidcUserService {
 
         User saved = userRepository.save(user);
 
-        if (existing.isEmpty()) {
-            notificationService.notifyAllAdmins(NotificationCategory.SYSTEM, "New user registered",
-                    (saved.getDisplayName() != null ? saved.getDisplayName() : saved.getEmail()) + " joined as " + saved.getRole() + ".",
-                    NotificationPriority.NORMAL, "/admin/users");
-        }
-
         return new AppPrincipal(saved, delegate);
     }
 }
