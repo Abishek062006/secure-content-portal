@@ -18,14 +18,12 @@ import java.util.Set;
 public class NotificationService {
 
     public static final Set<NotificationCategory> ADMIN_CATEGORIES = Set.of(
-            NotificationCategory.CONTENT,
-            NotificationCategory.SECURITY,
-            NotificationCategory.SYSTEM,
-            NotificationCategory.ANNOUNCEMENT,
-            NotificationCategory.COMMUNITY,
             NotificationCategory.COURSE,
             NotificationCategory.QUIZ,
-            NotificationCategory.ACHIEVEMENT
+            NotificationCategory.ANNOUNCEMENT,
+            NotificationCategory.COMMUNITY,
+            NotificationCategory.ACHIEVEMENT,
+            NotificationCategory.SECURITY
     );
 
     public static final Set<NotificationCategory> LEARNER_CATEGORIES = Set.of(
@@ -34,7 +32,6 @@ public class NotificationService {
             NotificationCategory.COMMUNITY,
             NotificationCategory.ANNOUNCEMENT,
             NotificationCategory.ACHIEVEMENT,
-            NotificationCategory.SYSTEM,
             NotificationCategory.SECURITY
     );
 

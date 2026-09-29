@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Icon from './Icon';
 import NotificationDropdown from './NotificationDropdown';
@@ -11,15 +11,32 @@ export default function NotificationBell() {
   const [recent, setRecent] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [placement, setPlacement] = useState('right');
+  const [dropdownStyle, setDropdownStyle] = useState({});
   const bellRef = useRef(null);
   const location = useLocation();
 
-  const updatePlacement = () => {
+  const updatePosition = useCallback(() => {
     if (!bellRef.current) return;
     const rect = bellRef.current.getBoundingClientRect();
-    setPlacement(window.innerWidth - rect.right < 360 && rect.left >= 300 ? 'left' : 'right');
-  };
+    const dropdownWidth = Math.min(380, window.innerWidth - 24);
+    const bellCenter = rect.left + rect.width / 2;
+    let left = bellCenter - dropdownWidth / 2;
+
+    // Prevent overflowing screen boundaries on right or left
+    if (left < 12) left = 12;
+    if (left + dropdownWidth > window.innerWidth - 12) {
+      left = window.innerWidth - 12 - dropdownWidth;
+    }
+
+    setDropdownStyle({
+      position: 'fixed',
+      top: `${Math.round(rect.bottom + 8)}px`,
+      left: `${Math.round(left)}px`,
+      width: `${dropdownWidth}px`,
+      maxHeight: `calc(100vh - ${Math.round(rect.bottom + 20)}px)`,
+      zIndex: 1000,
+    });
+  }, []);
 
   const fetchUnreadCount = () => {
     api.getUnreadNotificationCount().then((res) => setUnreadCount(res.unreadCount)).catch(() => {});
@@ -53,21 +70,29 @@ export default function NotificationBell() {
 
   useEffect(() => {
     if (!isOpen) return;
-    updatePlacement();
+    updatePosition();
     const handleOutside = (e) => {
       if (bellRef.current && !bellRef.current.contains(e.target)) setIsOpen(false);
     };
-    window.addEventListener('resize', updatePlacement);
-    document.addEventListener('mousedown', handleOutside);
-    return () => {
-      window.removeEventListener('resize', updatePlacement);
-      document.removeEventListener('mousedown', handleOutside);
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setIsOpen(false);
     };
-  }, [isOpen]);
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isOpen, updatePosition]);
 
   const handleToggle = () => {
     if (!isOpen) {
-      updatePlacement();
+      updatePosition();
       fetchRecent();
     }
     setIsOpen((v) => !v);
@@ -114,7 +139,7 @@ export default function NotificationBell() {
           <div className="notification-dropdown-backdrop" onClick={() => setIsOpen(false)} aria-hidden="true" />
           <NotificationDropdown notifications={recent} unreadCount={unreadCount} onMarkRead={handleMarkRead}
                                 onDelete={handleDelete} onMarkAllRead={handleMarkAllRead} onClose={() => setIsOpen(false)}
-                                loading={loading} placement={placement} />
+                                loading={loading} style={dropdownStyle} />
         </>
       )}
     </div>

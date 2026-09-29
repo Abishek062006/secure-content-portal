@@ -3,7 +3,7 @@ import Icon from './Icon';
 import { formatRelativeTime, getCategoryMeta, getActionLabel } from '../lib/notificationUtils';
 
 export default function NotificationDropdown({ notifications = [], unreadCount = 0, onMarkRead, onDelete,
-                                                onMarkAllRead, onClose, loading = false, placement = 'right' }) {
+                                                onMarkAllRead, onClose, loading = false, style = {} }) {
   const navigate = useNavigate();
 
   const handleItemClick = (n) => {
@@ -13,7 +13,7 @@ export default function NotificationDropdown({ notifications = [], unreadCount =
   };
 
   return (
-    <div className={`notification-dropdown placement-${placement}`} role="dialog" aria-label="Notifications">
+    <div className="notification-dropdown" style={style} role="dialog" aria-label="Notifications">
       <div className="notification-dropdown-header">
         <div className="notification-dropdown-title">
           <span>Notifications</span>
@@ -56,7 +56,7 @@ export default function NotificationDropdown({ notifications = [], unreadCount =
                   <div className="notification-message">{n.message}</div>
                   <div className="notification-meta-row">
                     <span className={`notification-category-tag ${meta.cls}`}>{meta.label}</span>
-                    {n.priority !== 'NORMAL' && (
+                    {n.priority && n.priority !== 'NORMAL' && n.priority !== 'LOW' && (
                       <span className={`notification-priority-tag ${n.priority.toLowerCase()}`}>{n.priority}</span>
                     )}
                     {n.actionUrl && <span className="notification-action-hint">{getActionLabel(n)} →</span>}

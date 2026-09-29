@@ -20,14 +20,13 @@ const CATEGORY_META = {
   QUIZ: { label: 'Quiz', icon: 'clipboard-check', cls: 'cat-quiz' },
   COMMUNITY: { label: 'Community', icon: 'message-circle', cls: 'cat-community' },
   ANNOUNCEMENT: { label: 'Announcement', icon: 'megaphone', cls: 'cat-announcement' },
-  CONTENT: { label: 'Content', icon: 'video', cls: 'cat-content' },
-  SECURITY: { label: 'Security', icon: 'lock', cls: 'cat-security' },
   ACHIEVEMENT: { label: 'Achievement', icon: 'award', cls: 'cat-achievement' },
+  SECURITY: { label: 'Security', icon: 'lock', cls: 'cat-security' },
   SYSTEM: { label: 'System', icon: 'info', cls: 'cat-system' },
 };
 
 export function getCategoryMeta(category) {
-  return CATEGORY_META[category] || CATEGORY_META.SYSTEM;
+  return CATEGORY_META[category] || CATEGORY_META.ANNOUNCEMENT || { label: 'Notification', icon: 'bell', cls: 'cat-announcement' };
 }
 
 export function getActionLabel(notification) {
@@ -40,6 +39,5 @@ export function getActionLabel(notification) {
   if (url.includes('/profile')) return 'View badge';
   if (url.includes('/feed')) return 'View reply';
   if (category === 'ANNOUNCEMENT') return 'View announcement';
-  if (category === 'CONTENT') return 'View content';
   return 'View details';
 }
