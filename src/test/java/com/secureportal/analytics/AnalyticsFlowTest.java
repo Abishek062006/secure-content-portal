@@ -73,6 +73,16 @@ class AnalyticsFlowTest {
     }
 
     @Test
+    void onlyAdminsCanDownloadTheReportPdf() throws Exception {
+        mockMvc.perform(get("/api/admin/analytics/report/pdf").with(as(learner))).andExpect(status().isForbidden());
+        var result = mockMvc.perform(get("/api/admin/analytics/report/pdf").with(as(admin)))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_PDF))
+                .andReturn();
+        assertThat(result.getResponse().getContentAsByteArray()).startsWith('%', 'P', 'D', 'F');
+    }
+
+    @Test
     void numbersMoveAsLearnersEnrollFinishLessonsAndPost() throws Exception {
         JsonNode before = analytics();
         assertThat(before.at("/series/dates")).hasSize(30);

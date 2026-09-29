@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../../api';
+import { API_BASE, api } from '../../api';
 import Alert from '../../components/Alert';
+import Icon from '../../components/Icon';
 import { AreaChart, Ring } from '../../components/charts';
 
 const number = new Intl.NumberFormat('en-IN');
@@ -70,6 +71,9 @@ export default function Dashboard() {
           <h1>Dashboard</h1>
           <p>How learners are using the platform, over the last 30 days.</p>
         </div>
+        <a href={`${API_BASE}/api/admin/analytics/report/pdf`} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+          <Icon name="chart-column" size={16} /> Download report
+        </a>
       </header>
 
       <div className="an-metrics">

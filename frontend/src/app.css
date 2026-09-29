@@ -2583,6 +2583,7 @@ select:focus, input[type="number"]:focus, input[type="datetime-local"]:focus {
 
 /* ---------- Admin analytics ---------- */
 .an-page { max-width: 1160px; margin: 0 auto; padding: 40px 24px 72px; animation: fadeInUp 0.4s var(--ease) both; }
+.an-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .an-head h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.03em; }
 .an-head p { margin: 6px 0 28px; color: var(--ink-mid); font-size: 1.05rem; }
 .an-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-xs); min-width: 0; }
