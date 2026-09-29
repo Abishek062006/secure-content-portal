@@ -83,10 +83,13 @@ public class SecurityConfig {
                         // header, with no masking the frontend would need to
                         // undo.
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                        // Stripe's servers call this directly — there's no browser session or CSRF cookie
+                        // to send. Its own signature (verified in the controller) stands in for both.
+                        .ignoringRequestMatchers("/api/payments/webhooks/**")
                 )
                 .addFilterAfter(new CsrfCookieFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/error", "/healthz", "/api/me").permitAll()
+                        .requestMatchers("/error", "/healthz", "/api/me", "/api/payments/webhooks/**").permitAll()
                         // Anyone holding a certificate code may check it; it reveals only name, course and date.
                         .requestMatchers(HttpMethod.GET, "/api/certificates/verify/*").permitAll()
                         .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")

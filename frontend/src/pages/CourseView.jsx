@@ -6,6 +6,7 @@ import Alert from '../components/Alert';
 import AssessmentRow from '../components/AssessmentRow';
 import PriceTag from '../components/PriceTag';
 import EnquiryModal from '../components/EnquiryModal';
+import CheckoutModal from '../components/CheckoutModal';
 import Icon from '../components/Icon';
 import { MATERIAL_ICON, MATERIAL_LABEL } from '../lib/materials';
 import CertificateCard from '../components/CertificateCard';
@@ -21,6 +22,7 @@ export default function CourseView() {
   const [requesting, setRequesting] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showEnquiry, setShowEnquiry] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +39,10 @@ export default function CourseView() {
   }, [id]);
 
   async function enroll() {
+    if (outline?.course?.pricing?.free === false) {
+      setShowCheckout(true);
+      return;
+    }
     setEnrolling(true);
     try {
       setOutline(await api.post(`/api/courses/${id}/enroll`));
@@ -44,6 +50,14 @@ export default function CourseView() {
       setError(err.message);
     } finally {
       setEnrolling(false);
+    }
+  }
+
+  async function afterPayment() {
+    try {
+      setOutline(await api.get(`/api/courses/${id}`));
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -143,7 +157,7 @@ export default function CourseView() {
             )
           ) : (
             <button type="button" className="btn btn-primary btn-lg" onClick={enroll} disabled={enrolling || !resumeLessonId}>
-              {enrolling ? 'Enrolling…' : course.pricing?.free === false ? 'Enroll' : 'Enroll — it’s free'}
+              {enrolling ? 'Enrolling…' : course.pricing?.free === false ? `Enroll — ₹${course.pricing.finalPriceRupees}` : 'Enroll — it’s free'}
             </button>
           )}
 
@@ -156,6 +170,7 @@ export default function CourseView() {
       </div>
 
       <EnquiryModal open={showEnquiry} courseId={course.id} courseTitle={course.title} onClose={() => setShowEnquiry(false)} />
+      <CheckoutModal open={showCheckout} course={course} onClose={() => setShowCheckout(false)} onSuccess={afterPayment} />
 
       {enrolled && !user?.admin && progressPercent >= 100 && (
         <section className="progress-card">

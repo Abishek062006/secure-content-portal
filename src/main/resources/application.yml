@@ -103,6 +103,16 @@ app:
   cache:
     analytics-seconds: ${ANALYTICS_CACHE_SECONDS:60}
     leaderboard-seconds: ${LEADERBOARD_CACHE_SECONDS:30}
+  payment:
+    stripe:
+      api-key: ${APP_PAYMENT_STRIPE_API_KEY:}
+      publishable-key: ${APP_PAYMENT_STRIPE_PUBLISHABLE_KEY:}
+      webhook-secret: ${APP_PAYMENT_STRIPE_WEBHOOK_SECRET:}
+    razorpay:
+      key-id: ${APP_PAYMENT_RAZORPAY_KEY_ID:}
+      key-secret: ${APP_PAYMENT_RAZORPAY_KEY_SECRET:}
+    # Off unless explicitly set — see PaymentProperties. Only ever turn this on locally.
+    simulated-enabled: ${PAYMENT_SIMULATED_ENABLED:false}
 
 # Groq by default; any OpenAI-compatible provider works. Set AI_API_KEY and AI_MODEL to enable question generation.
 ai:

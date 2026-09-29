@@ -1196,6 +1196,21 @@ a {
   color: var(--ink-mid);
 }
 
+.checkout-body { display: flex; flex-direction: column; gap: 16px; }
+.checkout-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; background: var(--surface-alt); border-radius: var(--radius);
+}
+.checkout-amount { font-size: 1.2rem; font-weight: 700; color: var(--accent-deep); }
+.checkout-done { text-align: center; padding: 24px 12px; color: var(--ink-mid); }
+
+.payment-success { display: grid; place-items: center; min-height: 60vh; }
+.payment-status { text-align: center; max-width: 420px; }
+.payment-status h1 { margin: 0 0 10px; }
+.payment-course { font-weight: 600; margin: 0 0 6px; }
+.payment-status .form-actions { justify-content: center; margin-top: 16px; }
+.payment-status .btn { margin-top: 16px; }
+
 .course-progress-row {
   display: flex;
   align-items: center;

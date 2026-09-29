@@ -14,3 +14,9 @@ spring:
 storage:
   # Files on disk by default; set STORAGE_PROVIDER=s3 (and the endpoint/keys) in .env.local to use the docker `s3` service.
   provider: ${STORAGE_PROVIDER:local}
+
+app:
+  payment:
+    # On for local runs only, so paid-course checkout is testable without real gateway keys — it stays off
+    # by default everywhere else (see PaymentProperties). Override with PAYMENT_SIMULATED_ENABLED=false locally too, if wanted.
+    simulated-enabled: ${PAYMENT_SIMULATED_ENABLED:true}

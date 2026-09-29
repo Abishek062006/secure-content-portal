@@ -88,6 +88,16 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.payment.PaymentException.class)
+    public ResponseEntity<ApiError> handlePayment(com.secureportal.payment.PaymentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.payment.PaymentAccessException.class)
+    public ResponseEntity<ApiError> handlePaymentAccess(com.secureportal.payment.PaymentAccessException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(com.secureportal.jobs.GenerationJobNotFoundException.class)
     public ResponseEntity<ApiError> handleJobNotFound(com.secureportal.jobs.GenerationJobNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
