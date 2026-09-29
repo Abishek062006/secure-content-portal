@@ -30,6 +30,9 @@ public class LessonProgress {
     @Column(name = "position_seconds", nullable = false)
     private int positionSeconds;
 
+    @Column(name = "watched_seconds", nullable = false)
+    private int watchedSeconds;
+
     @Column(nullable = false)
     private boolean completed;
 
@@ -49,9 +52,19 @@ public class LessonProgress {
         this.courseId = courseId;
     }
 
-    /** Completion is sticky: watching part of a finished lesson again never un-completes it. */
+    /** The player saves position roughly every 10 seconds during playback; a jump bigger than this in one
+     *  save is a seek, not watching, so it isn't counted toward watch time. */
+    private static final int MAX_SANE_DELTA_SECONDS = 30;
+
+    /** Completion is sticky: watching part of a finished lesson again never un-completes it. Watch time only
+     *  ever moves forward from a plausible playback delta — rewinding and a seek both leave it unchanged. */
     public void record(int positionSeconds, boolean completed) {
-        this.positionSeconds = Math.max(0, positionSeconds);
+        int next = Math.max(0, positionSeconds);
+        int delta = next - this.positionSeconds;
+        if (delta > 0 && delta <= MAX_SANE_DELTA_SECONDS) {
+            this.watchedSeconds += delta;
+        }
+        this.positionSeconds = next;
         if (completed && !this.completed) {
             this.completed = true;
             this.completedAt = Instant.now();
@@ -69,6 +82,10 @@ public class LessonProgress {
 
     public int getPositionSeconds() {
         return positionSeconds;
+    }
+
+    public int getWatchedSeconds() {
+        return watchedSeconds;
     }
 
     public boolean isCompleted() {

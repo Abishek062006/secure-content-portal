@@ -47,6 +47,7 @@ public class CourseOutlineAssembler {
     private final com.secureportal.course.MaterialService materialService;
     private final com.secureportal.course.EnrollmentRepository enrollmentRepository;
     private final com.secureportal.user.UserRepository userRepository;
+    private final com.secureportal.course.CourseRegistrationService registrationService;
 
     public CourseOutlineAssembler(CourseStructureService structureService, LearningService learningService,
                                   CourseModuleRepository moduleRepository, LessonRepository lessonRepository,
@@ -54,7 +55,8 @@ public class CourseOutlineAssembler {
                                   AssessmentAccess assessmentAccess, AttemptRepository attemptRepository,
                                   AttemptService attemptService, com.secureportal.course.MaterialService materialService,
                                   com.secureportal.course.EnrollmentRepository enrollmentRepository,
-                                  com.secureportal.user.UserRepository userRepository) {
+                                  com.secureportal.user.UserRepository userRepository,
+                                  com.secureportal.course.CourseRegistrationService registrationService) {
         this.structureService = structureService;
         this.learningService = learningService;
         this.moduleRepository = moduleRepository;
@@ -67,6 +69,7 @@ public class CourseOutlineAssembler {
         this.materialService = materialService;
         this.enrollmentRepository = enrollmentRepository;
         this.userRepository = userRepository;
+        this.registrationService = registrationService;
     }
 
     /** The instructor is whoever created the course; looked up by id so no lazy proxy is touched. */
@@ -115,7 +118,7 @@ public class CourseOutlineAssembler {
         List<Assessment> assessments = assessmentService.forCourse(courseId);
         Assessment finalOne = assessments.stream().filter(a -> a.getModuleId() == null).findFirst().orElse(null);
         return new CourseOutlineDto(adminCourse(course), modules(courseId, null, true, assessments, Map.of(), null), false, 0,
-                null, finalOne == null ? null : assessmentAssembler.admin(finalOne));
+                null, finalOne == null ? null : assessmentAssembler.admin(finalOne), null);
     }
 
     /** {@code admin} previews the course: nothing is locked for them. */
@@ -142,9 +145,11 @@ public class CourseOutlineAssembler {
         AssessmentContext context = new AssessmentContext(userId, admin, locked, attempts, progress, ordered);
 
         Assessment finalOne = assessments.stream().filter(a -> a.getModuleId() == null).findFirst().orElse(null);
+        String registrationStatus = admin ? null : registrationService.myRequest(courseId, userId)
+                .map(r -> r.getStatus().name()).orElse(null);
         return new CourseOutlineDto(dto, modules(courseId, progress, false, assessments, locked, context), enrollment != null,
                 percent, resumeLesson(enrollment, ordered, progress),
-                finalOne == null ? null : learnerAssessment(finalOne, context));
+                finalOne == null ? null : learnerAssessment(finalOne, context), registrationStatus);
     }
 
     /** What's needed to work out a learner's standing on each assessment without re-querying per assessment. */

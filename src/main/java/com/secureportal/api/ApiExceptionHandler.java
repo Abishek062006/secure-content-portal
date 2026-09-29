@@ -78,6 +78,16 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.course.RegistrationRequestException.class)
+    public ResponseEntity<ApiError> handleRegistrationRequest(com.secureportal.course.RegistrationRequestException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.course.EnquiryNotFoundException.class)
+    public ResponseEntity<ApiError> handleEnquiryNotFound(com.secureportal.course.EnquiryNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(com.secureportal.jobs.GenerationJobNotFoundException.class)
     public ResponseEntity<ApiError> handleJobNotFound(com.secureportal.jobs.GenerationJobNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));

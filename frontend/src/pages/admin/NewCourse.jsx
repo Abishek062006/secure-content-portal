@@ -29,7 +29,7 @@ export default function NewCourse() {
   const [progress, setProgress] = useState(0);
   const [coverFile, setCoverFile] = useState(null);
   const [videos, setVideos] = useState([]);
-  const [pricing, setPricing] = useState({ paid: false, price: '', percent: 0, start: '', end: '' });
+  const [pricing, setPricing] = useState({ type: 'FREE', price: '', percent: 0, start: '', end: '' });
 
   function addVideos(fileList) {
     setErrorMessage(null);
@@ -69,6 +69,7 @@ export default function NewCourse() {
     const details = new FormData();
     details.set('title', form.title.value);
     details.set('description', form.description.value);
+    details.set('outcomes', form.outcomes.value);
     details.set('category', form.category.value);
     if (coverFile) details.set('thumbnail', coverFile);
     const price = pricingPayload(pricing);
@@ -76,6 +77,7 @@ export default function NewCourse() {
     details.set('discountPercent', price.discountPercent);
     if (price.discountStart) details.set('discountStart', price.discountStart);
     if (price.discountEnd) details.set('discountEnd', price.discountEnd);
+    details.set('accessType', price.accessType);
 
     let course;
     try {
@@ -138,6 +140,12 @@ export default function NewCourse() {
           <div className="field">
             <label htmlFor="description">Description</label>
             <textarea id="description" name="description" maxLength={2000} rows={4} disabled={submitting} />
+          </div>
+          <div className="field">
+            <label htmlFor="outcomes">Outcomes</label>
+            <textarea id="outcomes" name="outcomes" maxLength={2000} rows={4} disabled={submitting}
+                      placeholder={'What a learner will be able to do afterwards. One per line, e.g.\nBuild a REST API with Spring Boot\nWrite and run integration tests'} />
+            <p className="field-hint">One outcome per line. Shown on the course page before anyone enrolls.</p>
           </div>
           <div className="field">
             <label htmlFor="category">Category</label>

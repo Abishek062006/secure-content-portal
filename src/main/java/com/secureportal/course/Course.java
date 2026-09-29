@@ -27,8 +27,15 @@ public class Course {
     @Column(length = 2000)
     private String description;
 
+    @Column(length = 2000)
+    private String outcomes;
+
     @Column(length = 80)
     private String category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "access_type", nullable = false, length = 12)
+    private CourseAccessType accessType = CourseAccessType.OPEN;
 
     @Column(name = "thumbnail_key", unique = true, length = 512)
     private String thumbnailKey;
@@ -99,12 +106,29 @@ public class Course {
         this.description = description;
     }
 
+    public String getOutcomes() {
+        return outcomes;
+    }
+
+    public void setOutcomes(String outcomes) {
+        this.outcomes = outcomes;
+    }
+
     public String getCategory() {
         return category;
     }
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public CourseAccessType getAccessType() {
+        return accessType;
+    }
+
+    public void setAccessType(CourseAccessType accessType) {
+        this.accessType = accessType;
+        this.updatedAt = Instant.now();
     }
 
     public String getThumbnailKey() {

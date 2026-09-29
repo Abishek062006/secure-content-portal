@@ -12,6 +12,9 @@ public class EditForm {
     @Size(max = 2000, message = "Description must be 2000 characters or fewer")
     private String description;
 
+    @Size(max = 2000, message = "Outcomes must be 2000 characters or fewer")
+    private String outcomes;
+
     @Size(max = 80, message = "Category must be 80 characters or fewer")
     private String category;
 
@@ -29,6 +32,14 @@ public class EditForm {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getOutcomes() {
+        return outcomes;
+    }
+
+    public void setOutcomes(String outcomes) {
+        this.outcomes = outcomes;
     }
 
     public String getCategory() {

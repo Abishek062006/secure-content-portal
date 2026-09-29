@@ -6,10 +6,12 @@ export function formatPeriodEnd(iso) {
 
 /**
  * A course's price: "Free", the plain price, or (while a discount runs) the original struck through,
- * the discounted price, the percentage off and when the offer ends.
+ * the discounted price, the percentage off and when the offer ends. `accessType === 'REGISTER'` shows
+ * "By approval" instead — there's no price at all, access is granted by an admin, not paid for.
  */
-export default function PriceTag({ pricing, compact }) {
+export default function PriceTag({ pricing, compact, accessType }) {
   if (!pricing) return null;
+  if (accessType === 'REGISTER') return <span className="price-tag price-register">By approval</span>;
   if (pricing.free) return <span className="price-tag price-free">Free</span>;
 
   if (!pricing.discountActive) {

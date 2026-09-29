@@ -19,4 +19,7 @@ public interface LessonProgressRepository extends JpaRepository<LessonProgress, 
     /** {course id, completed lessons} for one learner across all courses, for the catalog. */
     @Query("SELECT p.courseId, COUNT(p) FROM LessonProgress p WHERE p.userId = :userId AND p.completed = true GROUP BY p.courseId")
     List<Object[]> countCompletedPerCourse(@Param("userId") Long userId);
+
+    @Query("SELECT COALESCE(SUM(p.watchedSeconds), 0) FROM LessonProgress p WHERE p.userId = :userId")
+    long totalWatchedSeconds(@Param("userId") Long userId);
 }

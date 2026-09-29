@@ -36,6 +36,7 @@ function HackathonPromo({ h }) {
   const hosted = h.kind === 'HOSTED';
   const dates = dateRange(h.eventStartDate, null);
   const status = hosted ? (h.phase === 'REGISTRATION' ? deadlineLabel(h) : PHASE_LABEL[h.phase]) : deadlineLabel(h);
+  const canApply = hosted ? h.phase === 'REGISTRATION' : h.registrationOpen && h.registrationUrl;
   return (
     <div className="promo-card">
       {h.bannerUrl && <img className="promo-banner" src={mediaUrl(h.bannerUrl)} alt="" loading="lazy" referrerPolicy="no-referrer" />}
@@ -49,9 +50,12 @@ function HackathonPromo({ h }) {
         {h.organizer && <p>{h.organizer}</p>}
         <p className="field-hint">{[dates, h.location, status].filter(Boolean).join(' · ')}</p>
         <div className="hack-actions">
-          <Link className="btn btn-primary" to={hosted ? `/hackathons/${h.id}` : '/hackathons'}>{hosted ? 'Open event' : 'See hackathons'}</Link>
-          {!hosted && h.registrationOpen && h.registrationUrl && (
-            <a className="btn" href={h.registrationUrl} target="_blank" rel="noopener noreferrer">Register</a>
+          {hosted ? (
+            <Link className="btn btn-primary" to={`/hackathons/${h.id}`}>{canApply ? 'Apply now' : 'Open event'}</Link>
+          ) : canApply ? (
+            <a className="btn btn-primary" href={h.registrationUrl} target="_blank" rel="noopener noreferrer">Apply now</a>
+          ) : (
+            <Link className="btn" to="/hackathons">See hackathons</Link>
           )}
         </div>
       </div>

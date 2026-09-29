@@ -17,7 +17,7 @@ export function toLocalInput(iso) {
 export function pricingFromCourse(course) {
   const p = course?.pricing;
   return {
-    paid: p ? !p.free : false,
+    type: course?.accessType === 'REGISTER' ? 'REGISTER' : p && !p.free ? 'PAID' : 'FREE',
     price: p && !p.free ? p.priceRupees : '',
     percent: p?.discountPercent ?? 0,
     start: toLocalInput(p?.discountStart),
@@ -25,27 +25,30 @@ export function pricingFromCourse(course) {
   };
 }
 
-/** What the API expects for a pricing value (free courses send no discount). */
+/** What the API expects for a course's price and access type (a REGISTER course sends no price at all —
+ *  access is granted by an admin's decision, not a payment). */
 export function pricingPayload(value) {
-  const price = value.paid ? Number(value.price) || 0 : 0;
-  const percent = value.paid && price > 0 ? Number(value.percent) || 0 : 0;
+  const paid = value.type === 'PAID';
+  const price = paid ? Number(value.price) || 0 : 0;
+  const percent = paid && price > 0 ? Number(value.percent) || 0 : 0;
   return {
     priceRupees: price,
     discountPercent: percent,
     discountStart: percent > 0 ? toIso(value.start) || null : null,
     discountEnd: percent > 0 ? toIso(value.end) || null : null,
+    accessType: value.type === 'REGISTER' ? 'REGISTER' : 'OPEN',
   };
 }
 
-/** Free or paid, and for paid a discount slider with the period it runs, with a live preview of what learners will see. */
+/** Free, paid (with an optional discount), or register — where a learner asks and an admin decides who gets in. */
 export default function PricingFields({ value, onChange, disabled }) {
   const set = (patch) => onChange({ ...value, ...patch });
   const price = Number(value.price) || 0;
   const percent = Number(value.percent) || 0;
   const preview = {
-    free: !value.paid || price === 0,
+    free: value.type !== 'PAID' || price === 0,
     priceRupees: price,
-    discountActive: value.paid && price > 0 && percent > 0,
+    discountActive: value.type === 'PAID' && price > 0 && percent > 0,
     discountPercent: percent,
     finalPriceRupees: Math.round((price * (100 - percent)) / 100),
     discountEnd: value.end ? new Date(value.end).toISOString() : null,
@@ -53,13 +56,15 @@ export default function PricingFields({ value, onChange, disabled }) {
 
   return (
     <fieldset className="pricing-fields" disabled={disabled}>
-      <legend>Price</legend>
+      <legend>Access</legend>
       <div className="type-choice">
-        <label><input type="radio" name="paid" checked={!value.paid} onChange={() => set({ paid: false })} /> Free</label>
-        <label><input type="radio" name="paid" checked={value.paid} onChange={() => set({ paid: true })} /> Paid</label>
+        <label><input type="radio" name="access-type" checked={value.type === 'FREE'} onChange={() => set({ type: 'FREE' })} /> Free</label>
+        <label><input type="radio" name="access-type" checked={value.type === 'PAID'} onChange={() => set({ type: 'PAID' })} /> Paid</label>
+        <label><input type="radio" name="access-type" checked={value.type === 'REGISTER'} onChange={() => set({ type: 'REGISTER' })} /> Register
+          <span className="field-hint">(learners request access, you approve)</span></label>
       </div>
 
-      {value.paid && (
+      {value.type === 'PAID' && (
         <>
           <div className="field">
             <label htmlFor="price">Price (₹)</label>
@@ -97,6 +102,13 @@ export default function PricingFields({ value, onChange, disabled }) {
           </div>
           <p className="field-hint">Payments aren't connected yet, so this only shows the price; learners can still enroll without paying.</p>
         </>
+      )}
+
+      {value.type === 'REGISTER' && (
+        <p className="field-hint">
+          Learners see the full course — modules, outcomes, everything — but instead of enrolling directly they
+          send a request. Nothing opens for them until you approve it from Registration requests.
+        </p>
       )}
     </fieldset>
   );

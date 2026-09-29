@@ -23,6 +23,20 @@ public interface MockInterviewQuestionRepository extends JpaRepository<MockInter
 
     long countBySessionIdAndParentQuestionIdIsNotNull(Long sessionId);
 
+    /** The four rubric dimensions, averaged across every scored question from this learner's completed
+     *  interviews — the raw material for "what are you strong/weak at". */
+    @Query("SELECT AVG(q.relevanceScore), AVG(q.depthScore), AVG(q.structureScore), AVG(q.communicationScore) "
+            + "FROM MockInterviewQuestion q, MockInterviewSession s "
+            + "WHERE q.sessionId = s.id AND s.userId = :userId AND s.status = 'COMPLETED' AND q.relevanceScore IS NOT NULL")
+    List<Object[]> averageRubricForUser(@Param("userId") Long userId);
+
+    /** Average score (0-10) by the kind of question — technical, system design, behavioural, problem-solving —
+     *  across every answered question in this learner's completed interviews. */
+    @Query("SELECT q.category, AVG(q.score), COUNT(q) FROM MockInterviewQuestion q, MockInterviewSession s "
+            + "WHERE q.sessionId = s.id AND s.userId = :userId AND s.status = 'COMPLETED' AND q.score >= 0 "
+            + "GROUP BY q.category")
+    List<Object[]> averageScoreByCategoryForUser(@Param("userId") Long userId);
+
     boolean existsByParentQuestionId(Long parentQuestionId);
 
     /**

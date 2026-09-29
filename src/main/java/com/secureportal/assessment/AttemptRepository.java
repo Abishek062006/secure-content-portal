@@ -14,6 +14,8 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
 
     List<Attempt> findByUserIdAndAssessmentIdOrderByStartedAtDesc(Long userId, UUID assessmentId);
 
+    List<Attempt> findByUserId(Long userId);
+
     List<Attempt> findByUserIdAndAssessmentIdIn(Long userId, Collection<UUID> assessmentIds);
 
     Optional<Attempt> findFirstByUserIdAndAssessmentIdAndStatus(Long userId, UUID assessmentId, AttemptStatus status);

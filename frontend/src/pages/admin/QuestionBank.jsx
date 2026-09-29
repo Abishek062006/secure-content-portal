@@ -203,39 +203,41 @@ export default function QuestionBank() {
         <div className="empty-state"><p>Add a lesson to this course first — questions belong to lessons.</p></div>
       ) : (
         <div className="form-panel qb-toolbar">
-          <div className="field">
-            <label htmlFor="lesson">Lesson</label>
-            <select id="lesson" value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
-              {lessons.map((l) => <option key={l.id} value={l.id}>{l.label}{l.hasTranscript ? '' : ' (no transcript)'}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="difficulty">Difficulty of generated questions: <strong>{LEVELS[level].label}</strong></label>
-            <input id="difficulty" className="level-slider" type="range" min={0} max={3} step={1} value={level}
-                   onChange={(e) => setLevel(Number(e.target.value))} />
-            <div className="level-ticks" aria-hidden="true">
-              {LEVELS.map((l) => <span key={l.label}>{l.label}</span>)}
+          <div className="qb-config-grid">
+            <div className="field">
+              <label htmlFor="lesson">Lesson</label>
+              <select id="lesson" value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
+                {lessons.map((l) => <option key={l.id} value={l.id}>{l.label}{l.hasTranscript ? '' : ' (no transcript)'}</option>)}
+              </select>
             </div>
-            <p className="field-hint">
-              {LEVELS[level].hint}{level > 0 && ` All ${count} will be ${LEVELS[level].label.toLowerCase()}.`}
-            </p>
-          </div>
-          <div className="field">
-            <label htmlFor="count">How many questions: <strong>{count}</strong></label>
-            <div className="count-row">
-              <input id="count-range" type="range" min={1} max={100} value={count} aria-label="Number of questions"
-                     onChange={(e) => setCount(Number(e.target.value))} />
-              <input id="count" type="number" min={1} max={100} value={count}
-                     onChange={(e) => setCount(Math.min(100, Math.max(1, Number(e.target.value) || 1)))} />
+            <div className="field">
+              <label>Use these questions for</label>
+              <div className="type-choice">
+                <label><input type="radio" name="pool" checked={!finalOnly} onChange={() => setFinalOnly(false)} />
+                  Module quizzes and assessments <span className="field-hint">(also reusable in the final)</span></label>
+                <label><input type="radio" name="pool" checked={finalOnly} onChange={() => setFinalOnly(true)} />
+                  Final assessment only <span className="field-hint">(new questions learners haven't seen in module quizzes)</span></label>
+              </div>
             </div>
-          </div>
-          <div className="field">
-            <label>Use these questions for</label>
-            <div className="type-choice">
-              <label><input type="radio" name="pool" checked={!finalOnly} onChange={() => setFinalOnly(false)} />
-                Module quizzes and assessments <span className="field-hint">(also reusable in the final)</span></label>
-              <label><input type="radio" name="pool" checked={finalOnly} onChange={() => setFinalOnly(true)} />
-                Final assessment only <span className="field-hint">(new questions learners haven't seen in module quizzes)</span></label>
+            <div className="field">
+              <label htmlFor="difficulty">Difficulty of generated questions: <strong>{LEVELS[level].label}</strong></label>
+              <input id="difficulty" className="level-slider" type="range" min={0} max={3} step={1} value={level}
+                     onChange={(e) => setLevel(Number(e.target.value))} />
+              <div className="level-ticks" aria-hidden="true">
+                {LEVELS.map((l) => <span key={l.label}>{l.label}</span>)}
+              </div>
+              <p className="field-hint">
+                {LEVELS[level].hint}{level > 0 && ` All ${count} will be ${LEVELS[level].label.toLowerCase()}.`}
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="count">How many questions: <strong>{count}</strong></label>
+              <div className="count-row">
+                <input id="count-range" type="range" min={1} max={100} value={count} aria-label="Number of questions"
+                       onChange={(e) => setCount(Number(e.target.value))} />
+                <input id="count" type="number" min={1} max={100} value={count}
+                       onChange={(e) => setCount(Math.min(100, Math.max(1, Number(e.target.value) || 1)))} />
+              </div>
             </div>
           </div>
           <div className="qb-actions">

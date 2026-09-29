@@ -14,7 +14,7 @@ export default function CourseEditor() {
   const { id } = useParams();
   const location = useLocation();
   const [outline, setOutline] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', category: '' });
+  const [form, setForm] = useState({ title: '', description: '', outcomes: '', category: '' });
   const [errorMessage, setErrorMessage] = useState(location.state?.error || null);
   const [successMessage, setSuccessMessage] = useState(location.state?.success || null);
   const [pendingDelete, setPendingDelete] = useState(null);
@@ -34,7 +34,8 @@ export default function CourseEditor() {
   useEffect(() => {
     load()
       .then((res) => {
-        setForm({ title: res.course.title, description: res.course.description || '', category: res.course.category || '' });
+        setForm({ title: res.course.title, description: res.course.description || '',
+          outcomes: res.course.outcomes || '', category: res.course.category || '' });
         setPricing(pricingFromCourse(res.course));
       })
       .catch((err) => setErrorMessage(err.message));
@@ -174,6 +175,13 @@ export default function CourseEditor() {
           <label htmlFor="description">Description</label>
           <textarea id="description" maxLength={2000} rows={3} value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="outcomes">Outcomes</label>
+          <textarea id="outcomes" maxLength={2000} rows={3} value={form.outcomes}
+                    placeholder={'One outcome per line, e.g.\nBuild a REST API with Spring Boot'}
+                    onChange={(e) => setForm({ ...form, outcomes: e.target.value })} />
+          <p className="field-hint">One outcome per line. Shown on the course page before anyone enrolls.</p>
         </div>
         <div className="field">
           <label htmlFor="category">Category / tag</label>

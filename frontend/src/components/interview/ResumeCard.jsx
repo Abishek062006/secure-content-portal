@@ -4,8 +4,9 @@ import Icon from '../Icon';
 
 const RETENTION_DAYS = 90;
 
-/** Upload, replace or delete the resume that interview questions can be built from. */
-export default function ResumeCard({ resume, onChange, onError }) {
+/** Upload, replace or delete the resume that interview questions can be built from.
+ *  `embedded` drops the card chrome so it can sit inline inside another form/card. */
+export default function ResumeCard({ resume, onChange, onError, embedded = false }) {
   const inputRef = useRef(null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,9 +39,11 @@ export default function ResumeCard({ resume, onChange, onError }) {
     }
   }
 
+  const Wrapper = embedded ? 'div' : 'section';
+
   return (
-    <section className="progress-card resume-card">
-      <header><h2>Your resume</h2></header>
+    <Wrapper className={embedded ? 'resume-card' : 'progress-card resume-card'}>
+      {!embedded && <header><h2>Your resume</h2></header>}
 
       {resume ? (
         <>
@@ -72,6 +75,6 @@ export default function ResumeCard({ resume, onChange, onError }) {
         <Icon name="upload" size={16} /> {busy ? 'Reading your resume...' : resume ? 'Replace resume' : 'Upload PDF'}
       </button>
       <p className="field-hint">PDF only, up to 10 pages and 3 MB. A text-based PDF works best.</p>
-    </section>
+    </Wrapper>
   );
 }

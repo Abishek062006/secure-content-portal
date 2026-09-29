@@ -39,6 +39,8 @@ public class CourseService {
                 ? fileValidator.validateThumbnail(form.getThumbnail()) : null;
 
         Course course = new Course(form.getTitle(), form.getDescription(), form.getCategory(), createdBy);
+        course.setOutcomes(blankToNull(form.getOutcomes()));
+        course.setAccessType(parseAccessType(form.getAccessType()));
         course.setPricing(CoursePricing.check(form.getPriceRupees(), form.getDiscountPercent(), form.getDiscountStart(),
                 form.getDiscountEnd(), Instant.now()));
         List<String> stored = new ArrayList<>();
@@ -59,16 +61,39 @@ public class CourseService {
         Course course = find(id);
         course.setTitle(form.getTitle());
         course.setDescription(form.getDescription());
+        course.setOutcomes(blankToNull(form.getOutcomes()));
         course.setCategory(form.getCategory());
         course.setUpdatedAt(Instant.now());
         return course;
     }
 
     @Transactional
-    public Course updatePricing(UUID id, Integer price, Integer percent, Instant start, Instant end) {
+    public Course updatePricing(UUID id, Integer price, Integer percent, Instant start, Instant end, String accessType) {
         Course course = find(id);
-        course.setPricing(CoursePricing.check(price, percent, start, end, Instant.now()));
+        CourseAccessType type = parseAccessType(accessType);
+        // A REGISTER course isn't paid for on enrollment — access is granted by an admin's decision, not a
+        // price. Keep the underlying pricing at zero so nothing downstream (catalog cards, PriceTag) has to
+        // special-case it.
+        course.setPricing(type == CourseAccessType.REGISTER
+                ? CoursePricing.check(0, 0, null, null, Instant.now())
+                : CoursePricing.check(price, percent, start, end, Instant.now()));
+        course.setAccessType(type);
         return course;
+    }
+
+    private static CourseAccessType parseAccessType(String value) {
+        if (value == null || value.isBlank()) {
+            return CourseAccessType.OPEN;
+        }
+        try {
+            return CourseAccessType.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CourseStructureException("Access type must be OPEN or REGISTER.");
+        }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public Course replaceThumbnail(UUID id, MultipartFile file) {

@@ -53,6 +53,8 @@ export default function Nav() {
               <NavLink to="/admin/hackathons">Hackathons</NavLink>
               {judging && <NavLink to="/judging">Judging</NavLink>}
               <NavLink to="/admin/users">Users</NavLink>
+              <NavLink to="/admin/registrations">Registrations</NavLink>
+              <NavLink to="/admin/enquiries">Enquiries</NavLink>
               <NavLink to="/admin/audit">Audit Log</NavLink>
             </>
           ) : (
@@ -60,6 +62,7 @@ export default function Nav() {
               <NavLink to="/courses">Courses</NavLink>
               <NavLink to="/feed">Feed</NavLink>
               <NavLink to="/my-learning">My Learning</NavLink>
+              <NavLink to="/progress">Progress</NavLink>
               <NavLink to="/interview">Interview</NavLink>
               <NavLink to="/hackathons">Hackathons</NavLink>
               <NavLink to="/leaderboard">Leaderboard</NavLink>

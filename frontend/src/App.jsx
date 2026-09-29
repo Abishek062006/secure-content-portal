@@ -19,6 +19,7 @@ import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
 import AttemptView from './pages/AttemptView';
 import MyLearning from './pages/MyLearning';
+import Progress from './pages/Progress';
 import VerifyCertificate from './pages/VerifyCertificate';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
@@ -32,6 +33,8 @@ import QuestionBank from './pages/admin/QuestionBank';
 import AssessmentResults from './pages/admin/AssessmentResults';
 import Users from './pages/admin/Users';
 import AuditLog from './pages/admin/AuditLog';
+import AdminRegistrations from './pages/admin/AdminRegistrations';
+import AdminEnquiries from './pages/admin/AdminEnquiries';
 
 
 export default function App() {
@@ -54,6 +57,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
+          <Route path="/progress" element={<Progress />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/hackathons" element={<Hackathons />} />
           <Route path="/hackathons/join/:code" element={<JoinTeam />} />
@@ -80,6 +84,8 @@ export default function App() {
           <Route path="/admin/hackathons/:id/manage" element={<AdminHackathonManage />} />
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/audit" element={<AuditLog />} />
+          <Route path="/admin/registrations" element={<AdminRegistrations />} />
+          <Route path="/admin/enquiries" element={<AdminEnquiries />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

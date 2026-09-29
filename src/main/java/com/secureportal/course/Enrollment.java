@@ -62,4 +62,8 @@ public class Enrollment {
     public UUID getLastLessonId() {
         return lastLessonId;
     }
+
+    public Instant getLastAccessedAt() {
+        return lastAccessedAt;
+    }
 }

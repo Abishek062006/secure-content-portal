@@ -13,6 +13,7 @@ public record CourseDto(
         UUID id,
         String title,
         String description,
+        String outcomes,
         String category,
         String thumbnailUrl,
         String status,
@@ -26,7 +27,8 @@ public record CourseDto(
         Instant lastViewedAt,
         Pricing pricing,
         Long enrollmentCount,
-        String instructorName
+        String instructorName,
+        String accessType
 ) {
     /** {@code finalPriceRupees} is what a learner pays now; it differs from {@code priceRupees} while a discount is active. */
     public record Pricing(int priceRupees, boolean free, int discountPercent, Instant discountStart, Instant discountEnd,
@@ -53,8 +55,9 @@ public record CourseDto(
                                    String instructorName) {
         String thumbnailUrl = course.getThumbnailKey() == null ? null
                 : "/api/courses/" + course.getId() + "/thumbnail?v=" + course.getUpdatedAt().toEpochMilli();
-        return new CourseDto(course.getId(), course.getTitle(), course.getDescription(), course.getCategory(),
+        return new CourseDto(course.getId(), course.getTitle(), course.getDescription(), course.getOutcomes(), course.getCategory(),
                 thumbnailUrl, course.getStatus().name(), moduleCount, lessonCount, course.getCreatedAt(),
-                course.getUpdatedAt(), enrolled, progressPercent, viewCount, lastViewedAt, Pricing.of(course), enrollmentCount, instructorName);
+                course.getUpdatedAt(), enrolled, progressPercent, viewCount, lastViewedAt, Pricing.of(course), enrollmentCount,
+                instructorName, course.getAccessType().name());
     }
 }

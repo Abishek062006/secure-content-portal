@@ -13,8 +13,14 @@ public class CourseCreateForm {
     @Size(max = 2000, message = "Description must be 2000 characters or fewer")
     private String description;
 
+    @Size(max = 2000, message = "Outcomes must be 2000 characters or fewer")
+    private String outcomes;
+
     @Size(max = 80, message = "Category must be 80 characters or fewer")
     private String category;
+
+    /** "OPEN" (default — free or paid, enroll immediately) or "REGISTER" (a learner asks, an admin decides). */
+    private String accessType;
 
     private MultipartFile thumbnail;
 
@@ -44,12 +50,28 @@ public class CourseCreateForm {
         this.description = description;
     }
 
+    public String getOutcomes() {
+        return outcomes;
+    }
+
+    public void setOutcomes(String outcomes) {
+        this.outcomes = outcomes;
+    }
+
     public String getCategory() {
         return category;
     }
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getAccessType() {
+        return accessType;
+    }
+
+    public void setAccessType(String accessType) {
+        this.accessType = accessType;
     }
 
     public MultipartFile getThumbnail() {

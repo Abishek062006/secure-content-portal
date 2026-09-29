@@ -1,6 +1,34 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon from '../components/Icon';
+
+/** Fades a section up into view once it's scrolled into (or past) the viewport.
+ *  Checks actual position on every scroll/resize rather than relying on an intersection event firing at the
+ *  right instant — a fast flick or a big programmatic jump can otherwise skip a tall section's viewport window
+ *  entirely and leave it stuck invisible, which is worse than no animation at all. */
+function Reveal({ as: Tag = 'div', className = '', children, ...rest }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (visible) return undefined;
+    let frame = null;
+    const check = () => {
+      frame = null;
+      if (ref.current && ref.current.getBoundingClientRect().top < window.innerHeight) setVisible(true);
+    };
+    const onScroll = () => { if (frame === null) frame = requestAnimationFrame(check); };
+    check();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [visible]);
+  return <Tag ref={ref} className={`${className}${visible ? ' ap-in' : ''}`} {...rest}>{children}</Tag>;
+}
 
 const LESSONS = [
   { title: 'Introduction', state: 'done' },
@@ -106,34 +134,34 @@ export default function Home() {
         <AppWindow />
       </section>
 
-      <section className="ap-story" id="how">
+      <Reveal as="section" className="ap-story" id="how">
         <div className="ap-story-text">
           <span className="ap-kicker">Practice</span>
           <h2>Questions that come from the lecture.</h2>
           <p>Upload a recording and its transcript. Ask for as many questions as you like, at the difficulty you choose, and approve the ones you want. Learners are quizzed on what was actually taught.</p>
         </div>
         <TranscriptToQuestion />
-      </section>
+      </Reveal>
 
-      <section className="ap-story flip">
+      <Reveal as="section" className="ap-story flip">
         <div className="ap-story-text">
           <span className="ap-kicker">Proof</span>
           <h2>Finish. Get certified.</h2>
           <p>Pass the assessments and claim a certificate with its own credential ID. Anyone can check it, and it sits on your profile for people to see.</p>
         </div>
         <Certificate />
-      </section>
+      </Reveal>
 
-      <section className="ap-story">
+      <Reveal as="section" className="ap-story">
         <div className="ap-story-text">
           <span className="ap-kicker">Community</span>
           <h2>Learn in good company.</h2>
           <p>Share updates and articles, react and comment, and post the certificates you earn. A feed for people who are learning the same things.</p>
         </div>
         <FeedPost />
-      </section>
+      </Reveal>
 
-      <section className="ap-dark">
+      <Reveal as="section" className="ap-dark">
         <span className="ap-kicker light">For instructors</span>
         <h2>Upload a lecture.<br />Get a course.</h2>
         <p>Add a recording and its transcript, review the questions, set the pass mark and publish. Then follow how learners are doing on your dashboard.</p>
@@ -142,18 +170,27 @@ export default function Home() {
           <div><strong>View or download</strong><span>your choice, per file</span></div>
           <div><strong>One dashboard</strong><span>for every course</span></div>
         </div>
-      </section>
+      </Reveal>
 
-      <section className="ap-trust">
-        <div><h3>Sign in with Google.</h3><p>No new password to remember or lose.</p></div>
-        <div><h3>Content stays protected.</h3><p>Streamed with session-locked links and watermarked to the viewer.</p></div>
-        <div><h3>Graded on the server.</h3><p>Questions, timers and scores never depend on the browser.</p></div>
-      </section>
+      <Reveal as="section" className="ap-trust">
+        <div>
+          <div className="ap-trust-icon" aria-hidden="true"><Icon name="zap" size={20} strokeWidth={2} /></div>
+          <h3>Sign in with Google.</h3><p>No new password to remember or lose.</p>
+        </div>
+        <div>
+          <div className="ap-trust-icon" aria-hidden="true"><Icon name="lock" size={20} strokeWidth={2} /></div>
+          <h3>Content stays protected.</h3><p>Streamed with session-locked links and watermarked to the viewer.</p>
+        </div>
+        <div>
+          <div className="ap-trust-icon" aria-hidden="true"><Icon name="cpu" size={20} strokeWidth={2} /></div>
+          <h3>Graded on the server.</h3><p>Questions, timers and scores never depend on the browser.</p>
+        </div>
+      </Reveal>
 
-      <section className="ap-final">
+      <Reveal as="section" className="ap-final">
         <h2>Start learning.</h2>
         <Link className="ap-btn" to="/login">Get started</Link>
-      </section>
+      </Reveal>
 
       <footer className="ap-footer">GradientNovaAI</footer>
     </div>

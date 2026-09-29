@@ -145,7 +145,10 @@ public class MockInterviewService {
         }
 
         String role = request.targetRole() == null ? "" : request.targetRole().strip();
-        if (!ROLE_LABEL.matcher(role).matches()) {
+        if (!role.isEmpty() && !ROLE_LABEL.matcher(role).matches()) {
+            throw new InvalidInterviewException("Tell us the role you're preparing for, for example \"Backend developer\".");
+        }
+        if (role.isEmpty() && !request.useResume()) {
             throw new InvalidInterviewException("Tell us the role you're preparing for, for example \"Backend developer\".");
         }
         List<String> skills = new ArrayList<>();
@@ -173,7 +176,8 @@ public class MockInterviewService {
         }
         InterviewSource source = request.useResume() ? InterviewSource.RESUME
                 : jobDescription == null ? InterviewSource.SKILLS : InterviewSource.JOB;
-        return new MockInterviewSession.Goal(source, role,
+        String resolvedRole = role.isEmpty() ? "General role" : role;
+        return new MockInterviewSession.Goal(source, resolvedRole,
                 skills.isEmpty() ? null : String.join(", ", skills), jobDescription, null);
     }
 

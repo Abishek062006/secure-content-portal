@@ -11,10 +11,12 @@ public record AuditLogDto(
         String action,
         UUID contentId,
         String detail,
+        String ipAddress,
+        String userAgent,
         Instant createdAt
 ) {
     public static AuditLogDto from(AuditLog log) {
         return new AuditLogDto(log.getId(), log.getActorEmail(), log.getAction(),
-                log.getContentId(), log.getDetail(), log.getCreatedAt());
+                log.getContentId(), log.getDetail(), log.getIpAddress(), log.getUserAgent(), log.getCreatedAt());
     }
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { mediaUrl } from '../lib/media';
+import { dateRange } from '../lib/hackathons';
 import Modal from './Modal';
 import Avatar from './Avatar';
 import Icon from './Icon';
@@ -11,12 +13,28 @@ const MODES = {
   certificate: { title: 'Share a certificate', placeholder: 'Say something about this achievement…' },
 };
 
+/** A caption built from what the admin already filled in for the hackathon — editable afterwards, like anything else here. */
+function hackathonCaption(h) {
+  const facts = [];
+  if (h.organizer) facts.push(`Hosted by ${h.organizer}`);
+  const when = dateRange(h.eventStartDate, h.eventEndDate);
+  if (when) facts.push(when);
+  if (h.location) facts.push(h.location);
+  if (h.prizePool) facts.push(`Prize pool: ${h.prizePool}`);
+  const lines = [`${h.title} is open!`];
+  if (facts.length) lines.push(facts.join(' · '));
+  lines.push(h.kind === 'HOSTED' ? 'Join a team and build with us.' : 'Take a look and register before it closes.');
+  return lines.join('\n');
+}
+
 /** "Start a post" — one dialog for posts, photos/videos, articles and sharing a certificate; admins get extra options. */
 export default function ComposerModal({ open, mode, me, courses, hackathons = [], presetCourseId, presetHackathonId, onClose, onCreated }) {
   const { user } = useAuth();
   const [body, setBody] = useState('');
   const [title, setTitle] = useState('');
   const [media, setMedia] = useState(null);
+  const [mediaIsAuto, setMediaIsAuto] = useState(false);
+  const [bodyIsAuto, setBodyIsAuto] = useState(false);
   const [preview, setPreview] = useState(null);
   const [certificateId, setCertificateId] = useState('');
   const [courseId, setCourseId] = useState('');
@@ -34,11 +52,13 @@ export default function ComposerModal({ open, mode, me, courses, hackathons = []
     if (!open) return;
     setError(null);
     const shared = presetHackathonId ? hackathons.find((h) => String(h.id) === String(presetHackathonId)) : null;
-    setBody(presetCourseId ? 'New course is live! ' : shared ? `${shared.title} is open. Take a look and join in!` : '');
+    setBody(presetCourseId ? 'New course is live! ' : shared ? hackathonCaption(shared) : '');
+    setBodyIsAuto(Boolean(shared));
     setCourseId(presetCourseId || '');
     setHackathonId(presetHackathonId ? String(presetHackathonId) : '');
     setTitle('');
     setMedia(null);
+    setMediaIsAuto(false);
     setPinned(false);
     setPublishAt('');
     setCertificateId(mode === 'certificate' && certificates[0] ? certificates[0].id : '');
@@ -50,6 +70,23 @@ export default function ComposerModal({ open, mode, me, courses, hackathons = []
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [media]);
+
+  // Pull in the hackathon's own poster as the post image, unless the admin has attached their own photo.
+  useEffect(() => {
+    if (!open || !hackathonId || (media && !mediaIsAuto)) return undefined;
+    const shared = hackathons.find((h) => String(h.id) === String(hackathonId));
+    if (!shared?.bannerUrl) return undefined;
+    let cancelled = false;
+    fetch(mediaUrl(shared.bannerUrl), { credentials: 'include' })
+      .then((res) => (res.ok ? res.blob() : null))
+      .then((blob) => {
+        if (cancelled || !blob) return;
+        setMedia(new File([blob], `hackathon-${shared.id}-banner.jpg`, { type: blob.type || 'image/jpeg' }));
+        setMediaIsAuto(true);
+      })
+      .catch(() => {}); // admin can still attach a photo by hand
+    return () => { cancelled = true; };
+  }, [hackathonId, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit(e) {
     e.preventDefault();
@@ -94,7 +131,7 @@ export default function ComposerModal({ open, mode, me, courses, hackathons = []
         {article && (
           <input className="article-title" value={title} maxLength={200} placeholder="Title" onChange={(e) => setTitle(e.target.value)} />
         )}
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={article ? 12 : 6}
+        <textarea value={body} onChange={(e) => { setBody(e.target.value); setBodyIsAuto(false); }} rows={article ? 12 : 6}
                   maxLength={article ? 20000 : 3000} placeholder={shownMode.placeholder} autoFocus />
 
         {mode === 'certificate' && (
@@ -110,7 +147,8 @@ export default function ComposerModal({ open, mode, me, courses, hackathons = []
         {preview && (
           <div className="composer-preview">
             {media.type.startsWith('video/') ? <video src={preview} controls /> : <img src={preview} alt="" />}
-            <button type="button" className="btn btn-icon" aria-label="Remove attachment" onClick={() => setMedia(null)}><Icon name="x" size={16} /></button>
+            {mediaIsAuto && <span className="field-hint composer-auto-tag">From the hackathon poster</span>}
+            <button type="button" className="btn btn-icon" aria-label="Remove attachment" onClick={() => { setMedia(null); setMediaIsAuto(false); }}><Icon name="x" size={16} /></button>
           </div>
         )}
 
@@ -121,10 +159,16 @@ export default function ComposerModal({ open, mode, me, courses, hackathons = []
               <option value="">No course attached</option>
               {courses.map((c) => <option key={c.id} value={c.id}>Promote: {c.title}</option>)}
             </select>
-            <select value={hackathonId} onChange={(e) => setHackathonId(e.target.value)} aria-label="Share a hackathon">
+            <select value={hackathonId} onChange={(e) => {
+              const nextId = e.target.value;
+              setHackathonId(nextId);
+              const shared = hackathons.find((h) => String(h.id) === nextId);
+              if (shared && (bodyIsAuto || !body.trim())) { setBody(hackathonCaption(shared)); setBodyIsAuto(true); }
+            }} aria-label="Share a hackathon">
               <option value="">No hackathon attached</option>
               {hackathons.map((h) => <option key={h.id} value={h.id}>Share hackathon: {h.title}</option>)}
             </select>
+            {hackathonId && <p className="field-hint">Poster and caption are filled in from the hackathon — edit either, or attach your own photo above.</p>}
             <label><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} /> Pin to top</label>
             <label>Schedule <input type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} /></label>
           </div>
@@ -143,11 +187,11 @@ export default function ComposerModal({ open, mode, me, courses, hackathons = []
             {!media && mode !== 'certificate' && (
               <>
                 <label className="tool-btn" title="Add a photo">
-                  <Icon name="image" size={22} /> <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { setMedia(e.target.files[0] || null); e.target.value = ''; }} />
+                  <Icon name="image" size={22} /> <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { setMedia(e.target.files[0] || null); setMediaIsAuto(false); e.target.value = ''; }} />
                 </label>
                 {!article && (
                   <label className="tool-btn" title="Add a video (up to 500 MB)">
-                    <Icon name="video" size={22} /> <input type="file" hidden accept="video/mp4,video/webm" onChange={(e) => { setMedia(e.target.files[0] || null); e.target.value = ''; }} />
+                    <Icon name="video" size={22} /> <input type="file" hidden accept="video/mp4,video/webm" onChange={(e) => { setMedia(e.target.files[0] || null); setMediaIsAuto(false); e.target.value = ''; }} />
                   </label>
                 )}
               </>

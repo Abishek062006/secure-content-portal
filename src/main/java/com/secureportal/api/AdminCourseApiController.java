@@ -98,16 +98,19 @@ public class AdminCourseApiController {
     }
 
     public record PricingRequest(Integer priceRupees, Integer discountPercent, java.time.Instant discountStart,
-                                 java.time.Instant discountEnd) {
+                                 java.time.Instant discountEnd, String accessType) {
     }
 
     @PutMapping("/{id}/pricing")
     public CourseDto pricing(@PathVariable UUID id, @RequestBody PricingRequest request,
                              @AuthenticationPrincipal AppPrincipal principal) {
         Course course = courseService.updatePricing(id, request.priceRupees(), request.discountPercent(),
-                request.discountStart(), request.discountEnd());
-        auditService.log(principal.getEmail(), "COURSE_PRICING", id, "\"" + course.getTitle() + "\": "
-                + course.getPricing().priceRupees() + " rupees, " + course.getPricing().discountPercent() + "% off");
+                request.discountStart(), request.discountEnd(), request.accessType());
+        String detail = course.getAccessType() == com.secureportal.course.CourseAccessType.REGISTER
+                ? "\"" + course.getTitle() + "\": register (admin-approved)"
+                : "\"" + course.getTitle() + "\": " + course.getPricing().priceRupees() + " rupees, "
+                        + course.getPricing().discountPercent() + "% off";
+        auditService.log(principal.getEmail(), "COURSE_PRICING", id, detail);
         return assembler.adminCourse(course);
     }
 

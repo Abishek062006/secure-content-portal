@@ -7,6 +7,10 @@ import com.secureportal.assessment.AssessmentAccess;
 import com.secureportal.assessment.AssessmentAccessException;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.Course;
+import com.secureportal.course.CourseAccessType;
+import com.secureportal.course.CourseEnquiryService;
+import com.secureportal.course.CourseRegistrationRequest;
+import com.secureportal.course.CourseRegistrationService;
 import com.secureportal.course.CourseRepository;
 import com.secureportal.course.CourseService;
 import com.secureportal.course.CourseStatus;
@@ -18,6 +22,7 @@ import com.secureportal.course.LearningService;
 import com.secureportal.course.Lesson;
 import com.secureportal.course.LessonProgress;
 import com.secureportal.course.LessonProgressRepository;
+import com.secureportal.course.RegistrationRequestException;
 import com.secureportal.storage.StorageObject;
 import com.secureportal.storage.StorageService;
 import com.secureportal.stream.StreamTicket;
@@ -63,12 +68,15 @@ public class CourseApiController {
     private final StreamTicketService ticketService;
     private final StorageService storageService;
     private final AssessmentAccess assessmentAccess;
+    private final CourseRegistrationService registrationService;
+    private final CourseEnquiryService enquiryService;
 
     public CourseApiController(CourseRepository courseRepository, CourseService courseService,
                                CourseStructureService structureService, LearningService learningService,
                                EnrollmentRepository enrollmentRepository, LessonProgressRepository progressRepository,
                                CourseOutlineAssembler assembler, StreamTicketService ticketService,
-                               StorageService storageService, AssessmentAccess assessmentAccess) {
+                               StorageService storageService, AssessmentAccess assessmentAccess,
+                               CourseRegistrationService registrationService, CourseEnquiryService enquiryService) {
         this.courseRepository = courseRepository;
         this.courseService = courseService;
         this.structureService = structureService;
@@ -79,6 +87,8 @@ public class CourseApiController {
         this.ticketService = ticketService;
         this.storageService = storageService;
         this.assessmentAccess = assessmentAccess;
+        this.registrationService = registrationService;
+        this.enquiryService = enquiryService;
     }
 
     public record ProgressRequest(@Min(0) int positionSeconds, boolean completed) {
@@ -108,8 +118,44 @@ public class CourseApiController {
             throw new com.secureportal.course.AdminNotALearnerException();
         }
         Course course = learningService.visibleCourse(id, principal.isAdmin());
+        if (course.getAccessType() == CourseAccessType.REGISTER) {
+            throw new RegistrationRequestException("This course needs the admin's approval — send a request instead of enrolling.");
+        }
         learningService.enroll(principal.getUserId(), course);
         return assembler.learnerOutline(course, principal.getUserId(), principal.isAdmin());
+    }
+
+    public record RegisterRequestBody(@jakarta.validation.constraints.Size(max = 1000) String message) {
+    }
+
+    /** For a REGISTER-type course: asks for access instead of enrolling directly. */
+    @PostMapping("/{id}/register-request")
+    public CourseOutlineDto sendRegistrationRequest(@PathVariable UUID id, @RequestBody(required = false) RegisterRequestBody body,
+                                                    @AuthenticationPrincipal AppPrincipal principal) {
+        if (principal.isAdmin()) {
+            throw new com.secureportal.course.AdminNotALearnerException();
+        }
+        Course course = learningService.visibleCourse(id, principal.isAdmin());
+        registrationService.request(id, principal.getUserId(), body == null ? null : body.message());
+        return assembler.learnerOutline(course, principal.getUserId(), principal.isAdmin());
+    }
+
+    public record EnquiryRequest(
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 200) String name,
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Email @jakarta.validation.constraints.Size(max = 320) String email,
+            @jakarta.validation.constraints.Size(max = 32) String phone,
+            @jakarta.validation.constraints.Size(max = 1000) String message) {
+    }
+
+    /** Every course — free, paid or register — has this: "tell me more, contact me". The admin follows up
+     *  outside the system; this just records the details and puts it in front of them. */
+    @PostMapping("/{id}/enquiry")
+    public com.secureportal.api.dto.EnquiryDto enquire(@PathVariable UUID id, @Valid @RequestBody EnquiryRequest request,
+                                                        @AuthenticationPrincipal AppPrincipal principal) {
+        Course course = learningService.visibleCourse(id, principal.isAdmin());
+        var enquiry = enquiryService.submit(id, principal.getUserId(), request.name(), request.email(),
+                request.phone(), request.message());
+        return com.secureportal.api.dto.EnquiryDto.of(enquiry, course.getTitle());
     }
 
     /** Cover images sit behind sign-in like everything else, but aren't ticketed: they're catalog art. */

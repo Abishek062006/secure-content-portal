@@ -73,18 +73,24 @@ export default function InterviewPrep() {
           </p>
         ) : (
           <>
-            <div className="field"><label htmlFor="role">Role you're preparing for</label>
+            <div className="field"><label htmlFor="role">Role you're preparing for{resume && useResume ? ' (optional — we can read it off your resume)' : ''}</label>
               <input id="role" type="text" maxLength={100} value={role} onChange={(e) => setRole(e.target.value)}
-                     placeholder="e.g. Backend developer" required /></div>
+                     placeholder="e.g. Backend developer" required={!(resume && useResume)} /></div>
             <div className="field"><label>Your skills</label>
               <SkillsInput skills={skills} onChange={setSkills} />
               <p className="field-hint">Add up to 12. The questions are built around them.</p></div>
-            {resume && (
-              <label className="board-toggle">
-                <input type="checkbox" checked={useResume} onChange={(e) => setUseResume(e.target.checked)} />
-                Also build questions from my resume
-              </label>
-            )}
+
+            <div className="field interview-resume-inline">
+              <label>Or use your resume</label>
+              <ResumeCard resume={resume} onChange={(r) => { setResume(r); setUseResume(Boolean(r)); }} onError={setError} embedded />
+              {resume && (
+                <label className="board-toggle">
+                  <input type="checkbox" checked={useResume} onChange={(e) => setUseResume(e.target.checked)} />
+                  Build questions from my resume too
+                </label>
+              )}
+            </div>
+
             {showJob ? (
               <div className="field"><label htmlFor="jd">Job description</label>
                 <textarea id="jd" rows={6} maxLength={4000} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)}
@@ -114,8 +120,6 @@ export default function InterviewPrep() {
           </button>
         </div>
       </form>
-
-      {!fromCourse && <ResumeCard resume={resume} onChange={(r) => { setResume(r); setUseResume(Boolean(r)); }} onError={setError} />}
 
       {history.length > 0 && (
         <section className="progress-card">

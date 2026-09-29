@@ -26,7 +26,7 @@ function RecommendedCourses({ courses }) {
             <div>
               <Link to={`/courses/${course.id}`} className="side-link">{course.title}</Link>
               <div className="muted">{course.lessonCount} lesson{course.lessonCount === 1 ? '' : 's'}</div>
-              <PriceTag pricing={course.pricing} compact />
+              <PriceTag pricing={course.pricing} accessType={course.accessType} compact />
             </div>
           </li>
         ))}

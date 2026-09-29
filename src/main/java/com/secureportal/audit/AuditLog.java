@@ -33,15 +33,27 @@ public class AuditLog {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "ip_address", length = 64)
+    private String ipAddress;
+
+    @Column(name = "user_agent", length = 300)
+    private String userAgent;
+
     protected AuditLog() {
         // for JPA
     }
 
     public AuditLog(String actorEmail, String action, UUID contentId, String detail) {
+        this(actorEmail, action, contentId, detail, null, null);
+    }
+
+    public AuditLog(String actorEmail, String action, UUID contentId, String detail, String ipAddress, String userAgent) {
         this.actorEmail = actorEmail;
         this.action = action;
         this.contentId = contentId;
         this.detail = detail;
+        this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
     }
 
     public Long getId() {
@@ -66,5 +78,13 @@ public class AuditLog {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getIpAddress() {
+        return ipAddress;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
     }
 }
