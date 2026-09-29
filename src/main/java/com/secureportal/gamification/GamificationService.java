@@ -1,6 +1,9 @@
 package com.secureportal.gamification;
 
 import com.secureportal.audit.AuditService;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
 import org.slf4j.Logger;
@@ -47,10 +50,11 @@ public class GamificationService {
     private final PointRuleRepository rules;
     private final UserRepository users;
     private final AuditService audit;
+    private final NotificationService notificationService;
 
     public GamificationService(UserGamificationRepository gamification, BadgeRepository badges, UserBadgeRepository userBadges,
                                PointTransactionRepository ledger, PointRuleRepository rules, UserRepository users,
-                               AuditService audit) {
+                               AuditService audit, NotificationService notificationService) {
         this.gamification = gamification;
         this.badges = badges;
         this.userBadges = userBadges;
@@ -58,6 +62,7 @@ public class GamificationService {
         this.rules = rules;
         this.users = users;
         this.audit = audit;
+        this.notificationService = notificationService;
     }
 
     // ---- Reading ------------------------------------------------------------------------------------------------------
@@ -248,6 +253,9 @@ public class GamificationService {
             awardOnce(userId, PointAction.BADGE_UNLOCKED, badge.getPointsReward(), "Unlocked badge: " + badge.getTitle(), null,
                     "BADGE", badgeId, null);
         }
+        notificationService.createNotification(userId, NotificationCategory.ACHIEVEMENT, "Badge unlocked: " + badge.getTitle(),
+                "You unlocked the \"" + badge.getTitle() + "\" badge — " + badge.getDescription(),
+                NotificationPriority.IMPORTANT, "/profile");
         return Optional.of(badge);
     }
 

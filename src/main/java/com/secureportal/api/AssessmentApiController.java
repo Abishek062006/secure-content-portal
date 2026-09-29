@@ -4,6 +4,9 @@ import com.secureportal.api.dto.AttemptDto;
 import com.secureportal.api.dto.AttemptSummaryDto;
 import com.secureportal.assessment.AttemptService;
 import com.secureportal.auth.AppPrincipal;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -27,10 +30,13 @@ public class AssessmentApiController {
 
     private final AttemptService attemptService;
     private final AssessmentAssembler assembler;
+    private final NotificationService notificationService;
 
-    public AssessmentApiController(AttemptService attemptService, AssessmentAssembler assembler) {
+    public AssessmentApiController(AttemptService attemptService, AssessmentAssembler assembler,
+                                   NotificationService notificationService) {
         this.attemptService = attemptService;
         this.assembler = assembler;
+        this.notificationService = notificationService;
     }
 
     public record AnswerRequest(@NotNull(message = "Send the question id") UUID questionId,
@@ -68,6 +74,12 @@ public class AssessmentApiController {
 
     @PostMapping("/attempts/{attemptId}/submit")
     public AttemptDto submit(@PathVariable UUID attemptId, @AuthenticationPrincipal AppPrincipal principal) {
-        return assembler.attempt(attemptService.submit(attemptId, principal.getUserId()));
+        AttemptService.Detail detail = attemptService.submit(attemptId, principal.getUserId());
+        String scoreText = detail.attempt().getScorePercent() != null ? detail.attempt().getScorePercent() + "%" : "completed";
+        String passText = Boolean.TRUE.equals(detail.attempt().getPassed()) ? "passed" : "completed";
+        notificationService.createNotification(principal.getUserId(), NotificationCategory.QUIZ, "Quiz result available",
+                "Your result for \"" + detail.assessment().getTitle() + "\" is in: " + scoreText + " (" + passText + ").",
+                NotificationPriority.NORMAL, "/attempts/" + attemptId);
+        return assembler.attempt(detail);
     }
 }

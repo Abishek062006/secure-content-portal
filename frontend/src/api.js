@@ -188,4 +188,20 @@ export const api = {
     return api.upload('/api/interviews/resume', form);
   },
   deleteResume: () => api.del('/api/interviews/resume'),
+
+  // Notifications
+  getNotifications: ({ category, unreadOnly, page = 0, size = 20 } = {}) => {
+    const params = new URLSearchParams({ page, size });
+    if (category) params.set('category', category);
+    if (unreadOnly) params.set('unreadOnly', 'true');
+    return request(`/api/notifications?${params}`);
+  },
+  getRecentNotifications: () => request('/api/notifications/recent'),
+  getUnreadNotificationCount: () => request('/api/notifications/unread-count'),
+  markNotificationRead: (id) => api.put(`/api/notifications/${id}/read`, {}),
+  markNotificationUnread: (id) => api.put(`/api/notifications/${id}/unread`, {}),
+  markAllNotificationsRead: () => api.put('/api/notifications/read-all', {}),
+  deleteNotification: (id) => api.del(`/api/notifications/${id}`),
+  clearReadNotifications: () => api.del('/api/notifications/clear-read'),
+  sendAdminAnnouncement: (data) => api.post('/api/admin/notifications/announcement', data),
 };

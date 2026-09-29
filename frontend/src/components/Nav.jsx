@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Logo } from './Icons';
 import DailyRing from './progress/DailyRing';
+import NotificationBell from './NotificationBell';
 
 function initials(displayName) {
   const source = (displayName || '').trim();
@@ -81,6 +82,7 @@ export default function Nav() {
               </Link>
             )}
             {user.admin && <span className="badge admin">Admin</span>}
+            <NotificationBell />
             <Link to="/profile" className="nav-profile-link" title="Your profile">
               {user.pictureUrl ? (
                 <img className="avatar" src={user.pictureUrl} alt="" referrerPolicy="no-referrer" />

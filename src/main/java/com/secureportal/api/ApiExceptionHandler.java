@@ -98,6 +98,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.notification.NotificationNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotificationNotFound(com.secureportal.notification.NotificationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(com.secureportal.jobs.GenerationJobNotFoundException.class)
     public ResponseEntity<ApiError> handleJobNotFound(com.secureportal.jobs.GenerationJobNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));

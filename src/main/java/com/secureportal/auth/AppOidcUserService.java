@@ -1,6 +1,9 @@
 package com.secureportal.auth;
 
 import com.secureportal.config.AppProperties;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import com.secureportal.user.Role;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
@@ -16,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Turns a freshly verified Google identity into an application principal.
@@ -31,10 +35,13 @@ public class AppOidcUserService extends OidcUserService {
 
     private final UserRepository userRepository;
     private final AppProperties appProperties;
+    private final NotificationService notificationService;
 
-    public AppOidcUserService(UserRepository userRepository, AppProperties appProperties) {
+    public AppOidcUserService(UserRepository userRepository, AppProperties appProperties,
+                              NotificationService notificationService) {
         this.userRepository = userRepository;
         this.appProperties = appProperties;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -56,12 +63,12 @@ public class AppOidcUserService extends OidcUserService {
         }
 
         String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmailIgnoreCase(normalisedEmail)
-                .orElseGet(() -> {
-                    Role initialRole = appProperties.isAdminEmail(normalisedEmail) ? Role.ADMIN : Role.VIEWER;
-                    log.info("Provisioning new user {} with role {}", normalisedEmail, initialRole);
-                    return new User(normalisedEmail, delegate.getFullName(), delegate.getPicture(), initialRole);
-                });
+        Optional<User> existing = userRepository.findByEmailIgnoreCase(normalisedEmail);
+        User user = existing.orElseGet(() -> {
+            Role initialRole = appProperties.isAdminEmail(normalisedEmail) ? Role.ADMIN : Role.VIEWER;
+            log.info("Provisioning new user {} with role {}", normalisedEmail, initialRole);
+            return new User(normalisedEmail, delegate.getFullName(), delegate.getPicture(), initialRole);
+        });
 
         user.setDisplayName(delegate.getFullName());
         user.setPictureUrl(delegate.getPicture());
@@ -77,6 +84,13 @@ public class AppOidcUserService extends OidcUserService {
         }
 
         User saved = userRepository.save(user);
+
+        if (existing.isEmpty()) {
+            notificationService.notifyAllAdmins(NotificationCategory.SYSTEM, "New user registered",
+                    (saved.getDisplayName() != null ? saved.getDisplayName() : saved.getEmail()) + " joined as " + saved.getRole() + ".",
+                    NotificationPriority.NORMAL, "/admin/users");
+        }
+
         return new AppPrincipal(saved, delegate);
     }
 }

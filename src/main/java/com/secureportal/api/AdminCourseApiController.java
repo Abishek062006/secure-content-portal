@@ -10,6 +10,9 @@ import com.secureportal.course.CourseRepository;
 import com.secureportal.course.CourseService;
 import com.secureportal.course.CourseStatus;
 import com.secureportal.course.dto.CourseCreateForm;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
 import jakarta.validation.Valid;
@@ -44,15 +47,17 @@ public class AdminCourseApiController {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final CourseOutlineAssembler assembler;
+    private final NotificationService notificationService;
 
     public AdminCourseApiController(CourseRepository courseRepository, CourseService courseService,
                                     UserRepository userRepository, AuditService auditService,
-                                    CourseOutlineAssembler assembler) {
+                                    CourseOutlineAssembler assembler, NotificationService notificationService) {
         this.courseRepository = courseRepository;
         this.courseService = courseService;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.assembler = assembler;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -94,6 +99,8 @@ public class AdminCourseApiController {
     public CourseDto publish(@PathVariable UUID id, @AuthenticationPrincipal AppPrincipal principal) {
         Course course = courseService.setStatus(id, CourseStatus.PUBLISHED);
         auditService.log(principal.getEmail(), "COURSE_PUBLISH", id, "\"" + course.getTitle() + "\"");
+        notificationService.notifyAllLearners(NotificationCategory.COURSE, "New course available",
+                "\"" + course.getTitle() + "\" is now available.", NotificationPriority.NORMAL, "/courses/" + course.getId());
         return assembler.adminCourse(course);
     }
 

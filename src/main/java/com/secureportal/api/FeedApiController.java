@@ -8,6 +8,9 @@ import com.secureportal.feed.FeedService;
 import com.secureportal.feed.Post;
 import com.secureportal.feed.PostComment;
 import com.secureportal.feed.ReactionType;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import com.secureportal.storage.StorageObject;
 import com.secureportal.storage.StorageService;
 import com.secureportal.user.UserRepository;
@@ -43,13 +46,15 @@ public class FeedApiController {
     private final PostAssembler assembler;
     private final StorageService storageService;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public FeedApiController(FeedService feedService, PostAssembler assembler, StorageService storageService,
-                             UserRepository userRepository) {
+                             UserRepository userRepository, NotificationService notificationService) {
         this.feedService = feedService;
         this.assembler = assembler;
         this.storageService = storageService;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     public record ReactionRequest(@NotNull ReactionType type) {
@@ -135,6 +140,13 @@ public class FeedApiController {
                               @AuthenticationPrincipal AppPrincipal principal) {
         PostComment comment = feedService.comment(id, principal.getUserId(), request == null ? null : request.body(),
                 principal.isAdmin());
+
+        Post post = feedService.visible(id, true);
+        if (post != null && !principal.getUserId().equals(post.getAuthorId())) {
+            notificationService.createNotification(post.getAuthorId(), NotificationCategory.COMMUNITY, "New reply",
+                    "Someone replied to your post.", NotificationPriority.NORMAL, "/feed");
+        }
+
         return assembler.comment(comment, userRepository.findById(principal.getUserId()).orElse(null),
                 principal.getUserId(), principal.isAdmin());
     }

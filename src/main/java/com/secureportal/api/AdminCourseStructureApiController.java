@@ -7,7 +7,12 @@ import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.CourseModule;
 import com.secureportal.course.CourseStructureService;
 import com.secureportal.course.Lesson;
+import com.secureportal.course.Enrollment;
+import com.secureportal.course.EnrollmentRepository;
 import com.secureportal.course.dto.LessonUploadForm;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -39,15 +44,19 @@ public class AdminCourseStructureApiController {
     private final CourseStructureService structureService;
     private final CourseOutlineAssembler assembler;
     private final AuditService auditService;
+    private final EnrollmentRepository enrollmentRepository;
+    private final NotificationService notificationService;
 
     private final com.secureportal.video.TranscodeRequests transcodeRequests;
 
     public AdminCourseStructureApiController(com.secureportal.video.TranscodeRequests transcodeRequests, CourseStructureService structureService, CourseOutlineAssembler assembler,
-                                             AuditService auditService) {
+                                             AuditService auditService, EnrollmentRepository enrollmentRepository, NotificationService notificationService) {
         this.transcodeRequests = transcodeRequests;
         this.structureService = structureService;
         this.assembler = assembler;
         this.auditService = auditService;
+        this.enrollmentRepository = enrollmentRepository;
+        this.notificationService = notificationService;
     }
 
     public record TitleRequest(
@@ -100,6 +109,14 @@ public class AdminCourseStructureApiController {
         Lesson lesson = structureService.addLesson(moduleId, form);
         auditService.log(principal.getEmail(), "LESSON_ADD", lesson.getCourseId(), "\"" + lesson.getTitle() + "\"");
         transcodeRequests.request(lesson.getId());
+
+        String actionUrl = "/courses/" + lesson.getCourseId() + "/lessons/" + lesson.getId();
+        for (Enrollment enrollment : enrollmentRepository.findByCourseId(lesson.getCourseId())) {
+            notificationService.createNotification(enrollment.getUserId(), NotificationCategory.COURSE, "New lesson added",
+                    "A new lesson \"" + lesson.getTitle() + "\" was added to a course you're enrolled in.",
+                    NotificationPriority.NORMAL, actionUrl);
+        }
+
         return assembler.lessonDto(structureService.findLesson(lesson.getId()), null, true);
     }
 

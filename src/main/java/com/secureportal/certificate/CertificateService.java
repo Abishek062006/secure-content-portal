@@ -8,6 +8,9 @@ import com.secureportal.course.LearningService;
 import com.secureportal.course.Lesson;
 import com.secureportal.course.LessonProgress;
 import com.secureportal.course.CourseStructureService;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
@@ -35,14 +38,16 @@ public class CertificateService {
     private final LearningService learningService;
     private final AssessmentRepository assessmentRepository;
     private final AttemptRepository attemptRepository;
+    private final NotificationService notificationService;
 
     public CertificateService(CertificateRepository certificateRepository, CourseStructureService structureService,
                               LearningService learningService, AssessmentRepository assessmentRepository,
-                              AttemptRepository attemptRepository) {
+                              AttemptRepository attemptRepository, NotificationService notificationService) {
         this.certificateRepository = certificateRepository;
         this.structureService = structureService;
         this.learningService = learningService;
         this.assessmentRepository = assessmentRepository;
+        this.notificationService = notificationService;
         this.attemptRepository = attemptRepository;
     }
 
@@ -103,8 +108,12 @@ public class CertificateService {
         String name = recipientName == null || recipientName.isBlank() ? "Learner" : recipientName.trim();
         for (int attempt = 0; ; attempt++) {
             try {
-                return certificateRepository.saveAndFlush(
+                Certificate issued = certificateRepository.saveAndFlush(
                         new Certificate(newCode(), userId, course.getId(), name, course.getTitle()));
+                notificationService.createNotification(userId, NotificationCategory.COURSE, "Course completed",
+                        "You completed \"" + course.getTitle() + "\" and earned a certificate.",
+                        NotificationPriority.NORMAL, "/courses/" + course.getId());
+                return issued;
             } catch (DataIntegrityViolationException e) {
                 // Either a concurrent claim won (return theirs) or the code collided (try another).
                 Optional<Certificate> winner = find(userId, course.getId());

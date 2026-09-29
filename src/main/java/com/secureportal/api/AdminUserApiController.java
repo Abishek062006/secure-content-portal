@@ -2,6 +2,9 @@ package com.secureportal.api;
 
 import com.secureportal.api.dto.UserDto;
 import com.secureportal.auth.AppPrincipal;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import com.secureportal.user.UserRepository;
 import com.secureportal.user.UserService;
 import org.springframework.data.domain.PageRequest;
@@ -29,10 +32,13 @@ public class AdminUserApiController {
 
     private final UserRepository userRepository;
     private final UserService userService;
+    private final NotificationService notificationService;
 
-    public AdminUserApiController(UserRepository userRepository, UserService userService) {
+    public AdminUserApiController(UserRepository userRepository, UserService userService,
+                                  NotificationService notificationService) {
         this.userRepository = userRepository;
         this.userService = userService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -48,11 +54,17 @@ public class AdminUserApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void promote(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
         userService.promoteToAdmin(id, principal.getEmail());
+        notificationService.createNotification(id, NotificationCategory.SECURITY, "Role updated to Administrator",
+                "Your account was made an administrator by " + principal.getEmail() + ".",
+                NotificationPriority.IMPORTANT, "/admin/courses");
     }
 
     @PostMapping("/{id}/demote")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void demote(@PathVariable Long id, @AuthenticationPrincipal AppPrincipal principal) {
         userService.demoteToViewer(id, principal.getEmail(), principal.getUserId());
+        notificationService.createNotification(id, NotificationCategory.SECURITY, "Role updated to Learner",
+                "Your account role was changed to Learner by " + principal.getEmail() + ".",
+                NotificationPriority.NORMAL, "/courses");
     }
 }

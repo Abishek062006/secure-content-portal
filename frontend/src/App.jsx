@@ -19,6 +19,7 @@ import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
 import AttemptView from './pages/AttemptView';
 import MyLearning from './pages/MyLearning';
+import Notifications from './pages/Notifications';
 import PaymentSuccess from './pages/PaymentSuccess';
 import Progress from './pages/Progress';
 import VerifyCertificate from './pages/VerifyCertificate';
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
