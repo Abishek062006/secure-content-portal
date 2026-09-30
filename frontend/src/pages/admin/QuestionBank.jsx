@@ -26,7 +26,7 @@ export default function QuestionBank() {
   const [count, setCount] = useState(10);
   const [level, setLevel] = useState(0);
   const [finalOnly, setFinalOnly] = useState(false);
-  const [filters, setFilters] = useState({ lesson: '', difficulty: '', status: '', source: '' });
+  const [filters, setFilters] = useState({ lesson: '', difficulty: '', status: '', source: '', grounding: '' });
   const [adding, setAdding] = useState(false);
   const [job, setJob] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -55,7 +55,8 @@ export default function QuestionBank() {
     (!filters.lesson || q.lessonId === filters.lesson)
     && (!filters.difficulty || q.difficulty === filters.difficulty)
     && (!filters.status || q.status === filters.status)
-    && (!filters.source || q.source === filters.source));
+    && (!filters.source || q.source === filters.source)
+    && (!filters.grounding || q.grounding === filters.grounding));
   const drafts = visible.filter((q) => q.status === 'DRAFT');
 
   function replace(updated) {
@@ -271,6 +272,10 @@ export default function QuestionBank() {
           {!selected?.hasTranscript && (
             <p className="field-hint">AI generation reads the lesson's transcript, so add a .vtt transcript to it in the course editor.</p>
           )}
+          {selected?.hasTranscript && (
+            <p className="field-hint">Generated questions mostly stick to what's said outright in the transcript
+              (tagged "Direct from transcript" below) rather than requiring inference ("Related to transcript").</p>
+          )}
           {adding && (
             <QuestionForm
               submitLabel="Add question"
@@ -310,6 +315,11 @@ export default function QuestionBank() {
           <option value="AI">AI-generated</option>
           <option value="MANUAL">Written by hand</option>
           <option value="IMPORT">Imported</option>
+        </select>
+        <select aria-label="Filter by transcript grounding" value={filters.grounding} onChange={(e) => setFilters({ ...filters, grounding: e.target.value })}>
+          <option value="">Any grounding</option>
+          <option value="DIRECT">Direct from transcript</option>
+          <option value="RELATED">Related to transcript</option>
         </select>
         {drafts.length > 0 && (
           <button type="button" className="btn btn-primary" onClick={approveAllDrafts}>Approve {drafts.length} draft{drafts.length === 1 ? '' : 's'}</button>

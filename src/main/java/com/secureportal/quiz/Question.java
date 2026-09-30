@@ -51,6 +51,11 @@ public class Question {
     @Column(nullable = false, length = 8)
     private QuestionSource source;
 
+    /** Null for manually typed or imported questions — only the AI generator classifies this. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 8)
+    private TranscriptGrounding grounding;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "question_options", joinColumns = @JoinColumn(name = "question_id"))
     @OrderColumn(name = "sort_order")
@@ -71,7 +76,8 @@ public class Question {
     }
 
     public Question(UUID courseId, UUID lessonId, String text, Difficulty difficulty, String explanation,
-                    Integer sourceSeconds, QuestionSource source, QuestionStatus status, List<QuestionOption> options) {
+                    Integer sourceSeconds, QuestionSource source, QuestionStatus status, List<QuestionOption> options,
+                    TranscriptGrounding grounding) {
         this.courseId = courseId;
         this.lessonId = lessonId;
         this.text = text;
@@ -81,6 +87,7 @@ public class Question {
         this.source = source;
         this.status = status;
         this.options = new ArrayList<>(options);
+        this.grounding = grounding;
     }
 
     public void edit(String text, Difficulty difficulty, String explanation, List<QuestionOption> options) {
@@ -111,6 +118,10 @@ public class Question {
 
     public QuestionSource getSource() {
         return source;
+    }
+
+    public TranscriptGrounding getGrounding() {
+        return grounding;
     }
 
     public String getText() {

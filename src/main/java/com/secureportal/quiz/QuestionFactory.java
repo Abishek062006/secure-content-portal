@@ -74,8 +74,30 @@ public final class QuestionFactory {
     public static Question build(UUID courseId, UUID lessonId, QuestionSource source, QuestionStatus status,
                                  String text, String difficultyName, List<String> optionTexts, int correctIndex,
                                  String explanation, Integer sourceSeconds, boolean shuffle) {
+        return build(courseId, lessonId, source, status, text, difficultyName, optionTexts, correctIndex,
+                explanation, sourceSeconds, shuffle, null);
+    }
+
+    /** As above, plus how the AI generator classified the question against its source transcript — null for a
+     *  manually typed or imported one, since there's nothing to classify it against. */
+    public static Question build(UUID courseId, UUID lessonId, QuestionSource source, QuestionStatus status,
+                                 String text, String difficultyName, List<String> optionTexts, int correctIndex,
+                                 String explanation, Integer sourceSeconds, boolean shuffle, String groundingName) {
         Checked checked = check(text, difficultyName, optionTexts, correctIndex, explanation, shuffle);
         return new Question(courseId, lessonId, checked.text(), checked.difficulty(), checked.explanation(),
-                sourceSeconds, source, status, checked.options());
+                sourceSeconds, source, status, checked.options(), parseGrounding(groundingName));
+    }
+
+    /** Lenient on purpose: a question is never dropped just because the model's grounding tag was missing
+     *  or garbled — it's a filter aid, not something worth losing an otherwise-valid question over. */
+    private static TranscriptGrounding parseGrounding(String groundingName) {
+        if (groundingName == null || groundingName.isBlank()) {
+            return null;
+        }
+        try {
+            return TranscriptGrounding.valueOf(groundingName.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

@@ -145,10 +145,10 @@ class LearnerInsightsFlowTest {
         java.util.UUID lessonUuid = java.util.UUID.fromString(lessonId);
         Question easy = questionRepository.save(new Question(java.util.UUID.fromString(courseId), lessonUuid, "Easy one",
                 Difficulty.EASY, null, null, QuestionSource.MANUAL, QuestionStatus.APPROVED,
-                java.util.List.of(new QuestionOption("A", true), new QuestionOption("B", false))));
+                java.util.List.of(new QuestionOption("A", true), new QuestionOption("B", false)), null));
         Question hard = questionRepository.save(new Question(java.util.UUID.fromString(courseId), lessonUuid, "Hard one",
                 Difficulty.HARD, null, null, QuestionSource.MANUAL, QuestionStatus.APPROVED,
-                java.util.List.of(new QuestionOption("A", true), new QuestionOption("B", false))));
+                java.util.List.of(new QuestionOption("A", true), new QuestionOption("B", false)), null));
         AttemptQuestion easyAnswer = new AttemptQuestion(attempt.getId(), 0, easy.getId(), "0,1");
         easyAnswer.answer(0, true);
         AttemptQuestion hardAnswer = new AttemptQuestion(attempt.getId(), 1, hard.getId(), "0,1");

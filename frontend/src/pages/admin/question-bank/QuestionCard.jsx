@@ -2,6 +2,7 @@ import { useState } from 'react';
 import QuestionForm from './QuestionForm';
 
 const SOURCE_LABEL = { AI: 'AI-generated', MANUAL: 'Written by hand', IMPORT: 'Imported' };
+const GROUNDING_LABEL = { DIRECT: 'Direct from transcript', RELATED: 'Related to transcript' };
 const LETTERS = ['A', 'B', 'C', 'D'];
 
 function clock(seconds) {
@@ -35,6 +36,7 @@ export default function QuestionCard({ question, actions }) {
           <span className={`badge difficulty-${question.difficulty.toLowerCase()}`}>{question.difficulty}</span>
           <span className={`badge status-${approved ? 'published' : 'draft'}`}>{approved ? 'Approved' : 'Draft'}</span>
           <span className="badge">{SOURCE_LABEL[question.source]}</span>
+          {question.grounding && <span className={`badge grounding-${question.grounding.toLowerCase()}`}>{GROUNDING_LABEL[question.grounding]}</span>}
           {question.finalOnly && <span className="badge admin">Final assessment only</span>}
         </div>
         <span className="field-hint">

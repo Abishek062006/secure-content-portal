@@ -17,6 +17,7 @@ public record QuestionDto(
         Integer sourceSeconds,
         String status,
         String source,
+        String grounding,
         boolean finalOnly,
         List<Option> options
 ) {
@@ -35,6 +36,7 @@ public record QuestionDto(
                 question.getSourceSeconds(),
                 question.getStatus().name(),
                 question.getSource().name(),
+                question.getGrounding() == null ? null : question.getGrounding().name(),
                 question.isFinalOnly(),
                 question.getOptions().stream().map(o -> new Option(o.getText(), o.isCorrect())).toList()
         );

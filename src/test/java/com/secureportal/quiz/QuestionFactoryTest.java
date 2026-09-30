@@ -3,6 +3,7 @@ package com.secureportal.quiz;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,6 +42,28 @@ class QuestionFactoryTest {
         assertRejected("Q?", "EASY", List.of("A", "", "C", "D"), 0, "can't be empty");
         assertRejected("Q?", "EASY", List.of("A", "a", "C", "D"), 0, "different");
         assertRejected("x".repeat(1001), "EASY", OPTIONS, 0, "1000 characters");
+    }
+
+    @Test
+    void buildParsesTranscriptGroundingButNeverRejectsAQuestionOverIt() {
+        UUID courseId = UUID.randomUUID();
+        UUID lessonId = UUID.randomUUID();
+
+        Question direct = QuestionFactory.build(courseId, lessonId, QuestionSource.AI, QuestionStatus.DRAFT,
+                "Q?", "EASY", OPTIONS, 0, null, null, false, "direct");
+        assertThat(direct.getGrounding()).isEqualTo(TranscriptGrounding.DIRECT);
+
+        Question related = QuestionFactory.build(courseId, lessonId, QuestionSource.AI, QuestionStatus.DRAFT,
+                "Q?", "EASY", OPTIONS, 0, null, null, false, "RELATED");
+        assertThat(related.getGrounding()).isEqualTo(TranscriptGrounding.RELATED);
+
+        Question garbled = QuestionFactory.build(courseId, lessonId, QuestionSource.AI, QuestionStatus.DRAFT,
+                "Q?", "EASY", OPTIONS, 0, null, null, false, "not-a-real-value");
+        assertThat(garbled.getGrounding()).isNull();
+
+        Question manual = QuestionFactory.build(courseId, lessonId, QuestionSource.MANUAL, QuestionStatus.APPROVED,
+                "Q?", "EASY", OPTIONS, 0, null, null, false);
+        assertThat(manual.getGrounding()).isNull();
     }
 
     private static void assertRejected(String text, String difficulty, List<String> options, int correct, String message) {

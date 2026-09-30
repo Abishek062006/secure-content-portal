@@ -1777,6 +1777,16 @@ a {
   color: #b3261e;
 }
 
+.badge.grounding-direct {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+
+.badge.grounding-related {
+  background: #eef2f6;
+  color: #475569;
+}
+
 .import-errors {
   margin: 6px 0 0;
   padding-left: 18px;

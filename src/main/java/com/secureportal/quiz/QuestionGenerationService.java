@@ -204,11 +204,16 @@ public class QuestionGenerationService {
                 + "- Base every question only on the excerpt; never invent facts.\n"
                 + "- Give 4 options per question with exactly one correct; the wrong options must be plausible.\n"
                 + difficultyRule
+                + "- Tag each question's \"grounding\" as \"DIRECT\" if the excerpt states the answer outright — a fact, "
+                + "number, name or step the speaker actually says — or \"RELATED\" if answering it means connecting or "
+                + "applying ideas from the excerpt rather than repeating a single stated line. Prefer DIRECT: aim for "
+                + "about 80% DIRECT and 20% RELATED, since these questions check whether someone actually watched and "
+                + "absorbed the lecture, not just reasoned their way to a plausible answer.\n"
                 + "- Each question must ask about something different from the others.\n"
                 + (round > 0 ? "- Earlier attempts already covered the obvious points; look for less obvious details.\n" : "")
                 + "- \"timestampSeconds\" is the transcript time in seconds where the answer is discussed.\n"
                 + "- \"explanation\" is one sentence on why the answer is correct.\n"
-                + "Return JSON exactly like: {\"questions\":[{\"question\":\"...\",\"difficulty\":\"EASY\","
+                + "Return JSON exactly like: {\"questions\":[{\"question\":\"...\",\"difficulty\":\"EASY\",\"grounding\":\"DIRECT\","
                 + "\"options\":[\"A\",\"B\",\"C\",\"D\"],\"correctIndex\":0,\"timestampSeconds\":123,\"explanation\":\"...\"}]}\n\n"
                 + "Transcript excerpt (each line starts with its time in seconds):\n" + excerpt;
     }
@@ -242,7 +247,8 @@ public class QuestionGenerationService {
             try {
                 Question question = QuestionFactory.build(courseId, lessonId, QuestionSource.AI, QuestionStatus.DRAFT,
                         node.path("question").asText(""), node.path("difficulty").asText(""), options,
-                        node.path("correctIndex").asInt(-1), node.path("explanation").asText(""), seconds, true);
+                        node.path("correctIndex").asInt(-1), node.path("explanation").asText(""), seconds, true,
+                        node.path("grounding").asText(""));
                 if (only != null && question.getDifficulty() != only) {
                     continue;
                 }

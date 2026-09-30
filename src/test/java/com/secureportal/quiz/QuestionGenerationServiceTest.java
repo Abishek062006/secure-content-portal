@@ -22,8 +22,13 @@ class QuestionGenerationServiceTest {
     private final UUID lessonId = UUID.randomUUID();
 
     private static String question(String text, String difficulty, String options, int correct, int seconds) {
-        return "{\"question\":\"" + text + "\",\"difficulty\":\"" + difficulty + "\",\"options\":" + options
-                + ",\"correctIndex\":" + correct + ",\"timestampSeconds\":" + seconds + ",\"explanation\":\"Because.\"}";
+        return question(text, difficulty, options, correct, seconds, "DIRECT");
+    }
+
+    private static String question(String text, String difficulty, String options, int correct, int seconds, String grounding) {
+        return "{\"question\":\"" + text + "\",\"difficulty\":\"" + difficulty + "\",\"grounding\":\"" + grounding
+                + "\",\"options\":" + options + ",\"correctIndex\":" + correct + ",\"timestampSeconds\":" + seconds
+                + ",\"explanation\":\"Because.\"}";
     }
 
     private static final String FOUR = "[\"A\",\"B\",\"C\",\"D\"]";
@@ -44,6 +49,20 @@ class QuestionGenerationServiceTest {
         assertThat(q.getOptions()).hasSize(4);
         assertThat(q.getOptions().stream().filter(QuestionOption::isCorrect).map(QuestionOption::getText))
                 .containsExactly("C");
+        assertThat(q.getGrounding()).isEqualTo(TranscriptGrounding.DIRECT);
+    }
+
+    @Test
+    void parsesTranscriptGroundingAndToleratesAMissingOrGarbledTag() {
+        String reply = "{\"questions\":["
+                + question("Related one?", "MEDIUM", FOUR, 0, 10, "RELATED") + ","
+                + question("No grounding sent?", "MEDIUM", FOUR, 0, 10, "") + "]}";
+
+        List<Question> parsed = service.parse(reply, courseId, lessonId, 600);
+
+        assertThat(parsed).hasSize(2);
+        assertThat(parsed.get(0).getGrounding()).isEqualTo(TranscriptGrounding.RELATED);
+        assertThat(parsed.get(1).getGrounding()).isNull();
     }
 
     @Test
