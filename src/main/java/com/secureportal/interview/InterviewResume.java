@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.util.List;
 
 /** The text of a learner's resume, kept only to build their interview questions. The uploaded file itself is never stored. */
 @Entity
@@ -37,6 +38,12 @@ public class InterviewResume {
 
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
+
+    /** The skills read off the resume, joined by {@link #KEYWORD_SEPARATOR}; null until they've been worked out. */
+    @Column(length = 700)
+    private String keywords;
+
+    private static final String KEYWORD_SEPARATOR = "|";
 
     protected InterviewResume() {
         // for JPA
@@ -78,5 +85,18 @@ public class InterviewResume {
     /** The first few lines, so the learner can see the text was read properly without the whole resume travelling back. */
     public String preview() {
         return contentText.length() <= PREVIEW ? contentText : contentText.substring(0, PREVIEW) + "...";
+    }
+
+    public boolean hasKeywords() {
+        return keywords != null;
+    }
+
+    public List<String> keywordList() {
+        return keywords == null || keywords.isEmpty() ? List.of() : List.of(keywords.split("\\" + KEYWORD_SEPARATOR));
+    }
+
+    /** Keywords are short labels without the separator (see {@link ResumeKeywords#clean}), at most 12 of them. */
+    public void setKeywords(List<String> values) {
+        this.keywords = String.join(KEYWORD_SEPARATOR, values);
     }
 }

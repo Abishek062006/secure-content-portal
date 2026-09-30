@@ -182,9 +182,12 @@ class MockInterviewFlowTest {
                 .andExpect(jsonPath("$.session.topFix").value("Depth."))
                 .andExpect(jsonPath("$.questions[0].relevance").value(8))
                 .andExpect(jsonPath("$.questions[0].communication").value(7))
-                .andExpect(jsonPath("$.xpEarned").value(gamification.pointsFor(com.secureportal.gamification.PointAction.MOCK_INTERVIEW_COMPLETE)));
+                // The score reaches the leaderboard: the base for finishing plus the same again scaled by the 70%.
+                .andExpect(jsonPath("$.xpEarned").value(MockInterviewService.xpFor(
+                        gamification.pointsFor(com.secureportal.gamification.PointAction.MOCK_INTERVIEW_COMPLETE), 70)));
         int after = gamification.summary(one.getId()).totalPoints();
-        assertThat(after).isGreaterThan(before);
+        assertThat(after - before).isEqualTo(MockInterviewService.xpFor(
+                gamification.pointsFor(com.secureportal.gamification.PointAction.MOCK_INTERVIEW_COMPLETE), 70));
 
         // Completing again (or many times) returns the same result and never pays again.
         for (int i = 0; i < 3; i++) {
@@ -196,6 +199,59 @@ class MockInterviewFlowTest {
         // A finished interview accepts no more answers.
         answer(one, session, ids.get(0), ANSWER, 409);
         mockMvc.perform(get("/api/interviews/history").with(as(one))).andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void anHrInterviewAsksBehaviouralQuestionsOnRandomTopicsAndNeedsOnlyARole() throws Exception {
+        List<String> systems = new ArrayList<>();
+        List<String> prompts = new ArrayList<>();
+        doAnswer(call -> {
+            systems.add(call.getArgument(0));
+            prompts.add(call.getArgument(1));
+            return QUESTIONS;
+        }).when(llm).complete(anyString(), anyString());
+
+        // No skills, job description or resume: an HR interview is about the person, so the role is enough.
+        long session = startWith(one, "{\"interviewType\":\"HR\",\"targetRole\":\"Backend developer\",\"questionCount\":4}");
+        mockMvc.perform(get("/api/interviews/sessions/" + session).with(as(one)))
+                .andExpect(jsonPath("$.session.interviewType").value("HR"))
+                .andExpect(jsonPath("$.session.plannedQuestions").value(4))
+                .andExpect(jsonPath("$.questions.length()").value(4))
+                // Whatever the model labels them, HR questions are behavioural.
+                .andExpect(jsonPath("$.questions[1].category").value("BEHAVIORAL"))
+                .andExpect(jsonPath("$.questions[2].category").value("BEHAVIORAL"));
+        assertThat(systems.get(0)).contains("HR interviewer").contains("exactly 4 questions");
+        assertThat(prompts.get(0)).contains("Topics, in order:");
+
+        // Without the AI the bank still gives a full HR set, and practising again keeps the type and the count.
+        doThrow(new AiNotConfiguredException()).when(llm).complete(anyString(), anyString());
+        long fromBank = startWith(one, "{\"interviewType\":\"HR\",\"targetRole\":\"Backend developer\",\"questionCount\":6}");
+        assertThat(questionIds(one, fromBank)).hasSize(6);
+        String retried = mockMvc.perform(post("/api/interviews/sessions/" + fromBank + "/retry").with(csrf()).with(as(one)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.interviewType").value("HR"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(questionIds(one, json(retried).get("id").asLong())).hasSize(6);
+    }
+
+    @Test
+    void theLearnerChoosesHowManyQuestionsWithinLimitsAndATechnicalInterviewStillNeedsSomethingToBuildOn() throws Exception {
+        doThrow(new AiNotConfiguredException()).when(llm).complete(anyString(), anyString());
+        long eight = startWith(one, "{\"interviewType\":\"TECHNICAL\",\"questionCount\":8," + SKILLS_GOAL + "}");
+        assertThat(questionIds(one, eight)).hasSize(8);
+
+        startRejected("{\"questionCount\":2," + SKILLS_GOAL + "}", 400);
+        startRejected("{\"questionCount\":11," + SKILLS_GOAL + "}", 400);
+        startRejected("{\"interviewType\":\"PANEL\"," + SKILLS_GOAL + "}", 400);
+        // A technical interview with nothing but a role has nothing to ask about.
+        startRejected("{\"interviewType\":\"TECHNICAL\",\"targetRole\":\"Backend developer\"}", 400);
+    }
+
+    @Test
+    void xpGrowsWithTheScoreOnTopOfABaseForFinishing() {
+        assertThat(MockInterviewService.xpFor(50, 0)).isEqualTo(50);
+        assertThat(MockInterviewService.xpFor(50, 70)).isEqualTo(85);
+        assertThat(MockInterviewService.xpFor(50, 100)).isEqualTo(100);
+        assertThat(MockInterviewService.xpFor(0, 100)).isZero(); // an admin who prices it at zero pays nothing
     }
 
     @Test

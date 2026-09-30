@@ -8,6 +8,56 @@
 .form-row + .form-row { margin-top: 0; }
 .field textarea { font: inherit; }
 
+/* Technical or HR: two choices, the picked one marked the way a focused field is. */
+.interview-type { border: 0; margin: 0; padding: 0; min-width: 0; }
+.interview-type legend { padding: 0; margin-bottom: 7px; font-size: 0.85rem; font-weight: 600; letter-spacing: -0.01em; }
+.interview-type-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.interview-type-options label {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.interview-type-options label:hover { border-color: var(--ink-soft); }
+.interview-type-options label.selected { border-color: var(--accent); background: var(--accent-wash); }
+.interview-type-options label:has(input:focus-visible) { box-shadow: 0 0 0 4px var(--accent-wash); border-color: var(--accent); }
+.interview-type-options input { position: absolute; opacity: 0; pointer-events: none; }
+.interview-type-name { font-weight: 600; }
+.interview-type-options label.selected .interview-type-name { color: var(--accent-deep); }
+
+/* Skills read off the resume */
+.resume-keywords { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 4px; }
+.resume-keywords-label { margin: 0; font-size: 0.85rem; font-weight: 600; }
+.keyword-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 980px;
+  background: var(--surface);
+  color: var(--ink-mid);
+  font: inherit;
+  font-size: 0.85rem;
+}
+button.keyword-chip { cursor: pointer; }
+button.keyword-chip:hover { border-color: var(--ink-soft); }
+.keyword-chip.on { border-color: transparent; background: var(--accent-wash); color: var(--accent-deep); }
+button.keyword-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-wash); border-color: var(--accent); }
+
+.interview-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+@media (max-width: 640px) {
+  .interview-type-options, .interview-settings { grid-template-columns: 1fr; }
+}
+
 /* Skills chips */
 .chips {
   display: flex;
@@ -91,6 +141,18 @@
 .rubric-bar div { height: 100%; background: var(--accent); border-radius: 8px; transition: width 0.6s var(--ease); }
 .rubric strong { text-align: right; font-variant-numeric: tabular-nums; }
 .report-fix { margin: 6px 0 12px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--accent-wash); color: var(--accent-deep); }
+.report-subhead { margin: 18px 0 10px; font-size: 0.85rem; font-weight: 600; color: var(--ink-mid); }
+
+/* Good at / work on */
+.report-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.report-split h3 { margin: 0 0 10px; font-size: 0.95rem; }
+.report-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.report-points li { position: relative; display: flex; flex-direction: column; gap: 2px; padding-left: 16px; font-size: 0.9rem; line-height: 1.5; }
+.report-points li::before { content: ''; position: absolute; left: 0; top: 0.55em; width: 7px; height: 7px; border-radius: 50%; }
+.report-points.good li::before { background: var(--accent); }
+.report-points.work li::before { background: var(--ink-soft); }
+.report-points span { color: var(--ink-mid); }
+@media (max-width: 640px) { .report-split { grid-template-columns: 1fr; } }
 .report-question { border-top: 1px solid var(--line-soft); padding: 12px 0; }
 .report-question summary { display: flex; gap: 12px; cursor: pointer; list-style: none; font-weight: 500; }
 .report-question summary::-webkit-details-marker { display: none; }

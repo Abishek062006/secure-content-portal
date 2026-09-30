@@ -40,6 +40,9 @@ public class MockInterviewService {
     static final int FOLLOW_UP_BELOW = 7;
     static final int HISTORY_LIMIT = 50;
     static final int RECENT_FOR_ADMIN = 15;
+    static final int DEFAULT_QUESTIONS = 5;
+    static final int MIN_QUESTIONS = 3;
+    static final int MAX_QUESTIONS = 10;
 
     /** A role or skill is a short label (it goes into the AI prompt), not free-form text. */
     private static final Pattern ROLE_LABEL = Pattern.compile("[\\p{L}\\p{N} &/+.,'()-]{2,100}");
@@ -79,9 +82,12 @@ public class MockInterviewService {
     public record AnswerResult(MockInterviewQuestion question, MockInterviewSession session, MockInterviewQuestion followUp) {
     }
 
-    /** What the learner asks for. Exactly one of skills, a job description or a course is needed. */
+    /**
+     * What the learner asks for. A technical interview needs skills, a job description, a resume or a course to build on; an HR interview
+     * only needs the role (or a resume to read it from).
+     */
     public record StartRequest(String track, String difficulty, String targetRole, List<String> skills, String jobDescription,
-                               String courseId, boolean useResume) {
+                               String courseId, boolean useResume, String interviewType, Integer questionCount) {
     }
 
     public record Quota(long used, int limit, int voiceUsed, int voiceLimit) {
@@ -94,29 +100,36 @@ public class MockInterviewService {
                 : InterviewTrack.parse(request.track()).orElseThrow(() -> new InvalidInterviewException("Choose Student or Working professional."));
         InterviewDifficulty difficulty = request.difficulty() == null || request.difficulty().isBlank() ? InterviewDifficulty.MEDIUM
                 : InterviewDifficulty.parse(request.difficulty()).orElseThrow(() -> new InvalidInterviewException("Choose Easy, Medium or Hard."));
-        MockInterviewSession.Goal goal = goalFrom(request);
-        return begin(userId, track, difficulty, goal, resumeTextFor(userId, goal));
+        InterviewType type = request.interviewType() == null || request.interviewType().isBlank() ? InterviewType.TECHNICAL
+                : InterviewType.parse(request.interviewType()).orElseThrow(() -> new InvalidInterviewException("Choose a Technical or an HR interview."));
+        int count = request.questionCount() == null ? DEFAULT_QUESTIONS : request.questionCount();
+        if (count < MIN_QUESTIONS || count > MAX_QUESTIONS) {
+            throw new InvalidInterviewException("Choose between " + MIN_QUESTIONS + " and " + MAX_QUESTIONS + " questions.");
+        }
+        MockInterviewSession.Goal goal = goalFrom(request, type);
+        return begin(userId, track, type, difficulty, count, goal, resumeTextFor(userId, goal));
     }
 
     /** Practise again with the same setup as an earlier interview of the learner's own. */
     public MockInterviewSession retry(Long userId, Long sessionId) {
         MockInterviewSession earlier = ownedSession(sessionId, userId);
-        return begin(userId, InterviewTrack.valueOf(earlier.getTrack()), InterviewDifficulty.valueOf(earlier.getDifficulty()), earlier.goal(),
+        return begin(userId, InterviewTrack.valueOf(earlier.getTrack()), InterviewType.valueOf(earlier.getInterviewType()),
+                InterviewDifficulty.valueOf(earlier.getDifficulty()), earlier.getPlannedQuestions(), earlier.goal(),
                 resumeTextFor(userId, earlier.goal()));
     }
 
-    private MockInterviewSession begin(Long userId, InterviewTrack track, InterviewDifficulty difficulty, MockInterviewSession.Goal goal,
-                                       String resumeText) {
+    private MockInterviewSession begin(Long userId, InterviewTrack track, InterviewType type, InterviewDifficulty difficulty, int count,
+                                       MockInterviewSession.Goal goal, String resumeText) {
         if (sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)) >= MAX_PER_DAY) {
             throw new InterviewLimitException(MAX_PER_DAY);
         }
 
         // The AI is asked before anything is written, so a failure leaves nothing half-created.
-        List<InterviewQuestionBank.Item> items = ai.questionsFor(track, difficulty, goal, resumeText);
+        List<InterviewQuestionBank.Item> items = ai.questionsFor(track, type, difficulty, count, goal, resumeText);
 
         return tx.execute(status -> {
             sessions.abandonOpen(userId);
-            MockInterviewSession session = sessions.save(new MockInterviewSession(userId, track, difficulty, goal, items.size()));
+            MockInterviewSession session = sessions.save(new MockInterviewSession(userId, track, type, difficulty, goal, items.size()));
             for (int i = 0; i < items.size(); i++) {
                 questions.save(new MockInterviewQuestion(session.getId(), i, items.get(i).text(), items.get(i).category()));
             }
@@ -134,7 +147,7 @@ public class MockInterviewService {
     }
 
     /** Turns what the learner typed into a goal, checking every piece: it all ends up in an AI prompt. */
-    private MockInterviewSession.Goal goalFrom(StartRequest request) {
+    private MockInterviewSession.Goal goalFrom(StartRequest request, InterviewType type) {
         String courseId = request.courseId() == null || request.courseId().isBlank() ? null : request.courseId().strip();
         if (courseId != null) {
             Course course = courses.findById(parseCourseId(courseId))
@@ -171,7 +184,7 @@ public class MockInterviewService {
         if (jobDescription != null && jobDescription.length() > MAX_JOB_DESCRIPTION) {
             throw new InvalidInterviewException("Keep the job description under " + MAX_JOB_DESCRIPTION + " characters.");
         }
-        if (skills.isEmpty() && jobDescription == null && !request.useResume()) {
+        if (type == InterviewType.TECHNICAL && skills.isEmpty() && jobDescription == null && !request.useResume()) {
             throw new InvalidInterviewException("Add some skills, paste a job description or use your resume so the questions fit you.");
         }
         InterviewSource source = request.useResume() ? InterviewSource.RESUME
@@ -310,10 +323,10 @@ public class MockInterviewService {
             int percent = (int) Math.round(100.0 * total / (all.size() * 10));
             String readiness = percent >= 85 ? "EXCELLENT" : percent >= 65 ? "GOOD" : "NEEDS_PRACTICE";
 
-            int xp = gamification.pointsFor(PointAction.MOCK_INTERVIEW_COMPLETE);
+            int xp = xpFor(gamification.pointsFor(PointAction.MOCK_INTERVIEW_COMPLETE), percent);
             boolean paid = xp > 0 && gamification.award(userId, PointAction.MOCK_INTERVIEW_COMPLETE, xp,
-                    "Completed AI mock interview: " + session.getStream(), session.getStream(), sessionId.toString());
-            session.complete(percent, readiness, summaryFor(readiness), topFixOf(all), paid ? xp : 0);
+                    "Completed AI mock interview: " + session.getStream() + " (" + percent + "%)", session.getStream(), sessionId.toString());
+            session.complete(percent, readiness, summaryFor(readiness, session.getInterviewType()), topFixOf(all), paid ? xp : 0);
             sessions.save(session);
             return new Completion(session, all, session.getXpEarned());
         });
@@ -325,7 +338,25 @@ public class MockInterviewService {
                 .map(MockInterviewQuestion::getAreasToImprove).filter(text -> text != null && !text.isBlank()).orElse(null);
     }
 
-    private static String summaryFor(String readiness) {
+    /**
+     * The base points for finishing, plus the same again scaled by the score: a 70% interview on the default 50 earns 85. The score is
+     * what reaches the leaderboard, so a better interview ranks higher, and the base still rewards finishing at all.
+     */
+    static int xpFor(int base, int percent) {
+        return base <= 0 ? 0 : base + (int) Math.round(base * percent / 100.0);
+    }
+
+    private static String summaryFor(String readiness, String interviewType) {
+        if (InterviewType.HR.name().equals(interviewType)) {
+            return switch (readiness) {
+                case "EXCELLENT" -> "A confident HR round. Your examples were specific, you owned your part in them, and you came "
+                        + "across clearly and honestly.";
+                case "GOOD" -> "A good HR round. Tighten your examples around what you did and what changed because of it, and "
+                        + "end each answer on the result.";
+                default -> "A start to build on. Prepare three or four real stories you can reuse, and practise telling them as "
+                        + "situation, what you did, and the result.";
+            };
+        }
         return switch (readiness) {
             case "EXCELLENT" -> "Outstanding interview performance! Your technical depth, problem-solving structure, and communication "
                     + "make you highly competitive for top-tier roles.";

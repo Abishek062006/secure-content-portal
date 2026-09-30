@@ -7,12 +7,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -32,10 +35,15 @@ public class ResumeService {
     private static final byte[] PDF_MAGIC = "%PDF-".getBytes(StandardCharsets.US_ASCII);
 
     private final InterviewResumeRepository resumes;
+    private final ResumeKeywords keywords;
+    private final TransactionTemplate tx;
     private final Duration retention;
 
-    public ResumeService(InterviewResumeRepository resumes, @Value("${app.interview.resume-retention-days:90}") long retentionDays) {
+    public ResumeService(InterviewResumeRepository resumes, ResumeKeywords keywords, PlatformTransactionManager transactionManager,
+                         @Value("${app.interview.resume-retention-days:90}") long retentionDays) {
         this.resumes = resumes;
+        this.keywords = keywords;
+        this.tx = new TransactionTemplate(transactionManager);
         this.retention = Duration.ofDays(retentionDays);
     }
 
@@ -44,8 +52,26 @@ public class ResumeService {
         return resumes.findByUserId(userId);
     }
 
+    /**
+     * The resume with its skills worked out. A resume uploaded before skills were read gets them the first time it's looked at; the AI
+     * is asked outside any transaction, like everywhere else in the interview.
+     */
+    public Optional<InterviewResume> findWithKeywords(Long userId) {
+        Optional<InterviewResume> resume = find(userId);
+        if (resume.isEmpty() || resume.get().hasKeywords()) {
+            return resume;
+        }
+        List<String> found = keywords.extract(resume.get().getContentText());
+        return tx.execute(status -> resumes.findByUserId(userId).map(current -> {
+            if (!current.hasKeywords()) {
+                current.setKeywords(found);
+                return resumes.save(current);
+            }
+            return current;
+        }));
+    }
+
     /** Replaces any earlier resume. Nothing is stored unless the file is a readable PDF with real text in it. */
-    @Transactional
     public InterviewResume upload(Long userId, String filename, byte[] pdf, boolean consent) {
         if (!consent) {
             throw new InvalidInterviewException("Please confirm you're happy for us to read your resume to write your questions.");
@@ -64,11 +90,16 @@ public class ResumeService {
         if (text.length() < MIN_CHARACTERS) {
             throw new InvalidInterviewException("We couldn't find readable text in that PDF. If it's a scan or a picture, export a text-based PDF instead.");
         }
+        List<String> found = keywords.extract(text);
 
-        resumes.deleteForUser(userId);
-        Instant now = Instant.now();
-        InterviewResume saved = resumes.save(new InterviewResume(userId, cleanFilename(filename), text, now, now.plus(retention)));
-        log.info("Resume stored for user {} ({} characters)", userId, saved.getCharacters());
+        InterviewResume saved = tx.execute(status -> {
+            resumes.deleteForUser(userId);
+            Instant now = Instant.now();
+            InterviewResume resume = new InterviewResume(userId, cleanFilename(filename), text, now, now.plus(retention));
+            resume.setKeywords(found);
+            return resumes.save(resume);
+        });
+        log.info("Resume stored for user {} ({} characters, {} keywords)", userId, saved.getCharacters(), found.size());
         return saved;
     }
 

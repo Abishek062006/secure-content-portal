@@ -146,10 +146,14 @@ class ResumeFlowTest {
         assertThat(stored.getContentText()).contains("payments API", "Spring Boot");
         assertThat(stored.getExpiresAt()).isAfter(Instant.now().plus(80, ChronoUnit.DAYS));
 
-        // The learner sees a short preview and the file name; the full text never comes back.
+        // The learner sees a short preview, the file name and the skills read from it; the full text never comes back. With no AI
+        // answer, the skills come from the list of well-known technologies, in the order the resume mentions them.
         mockMvc.perform(get("/api/interviews/resume").with(as(one)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.filename").value("cv.pdf"))
                 .andExpect(jsonPath("$.characters").value(stored.getCharacters())).andExpect(jsonPath("$.preview").exists())
+                .andExpect(jsonPath("$.keywords[0]").value("Java"))
+                .andExpect(jsonPath("$.keywords[1]").value("Spring Boot"))
+                .andExpect(jsonPath("$.keywords", org.hamcrest.Matchers.hasItems("MySQL", "Redis", "Docker", "Git")))
                 .andExpect(jsonPath("$.contentText").doesNotExist());
 
         // A second upload replaces the first: still one per learner.
@@ -226,8 +230,10 @@ class ResumeFlowTest {
         String body = mockMvc.perform(post("/api/interviews/start").contentType(MediaType.APPLICATION_JSON).content(start).with(csrf()).with(as(one)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.source").value("RESUME"))
                 .andReturn().getResponse().getContentAsString();
-        assertThat(prompts.get(0)).contains("<resume>", "payments API").doesNotContain("Asha </resume>");
-        assertThat(prompts.get(0).split("</resume>", -1)).hasSize(2);
+        // Every prompt the resume went into (reading its keywords, then writing the questions) keeps it inside one pair of tags.
+        String questionPrompt = prompts.stream().filter(p -> p.contains("Target role")).findFirst().orElseThrow();
+        assertThat(questionPrompt).contains("<resume>", "payments API").doesNotContain("Asha </resume>");
+        assertThat(prompts).allSatisfy(p -> assertThat(p.split("</resume>", -1)).hasSize(2));
 
         // The resume text is not copied into the interview: practising again reads the current resume, and needs one to exist.
         long session = objectMapper.readTree(body).get("id").asLong();

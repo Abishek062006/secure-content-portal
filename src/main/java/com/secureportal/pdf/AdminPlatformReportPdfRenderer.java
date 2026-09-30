@@ -20,8 +20,7 @@ import java.util.List;
 import java.util.Locale;
 
 /** One-page A4 snapshot of {@link PlatformAnalytics} for admins, drawn with PDFBox built-in fonts —
- *  same approach as {@link com.secureportal.certificate.CertificatePdfRenderer} and
- *  {@link AcademicTranscriptPdfRenderer}. */
+ *  same approach as {@link com.secureportal.certificate.CertificatePdfRenderer}. */
 @Component
 public class AdminPlatformReportPdfRenderer {
 

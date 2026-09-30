@@ -4,7 +4,7 @@ import { api } from '../api';
 import Alert from '../components/Alert';
 import Icon from '../components/Icon';
 import VoiceAnswer from '../components/interview/VoiceAnswer';
-import { CATEGORY, READINESS, RUBRIC, goalLabel, rubricAverages } from '../lib/interview';
+import { CATEGORY, READINESS, categoryAverages, goalLabel, rubricAverages, strengthsAndGaps } from '../lib/interview';
 
 const MIN_ANSWER = 10;
 const MAX_ANSWER = 4000;
@@ -162,6 +162,8 @@ function Report({ session, questions }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const rubric = rubricAverages(questions);
+  const { good, work } = strengthsAndGaps(questions);
+  const byType = categoryAverages(questions);
   const scoreLabel = READINESS[session.readinessLevel];
 
   async function again() {
@@ -186,7 +188,31 @@ function Report({ session, questions }) {
         <div>
           <h2>{scoreLabel}</h2>
           <p>{session.summaryFeedback}</p>
-          {session.xpEarned > 0 && <p className="field-hint">+{session.xpEarned} XP for finishing</p>}
+          {session.xpEarned > 0 && (
+            <p className="field-hint">+{session.xpEarned} XP added to your <Link to="/leaderboard">leaderboard</Link> score</p>
+          )}
+        </div>
+      </section>
+
+      <section className="progress-card">
+        <header><h2>What you're good at, and what to work on</h2></header>
+        <div className="report-split">
+          <div>
+            <h3>Good at</h3>
+            <ul className="report-points good">
+              {good.map((p) => <li key={p.key}><strong>{p.title}</strong><span>{p.note}</span></li>)}
+            </ul>
+          </div>
+          <div>
+            <h3>Work on</h3>
+            {work.length > 0 ? (
+              <ul className="report-points work">
+                {work.map((p) => <li key={p.key}><strong>{p.title}</strong><span>{p.note}</span></li>)}
+              </ul>
+            ) : (
+              <p className="field-hint">Nothing stood out as weak this time. Try a harder interview next.</p>
+            )}
+          </div>
         </div>
       </section>
 
@@ -203,6 +229,22 @@ function Report({ session, questions }) {
             </li>
           ))}
         </ul>
+        {byType.length > 1 && (
+          <>
+            <h3 className="report-subhead">By question type</h3>
+            <ul className="rubric">
+              {byType.map((c) => (
+                <li key={c.category}>
+                  <span>{c.label}</span>
+                  <div className="rubric-bar" role="img" aria-label={`${c.label} ${c.average.toFixed(1)} out of 10`}>
+                    <div style={{ width: `${c.average * 10}%` }} />
+                  </div>
+                  <strong>{c.average.toFixed(1)}</strong>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         {session.topFix && (
           <p className="report-fix"><strong>Work on this first.</strong> {session.topFix}</p>
         )}

@@ -18,17 +18,18 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 
 /** A learner's own resume for interview practice. Only they can see, replace or delete it. */
 @RestController
 @RequestMapping("/api/interviews/resume")
 public class ResumeApiController {
 
-    /** The resume's details and a short preview of the text read from it; the full text never leaves the server. */
-    public record ResumeDto(String filename, Instant uploadedAt, Instant expiresAt, int characters, String preview) {
+    /** The resume's details, a short preview of the text and the skills read from it; the full text never leaves the server. */
+    public record ResumeDto(String filename, Instant uploadedAt, Instant expiresAt, int characters, String preview, List<String> keywords) {
         static ResumeDto of(InterviewResume resume) {
             return new ResumeDto(resume.getOriginalFilename(), resume.getUploadedAt(), resume.getExpiresAt(), resume.getCharacters(),
-                    resume.preview());
+                    resume.preview(), resume.keywordList());
         }
     }
 
@@ -42,7 +43,7 @@ public class ResumeApiController {
     @GetMapping
     public org.springframework.http.ResponseEntity<ResumeDto> current(@AuthenticationPrincipal AppPrincipal principal) {
         requireLearner(principal);
-        return resumeService.find(principal.getUserId()).map(r -> org.springframework.http.ResponseEntity.ok(ResumeDto.of(r)))
+        return resumeService.findWithKeywords(principal.getUserId()).map(r -> org.springframework.http.ResponseEntity.ok(ResumeDto.of(r)))
                 .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
     }
 

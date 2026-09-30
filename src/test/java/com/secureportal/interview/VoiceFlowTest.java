@@ -98,9 +98,9 @@ class VoiceFlowTest {
 
     @Test
     void theSpeechModelIsToldTheRoleAndSkillsOfTheLearnersOwnInterviewOnly() throws Exception {
-        MockInterviewSession mine = sessionRepository.save(new MockInterviewSession(one.getId(), InterviewTrack.STUDENT,
+        MockInterviewSession mine = sessionRepository.save(new MockInterviewSession(one.getId(), InterviewTrack.STUDENT, InterviewType.TECHNICAL,
                 InterviewDifficulty.MEDIUM, new MockInterviewSession.Goal(InterviewSource.SKILLS, "Backend developer", "Java, Redis", null, null), 5));
-        MockInterviewSession theirs = sessionRepository.save(new MockInterviewSession(two.getId(), InterviewTrack.STUDENT,
+        MockInterviewSession theirs = sessionRepository.save(new MockInterviewSession(two.getId(), InterviewTrack.STUDENT, InterviewType.TECHNICAL,
                 InterviewDifficulty.MEDIUM, new MockInterviewSession.Goal(InterviewSource.SKILLS, "Secret role", "Secret skill", null, null), 5));
 
         mockMvc.perform(multipart("/api/interviews/transcribe").file(new MockMultipartFile("audio", "a.webm", "audio/webm", WEBM))

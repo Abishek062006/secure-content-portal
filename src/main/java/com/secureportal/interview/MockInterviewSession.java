@@ -69,6 +69,13 @@ public class MockInterviewSession {
     @Column(name = "top_fix", columnDefinition = "TEXT")
     private String topFix;
 
+    @Column(name = "interview_type", nullable = false, length = 12)
+    private String interviewType = InterviewType.TECHNICAL.name();
+
+    /** How many questions the learner asked for; follow-ups can add to {@link #totalQuestions} but not to this. */
+    @Column(name = "planned_questions", nullable = false)
+    private int plannedQuestions;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -85,14 +92,17 @@ public class MockInterviewSession {
         this.stream = stream;
         this.difficulty = difficulty.name();
         this.totalQuestions = totalQuestions;
+        this.plannedQuestions = totalQuestions;
     }
 
     /** What the interview was built from: the goal the learner set, kept so they can practise again with the same one. */
     public record Goal(InterviewSource source, String targetRole, String skills, String jobDescription, String courseId) {
     }
 
-    public MockInterviewSession(Long userId, InterviewTrack track, InterviewDifficulty difficulty, Goal goal, int totalQuestions) {
+    public MockInterviewSession(Long userId, InterviewTrack track, InterviewType type, InterviewDifficulty difficulty, Goal goal,
+                                int totalQuestions) {
         this(userId, track, goal.targetRole(), difficulty, totalQuestions);
+        this.interviewType = type.name();
         this.source = goal.source().name();
         this.targetRole = goal.targetRole();
         this.skills = goal.skills();
@@ -193,6 +203,14 @@ public class MockInterviewSession {
 
     public String getTopFix() {
         return topFix;
+    }
+
+    public String getInterviewType() {
+        return interviewType;
+    }
+
+    public int getPlannedQuestions() {
+        return plannedQuestions;
     }
 
     public String getStatus() {
