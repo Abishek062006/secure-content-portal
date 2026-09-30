@@ -2,6 +2,9 @@ package com.secureportal.hackathon;
 
 import com.secureportal.audit.AuditService;
 import com.secureportal.gamification.GamificationService;
+import com.secureportal.notification.NotificationCategory;
+import com.secureportal.notification.NotificationPriority;
+import com.secureportal.notification.NotificationService;
 import com.secureportal.user.User;
 import com.secureportal.user.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -21,7 +24,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Hosted hackathons: teams, submissions, judging and results. The phase comes from the event's dates, and every rule that depends on
@@ -43,20 +48,30 @@ public class HostedHackathonService {
     private final HackathonSubmissionRepository submissions;
     private final HackathonJudgeRepository judges;
     private final HackathonScoreRepository scores;
+    private final HackathonProblemStatementRepository problemStatements;
+    private final HackathonCertificateRepository certificates;
+    private final HackathonCertificatePdfRenderer certPdfRenderer;
+    private final NotificationService notifications;
     private final UserRepository users;
     private final GamificationService gamification;
     private final AuditService audit;
 
     public HostedHackathonService(HackathonRepository hackathons, HackathonTeamRepository teams, HackathonTeamMemberRepository members,
                                   HackathonSubmissionRepository submissions, HackathonJudgeRepository judges,
-                                  HackathonScoreRepository scores, UserRepository users, GamificationService gamification,
-                                  AuditService audit) {
+                                  HackathonScoreRepository scores, HackathonProblemStatementRepository problemStatements,
+                                  HackathonCertificateRepository certificates, HackathonCertificatePdfRenderer certPdfRenderer,
+                                  NotificationService notifications, UserRepository users,
+                                  GamificationService gamification, AuditService audit) {
         this.hackathons = hackathons;
         this.teams = teams;
         this.members = members;
         this.submissions = submissions;
         this.judges = judges;
         this.scores = scores;
+        this.problemStatements = problemStatements;
+        this.certificates = certificates;
+        this.certPdfRenderer = certPdfRenderer;
+        this.notifications = notifications;
         this.users = users;
         this.gamification = gamification;
         this.audit = audit;
@@ -67,14 +82,28 @@ public class HostedHackathonService {
     public record MemberView(Long userId, String name, String pictureUrl, boolean leader) {
     }
 
-    public record SubmissionView(Long id, String title, String repoUrl, String demoUrl, String description, Instant updatedAt) {
+    public record SubmissionView(Long id, String title, String repoUrl, String demoUrl, String description,
+                                 String status, Instant submittedAt, Instant updatedAt) {
     }
 
-    public record TeamView(Long id, Long hackathonId, String name, String track, String inviteCode, boolean leader,
+    public record TeamView(Long id, Long hackathonId, String name, String track, Long problemStatementId, String inviteCode, boolean leader,
                            List<MemberView> members, SubmissionView submission) {
     }
 
-    public record SubmissionInput(String title, String repoUrl, String demoUrl, String description) {
+    public record ProblemStatementInput(String title, String description, String track, String requirements,
+                                         String evaluationCriteria, String resourcesUrl) {
+    }
+
+    public record ProblemStatementView(Long id, Long hackathonId, String title, String description, String track,
+                                       String requirements, String evaluationCriteria, String resourcesUrl,
+                                       Instant createdAt, Instant updatedAt) {
+        public static ProblemStatementView from(HackathonProblemStatement p) {
+            return new ProblemStatementView(p.getId(), p.getHackathonId(), p.getTitle(), p.getDescription(), p.getTrack(),
+                    p.getRequirements(), p.getEvaluationCriteria(), p.getResourcesUrl(), p.getCreatedAt(), p.getUpdatedAt());
+        }
+    }
+
+    public record SubmissionInput(String title, String repoUrl, String demoUrl, String description, Boolean draft) {
     }
 
     public record ScoreInput(int innovation, int execution, int impact, int presentation, String comment) {
@@ -83,14 +112,27 @@ public class HostedHackathonService {
     public record JudgeView(Long userId, String name, String email) {
     }
 
+    public record HackathonCertificateView(Long id, String code, Long hackathonId, String hackathonTitle,
+                                          String recipientName, String teamName, String type, Integer rank,
+                                          Instant issuedAt) {
+        public static HackathonCertificateView from(HackathonCertificate c) {
+            return new HackathonCertificateView(c.getId(), c.getCode(), c.getHackathonId(),
+                    c.getHackathonTitle(), c.getRecipientName(), c.getTeamName(),
+                    c.getType().name(), c.getRank(), c.getIssuedAt());
+        }
+    }
+
     /** A project as a judge or admin sees it, with the judge's own score if they have given one. */
     public record ProjectView(Long submissionId, String teamName, String track, String title, String repoUrl, String demoUrl,
-                              String description, Integer myInnovation, Integer myExecution, Integer myImpact, Integer myPresentation,
+                              String description, ProblemStatementView problemStatement,
+                              Integer myInnovation, Integer myExecution, Integer myImpact, Integer myPresentation,
                               String myComment, int scoreCount) {
     }
 
-    public record RankedView(int rank, String teamName, List<String> members, String title, String repoUrl, String demoUrl,
-                             double overall, double innovation, double execution, double impact, double presentation, int scoreCount) {
+    public record RankedView(int rank, String teamName, String track, String problemStatementTitle,
+                             List<String> members, String title, String repoUrl, String demoUrl,
+                             double overall, double innovation, double execution, double impact,
+                             double presentation, int scoreCount) {
     }
 
     // ---- Teams (learners) --------------------------------------------------------------------------------------------------
@@ -142,6 +184,19 @@ public class HostedHackathonService {
             throw new HackathonStateException("That team is full.");
         }
         members.saveAndFlush(new HackathonTeamMember(team.getId(), hackathon.getId(), userId));
+
+        User joiningUser = users.findById(userId).orElse(null);
+        String joinerName = joiningUser != null ? joiningUser.getDisplayName() : "A new member";
+        for (HackathonTeamMember m : members.findByTeamIdOrderByJoinedAtAscIdAsc(team.getId())) {
+            if (!m.getUserId().equals(userId)) {
+                notifications.createNotification(m.getUserId(), NotificationCategory.HACKATHON,
+                        "New Team Member Joined",
+                        joinerName + " has joined your team \"" + team.getName() + "\" for \"" + hackathon.getTitle() + "\".",
+                        NotificationPriority.NORMAL,
+                        "/hackathons/" + hackathon.getId() + "/workspace");
+            }
+        }
+
         return view(team, userId);
     }
 
@@ -154,13 +209,25 @@ public class HostedHackathonService {
         if (hackathon.phase(Instant.now()) != HackathonPhase.REGISTRATION) {
             throw new HackathonStateException("Teams are locked once the hackathon starts.");
         }
+        User leavingUser = users.findById(userId).orElse(null);
+        String leaverName = leavingUser != null ? leavingUser.getDisplayName() : "A team member";
+
         members.remove(team.getId(), userId);
         List<HackathonTeamMember> left = members.findByTeamIdOrderByJoinedAtAscIdAsc(team.getId());
         if (left.isEmpty()) {
             teams.delete(team);
-        } else if (team.getLeaderId().equals(userId)) {
-            team.handLeadershipTo(left.get(0).getUserId());
-            teams.save(team);
+        } else {
+            if (team.getLeaderId().equals(userId)) {
+                team.handLeadershipTo(left.get(0).getUserId());
+                teams.save(team);
+            }
+            for (HackathonTeamMember m : left) {
+                notifications.createNotification(m.getUserId(), NotificationCategory.HACKATHON,
+                        "Team Member Left",
+                        leaverName + " has left your team \"" + team.getName() + "\".",
+                        NotificationPriority.NORMAL,
+                        "/hackathons/" + hackathonId + "/workspace");
+            }
         }
     }
 
@@ -169,24 +236,52 @@ public class HostedHackathonService {
     @Transactional
     public SubmissionView submit(Long hackathonId, Long userId, SubmissionInput in) {
         Hackathon hackathon = hosted(hackathonId);
-        if (hackathon.phase(Instant.now()) != HackathonPhase.BUILDING) {
-            throw new HackathonStateException("Projects can only be submitted while the hackathon is running.");
+        Instant now = Instant.now();
+        // Strict deadline locking: only allowed during BUILDING phase and strictly before the deadline
+        if (hackathon.phase(now) != HackathonPhase.BUILDING || (hackathon.getEventEndDate() != null && !now.isBefore(hackathon.getEventEndDate()))) {
+            throw new HackathonStateException("Submissions are locked. The deadline has passed or building is not active.");
         }
         HackathonTeam team = teams.findOfMember(hackathonId, userId)
                 .orElseThrow(() -> new HackathonStateException("Join or create a team before submitting."));
         if (members.countByTeamId(team.getId()) < hackathon.getMinTeamSize()) {
             throw new HackathonStateException("Your team needs at least " + hackathon.getMinTeamSize() + " members to submit.");
         }
-        String title = text(in.title(), 3, 150, "The project title");
-        String repo = httpsUrl(in.repoUrl(), 500, "The code repository link", true);
+        boolean isDraft = Boolean.TRUE.equals(in.draft());
+        String submissionStatus = isDraft ? "DRAFT" : "SUBMITTED";
+
+        String title;
+        String repo;
         String demo = in.demoUrl() == null || in.demoUrl().isBlank() ? null : httpsUrl(in.demoUrl(), 500, "The demo link", true);
-        String description = text(in.description(), 30, 3000, "The description");
+        String description;
+
+        if (isDraft) {
+            title = text(in.title() == null || in.title().isBlank() ? "Untitled Project Draft" : in.title(), 1, 150, "The project title");
+            repo = in.repoUrl() == null || in.repoUrl().isBlank() ? "https://github.com/draft-placeholder" : (in.repoUrl().startsWith("http") ? in.repoUrl() : "https://" + in.repoUrl());
+            description = text(in.description() == null || in.description().isBlank() ? "Draft submission in progress..." : in.description(), 1, 3000, "The description");
+        } else {
+            title = text(in.title(), 3, 150, "The project title");
+            repo = httpsUrl(in.repoUrl(), 500, "The code repository link", true);
+            description = text(in.description(), 30, 3000, "The description");
+        }
 
         HackathonSubmission submission = submissions.findByTeamId(team.getId()).map(existing -> {
-            existing.update(title, repo, demo, description);
+            existing.update(title, repo, demo, description, submissionStatus);
             return existing;
-        }).orElseGet(() -> new HackathonSubmission(team.getId(), hackathonId, title, repo, demo, description));
-        return submissionView(submissions.save(submission));
+        }).orElseGet(() -> new HackathonSubmission(team.getId(), hackathonId, title, repo, demo, description, submissionStatus));
+        HackathonSubmission saved = submissions.save(submission);
+        User submitter = users.findById(userId).orElse(null);
+        String submitterName = submitter != null ? submitter.getDisplayName() : "A team member";
+        String action = isDraft ? "saved a draft of" : "submitted/updated";
+        for (HackathonTeamMember m : members.findByTeamIdOrderByJoinedAtAscIdAsc(team.getId())) {
+            if (!m.getUserId().equals(userId)) {
+                notifications.createNotification(m.getUserId(), NotificationCategory.HACKATHON,
+                        isDraft ? "Draft Project Updated" : "Project Submitted",
+                        submitterName + " has " + action + " the project \"" + title + "\" for team \"" + team.getName() + "\".",
+                        NotificationPriority.NORMAL,
+                        "/hackathons/" + hackathonId + "/workspace");
+            }
+        }
+        return submissionView(saved, hackathonId);
     }
 
     // ---- Judging ----------------------------------------------------------------------------------------------------------
@@ -218,6 +313,9 @@ public class HostedHackathonService {
             throw new HackathonStateException("Scoring is open only after submissions close and before results are published.");
         }
         HackathonSubmission submission = submissions.findByIdAndHackathonId(submissionId, hackathonId).orElseThrow(HackathonNotFoundException::new);
+        if ("DRAFT".equalsIgnoreCase(submission.getStatus())) {
+            throw new HackathonStateException("Draft submissions cannot be scored.");
+        }
         for (int value : new int[]{in.innovation(), in.execution(), in.impact(), in.presentation()}) {
             if (value < 1 || value > 10) {
                 throw new InvalidHackathonException("Each score must be between 1 and 10.");
@@ -258,6 +356,11 @@ public class HostedHackathonService {
             throw new HackathonStateException("That person is already a judge.");
         }
         judges.save(new HackathonJudge(hackathonId, judge.getId()));
+        notifications.createNotification(judge.getId(), NotificationCategory.HACKATHON,
+                "Assigned as Hackathon Judge",
+                "You have been appointed as a judge for \"" + hackathon.getTitle() + "\".",
+                NotificationPriority.IMPORTANT,
+                "/hackathons/" + hackathon.getId() + "/judge");
         audit.log(adminEmail, "HACKATHON_JUDGE_ADD", null, "Added " + judge.getEmail() + " as a judge of \"" + hackathon.getTitle() + "\"");
         return new JudgeView(judge.getId(), judge.getDisplayName(), judge.getEmail());
     }
@@ -312,23 +415,80 @@ public class HostedHackathonService {
 
         Map<Long, List<HackathonTeamMember>> byTeam = new HashMap<>();
         for (HackathonSubmission submission : submissions.findByHackathonIdOrderByIdAsc(hackathonId)) {
-            byTeam.put(submission.getTeamId(), members.findByTeamIdOrderByJoinedAtAscIdAsc(submission.getTeamId()));
+            if (!"DRAFT".equalsIgnoreCase(submission.getStatus())) {
+                byTeam.put(submission.getTeamId(), members.findByTeamIdOrderByJoinedAtAscIdAsc(submission.getTeamId()));
+            }
         }
         Map<String, Integer> rankOfTeam = new HashMap<>();
         ranking.forEach(r -> rankOfTeam.put(r.teamName(), r.rank()));
-        for (HackathonTeam team : teams.findByHackathonId(hackathonId)) {
+
+        List<HackathonTeam> allTeams = teams.findByHackathonId(hackathonId);
+        List<HackathonTeamMember> allMembers = members.findByHackathonId(hackathonId);
+        Map<Long, User> userCache = usersById(allMembers.stream().map(HackathonTeamMember::getUserId).toList());
+
+        for (HackathonTeam team : allTeams) {
             List<HackathonTeamMember> crew = byTeam.get(team.getId());
-            if (crew == null) {
+            if (crew == null || crew.isEmpty()) {
                 continue; // no submission: nothing to recognise
             }
-            boolean winner = rankOfTeam.getOrDefault(team.getName(), Integer.MAX_VALUE) <= WINNERS;
+            int rank = rankOfTeam.getOrDefault(team.getName(), Integer.MAX_VALUE);
+            boolean winner = rank <= WINNERS;
+            HackathonCertificateType certType;
+            if (rank == 1) {
+                certType = HackathonCertificateType.WINNER;
+            } else if (rank == 2 || rank == 3) {
+                certType = HackathonCertificateType.RUNNER_UP;
+            } else {
+                certType = HackathonCertificateType.PARTICIPATION;
+            }
+
             for (HackathonTeamMember member : crew) {
                 gamification.grantBadge(member.getUserId(), "HACKATHON_BUILDER");
                 if (winner) {
                     gamification.grantBadge(member.getUserId(), "HACKATHON_WINNER");
                 }
+
+                if (certificates.findByHackathonIdAndUserId(hackathonId, member.getUserId()).isEmpty()) {
+                    String certCode = "HACK-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase(Locale.ROOT);
+                    User u = userCache.get(member.getUserId());
+                    String recipientName = u != null ? u.getDisplayName() : "Participant";
+                    HackathonCertificate cert = new HackathonCertificate(hackathonId, member.getUserId(), certCode,
+                            hackathon.getTitle(), recipientName, team.getName(), certType, rank);
+                    certificates.save(cert);
+
+                    String certTitle = switch (certType) {
+                        case WINNER -> "Winner (1st Place)";
+                        case RUNNER_UP -> "Runner-Up (" + rank + (rank == 2 ? "nd" : "rd") + " Place)";
+                        case PARTICIPATION -> "Participation";
+                    };
+
+                    notifications.createNotification(member.getUserId(), NotificationCategory.HACKATHON,
+                            "Certificate Available",
+                            "Your " + certTitle + " certificate for \"" + hackathon.getTitle() + "\" is ready to view and download!",
+                            NotificationPriority.IMPORTANT,
+                            "/hackathons/" + hackathonId + "/certificate");
+                }
             }
         }
+
+        // Notify all hackathon team members that results are published
+        for (HackathonTeamMember member : allMembers) {
+            notifications.createNotification(member.getUserId(), NotificationCategory.HACKATHON,
+                    "Results Published",
+                    "The final results for \"" + hackathon.getTitle() + "\" are now published! Check the leaderboard to see rankings.",
+                    NotificationPriority.IMPORTANT,
+                    "/hackathons/" + hackathonId + "/leaderboard");
+        }
+
+        // Notify judges that results are published
+        for (HackathonJudge judge : judges.findByHackathonIdOrderByIdAsc(hackathonId)) {
+            notifications.createNotification(judge.getUserId(), NotificationCategory.HACKATHON,
+                    "Results Published",
+                    "Final results for \"" + hackathon.getTitle() + "\" are now published on the leaderboard.",
+                    NotificationPriority.NORMAL,
+                    "/hackathons/" + hackathonId + "/leaderboard");
+        }
+
         audit.log(adminEmail, "HACKATHON_PUBLISH_RESULTS", null, "Published the results of \"" + hackathon.getTitle() + "\"");
     }
 
@@ -343,6 +503,110 @@ public class HostedHackathonService {
         return ranking(hackathonId);
     }
 
+    // ---- Problem Statements (learners & admins) --------------------------------------------------------------------------
+
+    @Transactional(readOnly = true)
+    public List<ProblemStatementView> problemStatements(Long hackathonId) {
+        hosted(hackathonId);
+        return problemStatements.findByHackathonIdOrderByIdAsc(hackathonId).stream()
+                .map(ProblemStatementView::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProblemStatementView problemStatement(Long hackathonId, Long problemId) {
+        hosted(hackathonId);
+        return problemStatements.findByIdAndHackathonId(problemId, hackathonId)
+                .map(ProblemStatementView::from)
+                .orElseThrow(HackathonNotFoundException::new);
+    }
+
+    @Transactional
+    public ProblemStatementView addProblemStatement(Long hackathonId, ProblemStatementInput in, String adminEmail) {
+        Hackathon hackathon = hosted(hackathonId);
+        if (hackathon.getResultsPublishedAt() != null) {
+            throw new HackathonStateException("Results are published, so problem statements can't be added.");
+        }
+        String title = text(in.title(), 3, 200, "The problem title");
+        String description = text(in.description(), 10, 5000, "The description");
+        String track = in.track() == null || in.track().isBlank() ? null : text(in.track(), 1, 100, "The track");
+        String requirements = in.requirements() == null || in.requirements().isBlank() ? null : text(in.requirements(), 1, 5000, "The requirements");
+        String evaluationCriteria = in.evaluationCriteria() == null || in.evaluationCriteria().isBlank() ? null : text(in.evaluationCriteria(), 1, 5000, "The evaluation criteria");
+        String resourcesUrl = in.resourcesUrl() == null || in.resourcesUrl().isBlank() ? null : httpsUrl(in.resourcesUrl(), 1000, "The resources link", false);
+
+        HackathonProblemStatement created = problemStatements.save(
+                new HackathonProblemStatement(hackathonId, title, description, track, requirements, evaluationCriteria, resourcesUrl)
+        );
+        audit.log(adminEmail, "HACKATHON_PROBLEM_ADD", null, "Added problem statement \"" + title + "\" to \"" + hackathon.getTitle() + "\"");
+        return ProblemStatementView.from(created);
+    }
+
+    @Transactional
+    public ProblemStatementView updateProblemStatement(Long hackathonId, Long problemId, ProblemStatementInput in, String adminEmail) {
+        Hackathon hackathon = hosted(hackathonId);
+        if (hackathon.getResultsPublishedAt() != null) {
+            throw new HackathonStateException("Results are published, so problem statements can't be modified.");
+        }
+        HackathonProblemStatement statement = problemStatements.findByIdAndHackathonId(problemId, hackathonId)
+                .orElseThrow(HackathonNotFoundException::new);
+        String title = text(in.title(), 3, 200, "The problem title");
+        String description = text(in.description(), 10, 5000, "The description");
+        String track = in.track() == null || in.track().isBlank() ? null : text(in.track(), 1, 100, "The track");
+        String requirements = in.requirements() == null || in.requirements().isBlank() ? null : text(in.requirements(), 1, 5000, "The requirements");
+        String evaluationCriteria = in.evaluationCriteria() == null || in.evaluationCriteria().isBlank() ? null : text(in.evaluationCriteria(), 1, 5000, "The evaluation criteria");
+        String resourcesUrl = in.resourcesUrl() == null || in.resourcesUrl().isBlank() ? null : httpsUrl(in.resourcesUrl(), 1000, "The resources link", false);
+
+        statement.update(title, description, track, requirements, evaluationCriteria, resourcesUrl);
+        HackathonProblemStatement saved = problemStatements.save(statement);
+        audit.log(adminEmail, "HACKATHON_PROBLEM_UPDATE", null, "Updated problem statement \"" + title + "\" in \"" + hackathon.getTitle() + "\"");
+        return ProblemStatementView.from(saved);
+    }
+
+    @Transactional
+    public void deleteProblemStatement(Long hackathonId, Long problemId, String adminEmail) {
+        Hackathon hackathon = hosted(hackathonId);
+        if (hackathon.getResultsPublishedAt() != null) {
+            throw new HackathonStateException("Results are published, so problem statements can't be deleted.");
+        }
+        HackathonProblemStatement statement = problemStatements.findByIdAndHackathonId(problemId, hackathonId)
+                .orElseThrow(HackathonNotFoundException::new);
+        problemStatements.delete(statement);
+        audit.log(adminEmail, "HACKATHON_PROBLEM_DELETE", null, "Deleted problem statement \"" + statement.getTitle() + "\" from \"" + hackathon.getTitle() + "\"");
+    }
+
+    @Transactional
+    public TeamView selectProblemStatement(Long hackathonId, Long userId, Long problemStatementId) {
+        Hackathon hackathon = hosted(hackathonId);
+        HackathonTeam found = teams.findOfMember(hackathonId, userId).orElseThrow(HackathonNotFoundException::new);
+        HackathonTeam team = teams.findForUpdate(found.getId()).orElseThrow(HackathonNotFoundException::new);
+        if (!team.getLeaderId().equals(userId)) {
+            throw new AccessDeniedException("Only the team leader can select the problem statement.");
+        }
+        if (hackathon.phase(Instant.now()) == HackathonPhase.JUDGING || hackathon.phase(Instant.now()) == HackathonPhase.RESULTS) {
+            throw new HackathonStateException("Problem statement cannot be changed after submissions close.");
+        }
+        if (problemStatementId != null) {
+            problemStatements.findByIdAndHackathonId(problemStatementId, hackathonId)
+                    .orElseThrow(() -> new InvalidHackathonException("That problem statement does not exist in this hackathon."));
+        }
+        team.selectProblemStatement(problemStatementId);
+        teams.save(team);
+
+        HackathonProblemStatement statement = problemStatementId != null ? problemStatements.findById(problemStatementId).orElse(null) : null;
+        String psTitle = statement != null ? statement.getTitle() : "None";
+        for (HackathonTeamMember m : members.findByTeamIdOrderByJoinedAtAscIdAsc(team.getId())) {
+            if (!m.getUserId().equals(userId)) {
+                notifications.createNotification(m.getUserId(), NotificationCategory.HACKATHON,
+                        "Problem Statement Selected",
+                        "Team leader updated the selected problem statement to: \"" + psTitle + "\".",
+                        NotificationPriority.NORMAL,
+                        "/hackathons/" + hackathonId + "/workspace");
+            }
+        }
+
+        return view(team, userId);
+    }
+
     // ---- Building views ----------------------------------------------------------------------------------------------------
 
     private TeamView view(HackathonTeam team, Long viewerId) {
@@ -354,24 +618,41 @@ public class HostedHackathonService {
                     m.getUserId().equals(team.getLeaderId()));
         }).toList();
         boolean isMember = crew.stream().anyMatch(m -> m.getUserId().equals(viewerId));
-        SubmissionView submission = submissions.findByTeamId(team.getId()).map(HostedHackathonService::submissionView).orElse(null);
+        SubmissionView submission = submissions.findByTeamId(team.getId()).map(s -> submissionView(s, team.getHackathonId())).orElse(null);
         // Only people on the team can see the invite code.
-        return new TeamView(team.getId(), team.getHackathonId(), team.getName(), team.getTrack(), isMember ? team.getInviteCode() : null,
+        return new TeamView(team.getId(), team.getHackathonId(), team.getName(), team.getTrack(), team.getProblemStatementId(), isMember ? team.getInviteCode() : null,
                 team.getLeaderId().equals(viewerId), memberViews, submission);
     }
 
-    private static SubmissionView submissionView(HackathonSubmission s) {
-        return new SubmissionView(s.getId(), s.getTitle(), s.getRepoUrl(), s.getDemoUrl(), s.getDescription(), s.getUpdatedAt());
+    private SubmissionView submissionView(HackathonSubmission s, Long hackathonId) {
+        if (s == null) {
+            return null;
+        }
+        Instant now = Instant.now();
+        Hackathon h = hackathons.findById(hackathonId).orElse(null);
+        String effectiveStatus = s.getStatus() != null ? s.getStatus() : "SUBMITTED";
+        if (h != null) {
+            if ((h.getEventEndDate() != null && !now.isBefore(h.getEventEndDate()))
+                    || h.phase(now) == HackathonPhase.JUDGING || h.phase(now) == HackathonPhase.RESULTS) {
+                effectiveStatus = "LOCKED";
+            }
+        }
+        return new SubmissionView(s.getId(), s.getTitle(), s.getRepoUrl(), s.getDemoUrl(), s.getDescription(),
+                effectiveStatus, s.getSubmittedAt(), s.getUpdatedAt());
     }
 
     private List<ProjectView> projects(Long hackathonId, Long judgeId) {
-        List<HackathonSubmission> all = submissions.findByHackathonIdOrderByIdAsc(hackathonId);
+        List<HackathonSubmission> all = submissions.findByHackathonIdOrderByIdAsc(hackathonId).stream()
+                .filter(s -> !"DRAFT".equalsIgnoreCase(s.getStatus()))
+                .toList();
         if (all.isEmpty()) {
             return List.of();
         }
         List<Long> ids = all.stream().map(HackathonSubmission::getId).toList();
         Map<Long, HackathonTeam> teamById = new HashMap<>();
         teams.findAllById(all.stream().map(HackathonSubmission::getTeamId).toList()).forEach(t -> teamById.put(t.getId(), t));
+        Map<Long, ProblemStatementView> problemById = problemStatements.findByHackathonIdOrderByIdAsc(hackathonId).stream()
+                .collect(Collectors.toMap(HackathonProblemStatement::getId, ProblemStatementView::from));
         List<Long> currentJudges = currentJudgeIds(hackathonId);
         Map<Long, Integer> counts = new HashMap<>();
         for (HackathonScore s : scores.findBySubmissionIdIn(ids)) {
@@ -386,8 +667,11 @@ public class HostedHackathonService {
         return all.stream().map(s -> {
             HackathonTeam team = teamById.get(s.getTeamId());
             HackathonScore own = mine.get(s.getId());
+            ProblemStatementView statement = (team != null && team.getProblemStatementId() != null)
+                    ? problemById.get(team.getProblemStatementId())
+                    : null;
             return new ProjectView(s.getId(), team == null ? "" : team.getName(), team == null ? null : team.getTrack(), s.getTitle(),
-                    s.getRepoUrl(), s.getDemoUrl(), s.getDescription(),
+                    s.getRepoUrl(), s.getDemoUrl(), s.getDescription(), statement,
                     own == null ? null : own.getInnovation(), own == null ? null : own.getExecution(),
                     own == null ? null : own.getImpact(), own == null ? null : own.getPresentation(),
                     own == null ? null : own.getComment(), counts.getOrDefault(s.getId(), 0));
@@ -400,7 +684,9 @@ public class HostedHackathonService {
 
     /** Projects ranked by the mean of the current judges' scores. Equal scores share a rank. */
     private List<RankedView> ranking(Long hackathonId) {
-        List<HackathonSubmission> all = submissions.findByHackathonIdOrderByIdAsc(hackathonId);
+        List<HackathonSubmission> all = submissions.findByHackathonIdOrderByIdAsc(hackathonId).stream()
+                .filter(s -> !"DRAFT".equalsIgnoreCase(s.getStatus()))
+                .toList();
         if (all.isEmpty()) {
             return List.of();
         }
@@ -416,6 +702,9 @@ public class HostedHackathonService {
         Map<Long, List<HackathonTeamMember>> crewByTeam = new HashMap<>();
         members.findByTeamIdIn(teamById.keySet()).forEach(m -> crewByTeam.computeIfAbsent(m.getTeamId(), k -> new ArrayList<>()).add(m));
         Map<Long, User> people = usersById(crewByTeam.values().stream().flatMap(Collection::stream).map(HackathonTeamMember::getUserId).toList());
+
+        Map<Long, HackathonProblemStatement> problemById = problemStatements.findByHackathonIdOrderByIdAsc(hackathonId).stream()
+                .collect(Collectors.toMap(HackathonProblemStatement::getId, p -> p));
 
         record Row(HackathonSubmission submission, double overall, double innovation, double execution, double impact, double presentation, int count) {
         }
@@ -434,11 +723,58 @@ public class HostedHackathonService {
             HackathonTeam team = teamById.get(row.submission().getTeamId());
             List<String> names = crewByTeam.getOrDefault(row.submission().getTeamId(), List.of()).stream()
                     .map(m -> people.get(m.getUserId())).filter(u -> u != null).map(User::getDisplayName).toList();
-            ranked.add(new RankedView(rank, team == null ? "" : team.getName(), names, row.submission().getTitle(), row.submission().getRepoUrl(),
+            String track = team != null ? team.getTrack() : null;
+            String problemTitle = null;
+            if (team != null && team.getProblemStatementId() != null) {
+                HackathonProblemStatement ps = problemById.get(team.getProblemStatementId());
+                if (ps != null) {
+                    problemTitle = ps.getTitle();
+                    if (track == null || track.isBlank()) {
+                        track = ps.getTrack();
+                    }
+                }
+            }
+            ranked.add(new RankedView(rank, team == null ? "" : team.getName(), track, problemTitle, names, row.submission().getTitle(), row.submission().getRepoUrl(),
                     row.submission().getDemoUrl(), round(row.overall()), round(row.innovation()), round(row.execution()), round(row.impact()),
                     round(row.presentation()), row.count()));
         }
         return ranked;
+    }
+
+    // ---- Certificates -----------------------------------------------------------------------------------------------------
+
+    @Transactional(readOnly = true)
+    public Optional<HackathonCertificateView> myCertificate(Long hackathonId, Long userId) {
+        hosted(hackathonId);
+        return certificates.findByHackathonIdAndUserId(hackathonId, userId)
+                .map(HackathonCertificateView::from);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] certificatePdf(Long hackathonId, Long userId) {
+        hosted(hackathonId);
+        HackathonCertificate cert = certificates.findByHackathonIdAndUserId(hackathonId, userId)
+                .orElseThrow(HackathonNotFoundException::new);
+        return certPdfRenderer.render(cert);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<HackathonCertificateView> certificateByCode(String code) {
+        if (code == null || code.isBlank()) {
+            return Optional.empty();
+        }
+        return certificates.findByCode(code.trim().toUpperCase(Locale.ROOT))
+                .map(HackathonCertificateView::from);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] certificatePdfByCode(String code) {
+        if (code == null || code.isBlank()) {
+            throw new HackathonNotFoundException();
+        }
+        HackathonCertificate cert = certificates.findByCode(code.trim().toUpperCase(Locale.ROOT))
+                .orElseThrow(HackathonNotFoundException::new);
+        return certPdfRenderer.render(cert);
     }
 
     private static double mean(List<HackathonScore> given, java.util.function.ToDoubleFunction<HackathonScore> part) {

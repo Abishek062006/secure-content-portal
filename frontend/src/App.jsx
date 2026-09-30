@@ -9,6 +9,9 @@ import LessonView from './pages/LessonView';
 import Leaderboard from './pages/Leaderboard';
 import Hackathons from './pages/Hackathons';
 import HackathonDetail from './pages/HackathonDetail';
+import HackathonWorkspace from './pages/HackathonWorkspace';
+import HackathonLeaderboard from './pages/HackathonLeaderboard';
+import HackathonCertificate from './pages/HackathonCertificate';
 import JoinTeam from './pages/JoinTeam';
 import Judging from './pages/Judging';
 import AdminHackathonManage from './pages/admin/AdminHackathonManage';
@@ -66,6 +69,9 @@ export default function App() {
           <Route path="/hackathons" element={<Hackathons />} />
           <Route path="/hackathons/join/:code" element={<JoinTeam />} />
           <Route path="/hackathons/:id" element={<HackathonDetail />} />
+          <Route path="/hackathons/:id/workspace" element={<HackathonWorkspace />} />
+          <Route path="/hackathons/:id/leaderboard" element={<HackathonLeaderboard />} />
+          <Route path="/hackathons/:id/certificate" element={<HackathonCertificate />} />
           <Route path="/judging" element={<Judging />} />
           <Route path="/interview" element={<InterviewPrep />} />
           <Route path="/interview/:id" element={<InterviewSession />} />

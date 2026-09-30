@@ -2,15 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../api';
 import Alert from '../../components/Alert';
+import Modal from '../../components/Modal';
 import { PHASE_LABEL } from '../../lib/hackathons';
 
-/** Runs a hosted hackathon: who judges it, how scoring is going, and publishing the results. */
+/** Runs a hosted hackathon: problem statements, judges, scoring, and publishing results. */
 export default function AdminHackathonManage() {
   const { id } = useParams();
   const [h, setH] = useState(null);
   const [judges, setJudges] = useState([]);
   const [projects, setProjects] = useState([]);
   const [standings, setStandings] = useState([]);
+  const [problems, setProblems] = useState([]);
+  const [editingProblem, setEditingProblem] = useState(null);
   const [email, setEmail] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -19,10 +22,16 @@ export default function AdminHackathonManage() {
     try {
       const event = await api.getHackathon(id);
       setH(event);
-      const [j, p, s] = await Promise.all([api.getHackathonJudges(id), api.getHackathonProjects(id), api.getHackathonStandings(id)]);
+      const [j, p, s, probs] = await Promise.all([
+        api.getHackathonJudges(id),
+        api.getHackathonProjects(id),
+        api.getHackathonStandings(id),
+        api.getAdminHackathonProblems(id),
+      ]);
       setJudges(j);
       setProjects(p);
       setStandings(s);
+      setProblems(probs || []);
     } catch (err) {
       setError(err.message);
     }
@@ -39,13 +48,104 @@ export default function AdminHackathonManage() {
 
   const unscored = projects.filter((p) => p.scoreCount === 0).length;
   const canPublish = h.phase === 'JUDGING' && judges.length > 0 && projects.length > 0 && unscored === 0;
+  const availableTracks = h.tracks ? h.tracks.split(',').map((t) => t.trim()).filter(Boolean) : [];
 
   return (
     <div className="container">
       <Alert error={error} />
-      <Link to="/admin/hackathons" className="interview-exit">All hackathons</Link>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+        <Link to="/admin/hackathons" className="interview-exit">&larr; All hackathons</Link>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link to={`/hackathons/${id}`} className="btn btn-sm">View Hackathon</Link>
+          {h.phase === 'RESULTS' && (
+            <Link to={`/hackathons/${id}/leaderboard`} className="btn btn-sm btn-primary">View Leaderboard</Link>
+          )}
+        </div>
+      </div>
       <h1 className="page-title">{h.title}</h1>
       <p className="field-hint">Phase: <strong>{PHASE_LABEL[h.phase]}</strong>. {projects.length} project{projects.length === 1 ? '' : 's'} submitted.</p>
+
+      {/* Problem Statements Management */}
+      <section className="progress-card">
+        <header className="page-head">
+          <div>
+            <h2>Problem Statements</h2>
+            <p className="field-hint" style={{ margin: 0 }}>Create challenges for participating teams to choose from.</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={() => setEditingProblem({ title: '', description: '', track: '', requirements: '', evaluationCriteria: '', resourcesUrl: '' })}
+          >
+            Add Problem Statement
+          </button>
+        </header>
+
+        {problems.length === 0 ? (
+          <p className="field-hint" style={{ marginTop: '14px' }}>No problem statements defined yet. Add at least one so learners can select and work on challenges.</p>
+        ) : (
+          <div className="table-wrap" style={{ marginTop: '14px' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Title & Description</th>
+                  <th>Track</th>
+                  <th>Requirements</th>
+                  <th>Evaluation Criteria</th>
+                  <th>Resources</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {problems.map((prob) => (
+                  <tr key={prob.id}>
+                    <td>
+                      <strong>{prob.title}</strong>
+                      <p className="field-hint" style={{ margin: '4px 0 0', maxWidth: '280px', whiteSpace: 'normal', lineHeight: '1.4' }}>
+                        {prob.description && prob.description.length > 120 ? `${prob.description.slice(0, 120)}...` : prob.description}
+                      </p>
+                    </td>
+                    <td>{prob.track ? <span className="badge">{prob.track}</span> : <span className="field-hint">—</span>}</td>
+                    <td style={{ maxWidth: '180px', whiteSpace: 'normal', fontSize: '0.85rem' }}>
+                      {prob.requirements ? (prob.requirements.length > 90 ? `${prob.requirements.slice(0, 90)}...` : prob.requirements) : <span className="field-hint">—</span>}
+                    </td>
+                    <td style={{ maxWidth: '180px', whiteSpace: 'normal', fontSize: '0.85rem' }}>
+                      {prob.evaluationCriteria ? (prob.evaluationCriteria.length > 90 ? `${prob.evaluationCriteria.slice(0, 90)}...` : prob.evaluationCriteria) : <span className="field-hint">—</span>}
+                    </td>
+                    <td>
+                      {prob.resourcesUrl ? (
+                        <a href={prob.resourcesUrl} target="_blank" rel="noopener noreferrer">Resource Link</a>
+                      ) : <span className="field-hint">—</span>}
+                    </td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ marginRight: '6px' }}
+                        onClick={() => setEditingProblem(prob)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-danger"
+                        disabled={busy}
+                        onClick={() => {
+                          if (window.confirm(`Delete problem statement "${prob.title}"?`)) {
+                            run(() => api.deleteAdminHackathonProblem(id, prob.id));
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="progress-card">
         <header><h2>Judges</h2></header>
@@ -100,7 +200,7 @@ export default function AdminHackathonManage() {
         )}
       </section>
 
-      {h.phase !== 'RESULTS' && (
+      {h.phase !== 'RESULTS' ? (
         <section className="progress-card">
           <header><h2>Publish results</h2></header>
           <p className="field-hint">
@@ -114,7 +214,172 @@ export default function AdminHackathonManage() {
             Publish results
           </button>
         </section>
+      ) : (
+        <section className="progress-card" style={{ borderLeft: '4px solid var(--accent, #6366f1)' }}>
+          <header><h2>Results Published</h2></header>
+          <p className="field-hint">
+            Official results are published! Winner, runner-up, and participation certificates and badges have been awarded.
+          </p>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+            <Link to={`/hackathons/${id}/leaderboard`} className="btn btn-primary">
+              View Published Leaderboard &rarr;
+            </Link>
+            <Link to={`/hackathons/${id}`} className="btn">
+              View Public Page
+            </Link>
+          </div>
+        </section>
       )}
+
+      {/* Problem Statement Modal */}
+      <Modal
+        open={editingProblem !== null}
+        title={editingProblem?.id ? 'Edit Problem Statement' : 'Add Problem Statement'}
+        onClose={() => setEditingProblem(null)}
+        wide
+      >
+        {editingProblem && (
+          <ProblemForm
+            problem={editingProblem}
+            availableTracks={availableTracks}
+            onSave={async (data) => {
+              if (editingProblem.id) {
+                await api.updateAdminHackathonProblem(id, editingProblem.id, data);
+              } else {
+                await api.createAdminHackathonProblem(id, data);
+              }
+              setEditingProblem(null);
+              await load();
+            }}
+            onClose={() => setEditingProblem(null)}
+          />
+        )}
+      </Modal>
     </div>
+  );
+}
+
+function ProblemForm({ problem, availableTracks, onSave, onClose }) {
+  const [form, setForm] = useState({
+    title: problem.title || '',
+    description: problem.description || '',
+    track: problem.track || '',
+    requirements: problem.requirements || '',
+    evaluationCriteria: problem.evaluationCriteria || '',
+    resourcesUrl: problem.resourcesUrl || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const set = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setErr(null);
+    try {
+      await onSave(form);
+    } catch (error) {
+      setErr(error.message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="modal-form" onSubmit={submit}>
+      <Alert error={err} />
+      <div className="field">
+        <label htmlFor="prob-title">Title *</label>
+        <input
+          id="prob-title"
+          type="text"
+          maxLength={150}
+          value={form.title}
+          onChange={set('title')}
+          placeholder="e.g. AI-Powered Smart Assistant"
+          required
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="prob-track">Track (optional)</label>
+        {availableTracks.length > 0 ? (
+          <select id="prob-track" value={form.track} onChange={set('track')}>
+            <option value="">-- No specific track / All tracks --</option>
+            {availableTracks.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            id="prob-track"
+            type="text"
+            maxLength={100}
+            value={form.track}
+            onChange={set('track')}
+            placeholder="e.g. AI, Web3, Healthcare"
+          />
+        )}
+      </div>
+
+      <div className="field">
+        <label htmlFor="prob-desc">Description *</label>
+        <textarea
+          id="prob-desc"
+          rows={4}
+          maxLength={3000}
+          value={form.description}
+          onChange={set('description')}
+          placeholder="Detailed problem background and description..."
+          required
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="prob-req">Requirements (optional)</label>
+        <textarea
+          id="prob-req"
+          rows={3}
+          maxLength={3000}
+          value={form.requirements}
+          onChange={set('requirements')}
+          placeholder="Technical or functional requirements..."
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="prob-crit">Evaluation Criteria (optional)</label>
+        <textarea
+          id="prob-crit"
+          rows={3}
+          maxLength={3000}
+          value={form.evaluationCriteria}
+          onChange={set('evaluationCriteria')}
+          placeholder="How solutions will be evaluated (e.g., Innovation, Feasibility, Code Quality)..."
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="prob-res">Resources URL (optional)</label>
+        <input
+          id="prob-res"
+          type="text"
+          maxLength={500}
+          value={form.resourcesUrl}
+          onChange={set('resourcesUrl')}
+          placeholder="https://example.com/resources or documentation URL"
+        />
+        <p className="field-hint">Must begin with https:// if provided.</p>
+      </div>
+
+      <div className="form-actions">
+        <button type="button" className="btn btn-sm" onClick={onClose} disabled={saving}>
+          Cancel
+        </button>
+        <button type="submit" className="btn btn-sm btn-primary" disabled={saving || !form.title.trim() || !form.description.trim()}>
+          {saving ? 'Saving...' : (problem.id ? 'Save changes' : 'Create problem statement')}
+        </button>
+      </div>
+    </form>
   );
 }

@@ -23,6 +23,7 @@ const CATEGORY_META = {
   ACHIEVEMENT: { label: 'Achievement', icon: 'award', cls: 'cat-achievement' },
   SECURITY: { label: 'Security', icon: 'lock', cls: 'cat-security' },
   SYSTEM: { label: 'System', icon: 'info', cls: 'cat-system' },
+  HACKATHON: { label: 'Hackathon', icon: 'award', cls: 'cat-hackathon' },
 };
 
 export function getCategoryMeta(category) {
@@ -36,8 +37,13 @@ export function getActionLabel(notification) {
   if (url.includes('/attempts/')) return 'View result';
   if (url.includes('/assessments/')) return 'Take quiz';
   if (url.includes('/courses/')) return 'Open course';
+  if (url.includes('/workspace')) return 'Open workspace';
+  if (url.includes('/leaderboard')) return 'View leaderboard';
+  if (url.includes('/certificate')) return 'View certificate';
+  if (url.includes('/judge')) return 'Go to judging';
   if (url.includes('/profile')) return 'View badge';
   if (url.includes('/feed')) return 'View reply';
+  if (category === 'HACKATHON') return 'View hackathon';
   if (category === 'ANNOUNCEMENT') return 'View announcement';
   return 'View details';
 }

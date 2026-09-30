@@ -22,7 +22,7 @@ export default function VerifyCertificate() {
         <div className="certificate-card">
           <h2>Valid certificate</h2>
           <p>
-            <strong>{result.recipientName}</strong> completed <strong>{result.courseTitle}</strong> on{' '}
+            <strong>{result.recipientName}</strong> {result.courseTitle?.includes('(') ? 'was awarded' : 'completed'} <strong>{result.courseTitle}</strong> on{' '}
             {new Date(result.issuedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.
           </p>
           <p className="muted">Certificate ID <code>{code.toUpperCase()}</code></p>

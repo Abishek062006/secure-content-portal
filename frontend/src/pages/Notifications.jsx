@@ -7,9 +7,9 @@ import AnnouncementModal from '../components/AnnouncementModal';
 import { api } from '../api';
 import { formatRelativeTime, getCategoryMeta, getActionLabel } from '../lib/notificationUtils';
 
-// Only necessary, active notification categories (unwanted/dead categories like CONTENT and SYSTEM removed)
 const ACTIVE_CATEGORIES = [
   { id: 'COURSE', label: 'Courses', icon: 'book-open' },
+  { id: 'HACKATHON', label: 'Hackathons', icon: 'award' },
   { id: 'QUIZ', label: 'Quizzes', icon: 'clipboard-check' },
   { id: 'ANNOUNCEMENT', label: 'Announcements', icon: 'megaphone' },
   { id: 'COMMUNITY', label: 'Community', icon: 'message-circle' },

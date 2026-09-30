@@ -90,8 +90,8 @@ public class SecurityConfig {
                 .addFilterAfter(new CsrfCookieFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error", "/healthz", "/api/me", "/api/payments/webhooks/**").permitAll()
-                        // Anyone holding a certificate code may check it; it reveals only name, course and date.
-                        .requestMatchers(HttpMethod.GET, "/api/certificates/verify/*").permitAll()
+                        // Anyone holding a certificate code may check it; it reveals only name, course/hackathon and date.
+                        .requestMatchers(HttpMethod.GET, "/api/certificates/verify/*", "/api/hackathons/certificates/code/*", "/api/hackathons/certificates/code/*/pdf").permitAll()
                         .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

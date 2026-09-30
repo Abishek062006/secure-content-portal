@@ -81,6 +81,12 @@ public class Hackathon {
     @Column(name = "results_published_at")
     private Instant resultsPublishedAt;
 
+    @Column(name = "reminded_24h", nullable = false)
+    private boolean reminded24h = false;
+
+    @Column(name = "reminded_1h", nullable = false)
+    private boolean reminded1h = false;
+
     @Column(nullable = false)
     private boolean featured;
 
@@ -269,6 +275,22 @@ public class Hackathon {
 
     public String getStatus() {
         return status;
+    }
+
+    public boolean isReminded24h() {
+        return reminded24h;
+    }
+
+    public void setReminded24h(boolean reminded24h) {
+        this.reminded24h = reminded24h;
+    }
+
+    public boolean isReminded1h() {
+        return reminded1h;
+    }
+
+    public void setReminded1h(boolean reminded1h) {
+        this.reminded1h = reminded1h;
     }
 
 }

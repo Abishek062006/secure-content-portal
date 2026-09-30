@@ -1286,6 +1286,7 @@ a {
 .notification-icon-wrap.cat-achievement { background: #ecfdf5; color: #059669; }
 .notification-icon-wrap.cat-security { background: #fff1f2; color: #e11d48; }
 .notification-icon-wrap.cat-system { background: var(--surface-alt); color: var(--ink-mid); }
+.notification-icon-wrap.cat-hackathon { background: #fef3c7; color: #d97706; }
 
 .notification-content { flex: 1; min-width: 0; }
 .notification-top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
@@ -1302,6 +1303,7 @@ a {
 .notification-category-tag.cat-announcement { color: var(--accent-deep); }
 .notification-category-tag.cat-security { color: #e11d48; }
 .notification-category-tag.cat-system { color: var(--ink-mid); }
+.notification-category-tag.cat-hackathon { color: #d97706; }
 
 .notification-priority-tag {
   font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 980px;

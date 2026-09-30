@@ -18,6 +18,8 @@ public interface HackathonTeamMemberRepository extends JpaRepository<HackathonTe
 
     List<HackathonTeamMember> findByTeamIdIn(Collection<Long> teamIds);
 
+    List<HackathonTeamMember> findByHackathonId(Long hackathonId);
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM HackathonTeamMember m WHERE m.teamId = :teamId AND m.userId = :userId")
     int remove(@Param("teamId") Long teamId, @Param("userId") Long userId);

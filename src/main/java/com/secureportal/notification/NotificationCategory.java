@@ -8,5 +8,6 @@ public enum NotificationCategory {
     CONTENT,
     SECURITY,
     SYSTEM,
-    ACHIEVEMENT
+    ACHIEVEMENT,
+    HACKATHON
 }

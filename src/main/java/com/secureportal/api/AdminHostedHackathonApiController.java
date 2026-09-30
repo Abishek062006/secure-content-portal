@@ -3,6 +3,8 @@ package com.secureportal.api;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.hackathon.HostedHackathonService;
 import com.secureportal.hackathon.HostedHackathonService.JudgeView;
+import com.secureportal.hackathon.HostedHackathonService.ProblemStatementInput;
+import com.secureportal.hackathon.HostedHackathonService.ProblemStatementView;
 import com.secureportal.hackathon.HostedHackathonService.ProjectView;
 import com.secureportal.hackathon.HostedHackathonService.RankedView;
 import org.springframework.http.HttpStatus;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -32,6 +35,28 @@ public class AdminHostedHackathonApiController {
 
     public AdminHostedHackathonApiController(HostedHackathonService hosted) {
         this.hosted = hosted;
+    }
+
+    @GetMapping("/problems")
+    public List<ProblemStatementView> problems(@PathVariable Long id) {
+        return hosted.problemStatements(id);
+    }
+
+    @PostMapping("/problems")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ProblemStatementView addProblem(@PathVariable Long id, @RequestBody ProblemStatementInput request, @AuthenticationPrincipal AppPrincipal admin) {
+        return hosted.addProblemStatement(id, request, admin.getEmail());
+    }
+
+    @PutMapping("/problems/{problemId}")
+    public ProblemStatementView updateProblem(@PathVariable Long id, @PathVariable Long problemId, @RequestBody ProblemStatementInput request, @AuthenticationPrincipal AppPrincipal admin) {
+        return hosted.updateProblemStatement(id, problemId, request, admin.getEmail());
+    }
+
+    @DeleteMapping("/problems/{problemId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProblem(@PathVariable Long id, @PathVariable Long problemId, @AuthenticationPrincipal AppPrincipal admin) {
+        hosted.deleteProblemStatement(id, problemId, admin.getEmail());
     }
 
     @GetMapping("/judges")

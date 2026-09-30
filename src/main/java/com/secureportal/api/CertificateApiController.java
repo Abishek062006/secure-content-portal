@@ -43,11 +43,13 @@ public class CertificateApiController {
     private final EnrollmentRepository enrollmentRepository;
     private final LessonProgressRepository progressRepository;
     private final CourseOutlineAssembler assembler;
+    private final com.secureportal.hackathon.HostedHackathonService hostedHackathonService;
 
     public CertificateApiController(CertificateService certificateService, CertificatePdfRenderer renderer,
                                     LearningService learningService, CourseRepository courseRepository,
                                     EnrollmentRepository enrollmentRepository, LessonProgressRepository progressRepository,
-                                    CourseOutlineAssembler assembler) {
+                                    CourseOutlineAssembler assembler,
+                                    com.secureportal.hackathon.HostedHackathonService hostedHackathonService) {
         this.certificateService = certificateService;
         this.renderer = renderer;
         this.learningService = learningService;
@@ -55,6 +57,7 @@ public class CertificateApiController {
         this.enrollmentRepository = enrollmentRepository;
         this.progressRepository = progressRepository;
         this.assembler = assembler;
+        this.hostedHackathonService = hostedHackathonService;
     }
 
     public record LearningItem(CourseDto course, UUID resumeLessonId, Instant enrolledAt, CertificateDto certificate) {
@@ -133,7 +136,12 @@ public class CertificateApiController {
     public Verification verify(@PathVariable String code) {
         return certificateService.findByCode(code)
                 .map(c -> new Verification(true, c.getRecipientName(), c.getCourseTitle(), c.getIssuedAt()))
-                .orElse(new Verification(false, null, null, null));
+                .orElseGet(() -> hostedHackathonService.certificateByCode(code)
+                        .map(hc -> {
+                            String certInfo = hc.hackathonTitle() + " (" + hc.type() + (hc.rank() != null ? ", Rank #" + hc.rank() : "") + " - Team " + hc.teamName() + ")";
+                            return new Verification(true, hc.recipientName(), certInfo, hc.issuedAt());
+                        })
+                        .orElse(new Verification(false, null, null, null)));
     }
 
     private void requireEnrolled(AppPrincipal principal, Course course) {

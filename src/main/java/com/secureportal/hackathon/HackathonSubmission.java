@@ -36,6 +36,9 @@ public class HackathonSubmission {
     @Column(name = "description", nullable = false, columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "SUBMITTED";
+
     @Column(name = "submitted_at", nullable = false, updatable = false)
     private Instant submittedAt;
 
@@ -47,18 +50,38 @@ public class HackathonSubmission {
     }
 
     public HackathonSubmission(Long teamId, Long hackathonId, String title, String repoUrl, String demoUrl, String description) {
+        this(teamId, hackathonId, title, repoUrl, demoUrl, description, "SUBMITTED");
+    }
+
+    public HackathonSubmission(Long teamId, Long hackathonId, String title, String repoUrl, String demoUrl, String description, String status) {
         this.teamId = teamId;
         this.hackathonId = hackathonId;
         this.submittedAt = Instant.now();
-        update(title, repoUrl, demoUrl, description);
+        this.status = status != null ? status : "SUBMITTED";
+        update(title, repoUrl, demoUrl, description, this.status);
     }
 
     public final void update(String title, String repoUrl, String demoUrl, String description) {
+        update(title, repoUrl, demoUrl, description, this.status);
+    }
+
+    public final void update(String title, String repoUrl, String demoUrl, String description, String status) {
         this.title = title;
         this.repoUrl = repoUrl;
         this.demoUrl = demoUrl;
         this.description = description;
+        if (status != null && !status.isBlank()) {
+            this.status = status;
+        }
         this.updatedAt = Instant.now();
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public Long getId() {

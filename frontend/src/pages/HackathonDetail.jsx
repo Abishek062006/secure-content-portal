@@ -13,6 +13,7 @@ export default function HackathonDetail() {
   const navigate = useNavigate();
   const [h, setH] = useState(null);
   const [team, setTeam] = useState(undefined); // undefined: loading, null: no team
+  const [problems, setProblems] = useState([]);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
 
@@ -24,8 +25,14 @@ export default function HackathonDetail() {
         return;
       }
       setH(event);
-      setTeam(user?.admin ? null : await api.getMyTeam(id));
-      setResults(event.resultsPublished ? await api.getHackathonResults(id) : null);
+      const [t, p, r] = await Promise.all([
+        user?.admin ? null : api.getMyTeam(id),
+        api.getHackathonProblems(id),
+        event.resultsPublished ? api.getHackathonResults(id) : null,
+      ]);
+      setTeam(t);
+      setProblems(p || []);
+      setResults(r);
     } catch (err) {
       setError(err.message);
     }
@@ -48,8 +55,55 @@ export default function HackathonDetail() {
         </div>
         <h1 className="page-title">{h.title}</h1>
         {h.organizer && <p className="field-hint">{h.organizer}</p>}
-        {user?.admin && <Link className="btn btn-sm" to={`/admin/hackathons/${h.id}/manage`}>Manage this event</Link>}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap' }}>
+          {team && (
+            <Link className="btn btn-sm btn-primary" to={`/hackathons/${h.id}/workspace`}>
+              <Icon name="zap" size={14} /> Open Team Workspace &rarr;
+            </Link>
+          )}
+          {h.resultsPublished && (
+            <Link className="btn btn-sm" to={`/hackathons/${h.id}/leaderboard`}>
+              <Icon name="award" size={14} /> View Leaderboard
+            </Link>
+          )}
+          {user?.admin && <Link className="btn btn-sm" to={`/admin/hackathons/${h.id}/manage`}>Manage this event</Link>}
+        </div>
       </header>
+
+      {h.resultsPublished && (
+        <div className="workspace-cta-banner" style={{ background: 'linear-gradient(135deg, #fefce8, #eff6ff)', borderColor: '#facc15' }}>
+          <div>
+            <h3 style={{ color: '#854d0e', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 4px' }}>
+              <Icon name="award" size={18} /> Official Results Published!
+            </h3>
+            <p style={{ margin: 0, color: 'var(--ink-mid)' }}>
+              The judging scores and final team rankings are live. Check out the winners podium and full score breakdowns.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Link to={`/hackathons/${h.id}/leaderboard`} className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+              View Leaderboard &rarr;
+            </Link>
+            {team && (
+              <Link to={`/hackathons/${h.id}/certificate`} className="btn" style={{ whiteSpace: 'nowrap' }}>
+                My Certificate
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {team && (
+        <div className="workspace-cta-banner">
+          <div>
+            <h3>Team Workspace: {team.name}</h3>
+            <p>View your live deadline countdown, selected problem statement, team management, and project submission.</p>
+          </div>
+          <Link to={`/hackathons/${h.id}/workspace`} className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+            Go to Workspace &rarr;
+          </Link>
+        </div>
+      )}
 
       <div className="hack-detail-grid">
         <div>
@@ -60,12 +114,55 @@ export default function HackathonDetail() {
             {h.prizes && <p><strong>Prizes.</strong> {h.prizes}</p>}
             <p><strong>Teams.</strong> {h.minTeamSize === h.maxTeamSize ? `${h.maxTeamSize} people` : `${h.minTeamSize} to ${h.maxTeamSize} people`}</p>
           </section>
+
+          {/* Problem Statements Section */}
+          <section className="progress-card">
+            <header className="page-head">
+              <h2>Problem Statements</h2>
+              {problems.length > 0 && <span className="badge status-featured">{problems.length} challenge{problems.length === 1 ? '' : 's'}</span>}
+            </header>
+            {problems.length === 0 ? (
+              <p className="field-hint">Problem statements will be announced soon.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '10px' }}>
+                {problems.map((p) => (
+                  <div key={p.id} style={{ border: '1px solid var(--line)', borderRadius: 'var(--radius)', padding: '16px', background: 'var(--surface-alt)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--ink)' }}>{p.title}</h3>
+                      {p.track && <span className="badge">{p.track}</span>}
+                    </div>
+                    <p className="hack-prose" style={{ margin: '8px 0', fontSize: '0.92rem' }}>{p.description}</p>
+                    {p.requirements && (
+                      <div style={{ marginTop: '8px', fontSize: '0.88rem' }}>
+                        <strong>Requirements:</strong>
+                        <p className="hack-prose" style={{ margin: '3px 0', color: 'var(--ink-mid)' }}>{p.requirements}</p>
+                      </div>
+                    )}
+                    {p.evaluationCriteria && (
+                      <div style={{ marginTop: '8px', fontSize: '0.88rem' }}>
+                        <strong>Evaluation Criteria:</strong>
+                        <p className="hack-prose" style={{ margin: '3px 0', color: 'var(--ink-mid)' }}>{p.evaluationCriteria}</p>
+                      </div>
+                    )}
+                    {p.resourcesUrl && (
+                      <div style={{ marginTop: '10px', fontSize: '0.86rem' }}>
+                        <a href={p.resourcesUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          Resources & documentation &rarr;
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="progress-card">
             <header><h2>Rules</h2></header>
             <p className="hack-prose">{h.rules}</p>
           </section>
 
-          {!user?.admin && team !== undefined && <TeamPanel h={h} team={team} reload={load} setError={setError} />}
+          {!user?.admin && team !== undefined && <TeamPanel h={h} team={team} problems={problems} reload={load} setError={setError} />}
           {!user?.admin && team && <SubmissionPanel h={h} team={team} reload={load} setError={setError} />}
           {results && <Results results={results} myTeam={team?.name} />}
         </div>
@@ -88,7 +185,7 @@ export default function HackathonDetail() {
   );
 }
 
-function TeamPanel({ h, team, reload, setError }) {
+function TeamPanel({ h, team, problems, reload, setError }) {
   const [name, setName] = useState('');
   const [track, setTrack] = useState('');
   const [code, setCode] = useState('');
@@ -130,15 +227,70 @@ function TeamPanel({ h, team, reload, setError }) {
     );
   }
 
+  const selectedProblem = (problems || []).find((p) => p.id === team.problemStatementId);
   const link = `${window.location.origin}/hackathons/join/${team.inviteCode}`;
   return (
     <section className="progress-card">
-      <header><h2>Your team: {team.name}</h2>{team.track && <span className="badge">{team.track}</span>}</header>
+      <header className="page-head">
+        <h2>Your team: {team.name}</h2>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {team.track && <span className="badge">{team.track}</span>}
+          <Link to={`/hackathons/${h.id}/workspace`} className="btn btn-sm btn-primary">
+            Workspace &rarr;
+          </Link>
+        </div>
+      </header>
       <ul className="hack-members">
         {team.members.map((m) => (
           <li key={m.userId}><Avatar name={m.name} url={m.pictureUrl} size={32} /> <span>{m.name}</span>{m.leader && <em>Leader</em>}</li>
         ))}
       </ul>
+
+      {/* Selected Problem Statement */}
+      <div style={{ margin: '14px 0', padding: '12px', background: 'var(--surface-alt)', borderRadius: 'var(--radius)', border: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <strong style={{ fontSize: '0.9rem' }}>Selected Problem Statement:</strong>
+          {selectedProblem?.track && <span className="badge">{selectedProblem.track}</span>}
+        </div>
+        {selectedProblem ? (
+          <div>
+            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem' }}>{selectedProblem.title}</p>
+            <p className="field-hint" style={{ margin: '4px 0 8px', fontSize: '0.85rem' }}>
+              {selectedProblem.description && selectedProblem.description.length > 140
+                ? `${selectedProblem.description.slice(0, 140)}...`
+                : selectedProblem.description}
+            </p>
+          </div>
+        ) : (
+          <p className="field-hint" style={{ margin: '0 0 8px' }}>No problem statement selected yet.</p>
+        )}
+
+        {(problems || []).length > 0 && (h.phase === 'REGISTRATION' || h.phase === 'BUILDING') && (
+          <div style={{ marginTop: '8px' }}>
+            <label htmlFor="team-problem-select" className="field-hint" style={{ display: 'block', marginBottom: '4px' }}>
+              {selectedProblem ? 'Change problem statement:' : 'Choose a challenge:'}
+            </label>
+            <select
+              id="team-problem-select"
+              value={team.problemStatementId || ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                run(() => api.selectTeamProblem(h.id, val));
+              }}
+              disabled={busy}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line)', background: 'var(--surface)', font: 'inherit' }}
+            >
+              <option value="">-- Choose a problem statement --</option>
+              {problems.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title} {p.track ? `(${p.track})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       {h.phase === 'REGISTRATION' && team.members.length < h.maxTeamSize && (
         <div className="hack-invite">
           <span className="field-hint">Invite people with this link ({team.members.length} of {h.maxTeamSize} places filled)</span>
