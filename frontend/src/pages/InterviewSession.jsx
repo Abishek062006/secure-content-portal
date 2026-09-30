@@ -4,10 +4,21 @@ import { api } from '../api';
 import Alert from '../components/Alert';
 import Icon from '../components/Icon';
 import VoiceAnswer from '../components/interview/VoiceAnswer';
+import InterviewerStage from '../components/interview/InterviewerStage';
+import { personaById, pick } from '../components/interview/avatar/personas';
 import { CATEGORY, READINESS, categoryAverages, goalLabel, rubricAverages, strengthsAndGaps } from '../lib/interview';
 
 const MIN_ANSWER = 10;
 const MAX_ANSWER = 4000;
+const MUTE_KEY = 'gn-interviewer-muted';
+
+function readMuted() {
+  try { return localStorage.getItem(MUTE_KEY) === 'yes'; } catch { return false; }
+}
+
+function saveMuted(muted) {
+  try { localStorage.setItem(MUTE_KEY, muted ? 'yes' : 'no'); } catch { /* the choice just won't be remembered */ }
+}
 
 function useElapsed(resetKey) {
   const [seconds, setSeconds] = useState(0);
@@ -54,10 +65,39 @@ function Running({ session, questions, reload }) {
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [muted, setMuted] = useState(readMuted);
+  const [recording, setRecording] = useState(false);
+  const [line, setLine] = useState(null);
   const boxRef = useRef(null);
   const elapsed = useElapsed(next?.id);
+  const persona = personaById(session.interviewer);
+  const answeredCount = questions.filter((q) => q.answeredAt).length;
 
   useEffect(() => { boxRef.current?.focus(); }, [next?.id]);
+
+  // What the interviewer says: a hello with the first question, a natural lead-in to each next one, a reaction to each answer
+  // (and a heads-up when a follow-up is coming), and a goodbye once everything is answered.
+  useEffect(() => {
+    if (justAnswered) {
+      const { question, followUp } = justAnswered;
+      const reactions = question.score >= 8 ? persona.lines.strong : question.score >= 5 ? persona.lines.fine : persona.lines.weak;
+      setLine({ id: `r-${question.id}`, text: `${pick(reactions)}${followUp ? ` ${pick(persona.lines.followUp)}` : ''}` });
+    } else if (next) {
+      const lead = answeredCount === 0 ? pick(persona.lines.hello) : next.parentQuestionId ? '' : pick(persona.lines.next);
+      setLine({ id: `q-${next.id}`, text: `${lead} ${next.questionText}`.trim() });
+    } else {
+      setLine({ id: 'bye', text: pick(persona.lines.bye) });
+    }
+  }, [justAnswered?.question?.id, next?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const mode = busy ? 'thinking' : recording || answer.trim() ? 'listening' : 'idle';
+
+  function toggleMute() {
+    setMuted((current) => {
+      saveMuted(!current);
+      return !current;
+    });
+  }
 
   const position = next ? questions.indexOf(next) + 1 : questions.length;
 
@@ -104,6 +144,8 @@ function Running({ session, questions, reload }) {
         {questions.map((q, i) => <span key={q.id} className={q.answeredAt ? 'done' : q === next ? 'current' : ''} aria-hidden="true" data-i={i} />)}
       </div>
 
+      <InterviewerStage personaId={session.interviewer} line={line} mode={mode} muted={muted} hush={recording} onToggleMute={toggleMute} />
+
       {justAnswered ? (
         <Feedback result={justAnswered} last={!next} onNext={() => setJustAnswered(null)} onFinish={finish} busy={busy} />
       ) : next ? (
@@ -116,7 +158,7 @@ function Running({ session, questions, reload }) {
           <h1>{next.questionText}</h1>
           <textarea ref={boxRef} rows={9} maxLength={MAX_ANSWER} value={answer} onChange={(e) => setAnswer(e.target.value)}
                     placeholder="Answer as you would in the room. Explain your reasoning." aria-label="Your answer" />
-          <VoiceAnswer sessionId={session.id} disabled={busy} onError={setError}
+          <VoiceAnswer sessionId={session.id} disabled={busy} onError={setError} onRecordingChange={setRecording}
                        onText={(text) => setAnswer((current) => (current.trim() ? `${current.trim()} ${text}` : text).slice(0, MAX_ANSWER))} />
           <div className="interview-answer-foot">
             <span className="field-hint">{answer.length}/{MAX_ANSWER}</span>
@@ -180,7 +222,7 @@ function Report({ session, questions }) {
   return (
     <div className="container">
       <Alert error={error} />
-      <p className="interview-goal">{goalLabel(session)}</p>
+      <p className="interview-goal">{goalLabel(session)} · with {personaById(session.interviewer).name}</p>
       <h1 className="page-title">Your interview report</h1>
 
       <section className="progress-card interview-report-head">

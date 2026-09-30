@@ -7,12 +7,14 @@ import java.time.Instant;
 public record InterviewSessionDto(Long id, Long userId, String track, String stream, String difficulty, int totalQuestions,
                                   int currentQuestionIndex, int overallScore, String readinessLevel, String summaryFeedback,
                                   String status, int xpEarned, Instant createdAt, Instant completedAt, String source, String targetRole,
-                                  String skills, String courseId, String topFix, String interviewType, int plannedQuestions) {
+                                  String skills, String courseId, String topFix, String interviewType, int plannedQuestions,
+                                  String interviewer) {
 
     public static InterviewSessionDto of(MockInterviewSession s) {
         return new InterviewSessionDto(s.getId(), s.getUserId(), s.getTrack(), s.getStream(), s.getDifficulty(), s.getTotalQuestions(),
                 s.getCurrentQuestionIndex(), s.getOverallScore(), s.getReadinessLevel(), s.getSummaryFeedback(), s.getStatus(),
                 s.getXpEarned(), s.getCreatedAt(), s.getCompletedAt(), s.getSource(), s.getTargetRole(), s.getSkills(),
-                s.getCourseId(), s.getTopFix(), s.getInterviewType(), s.getPlannedQuestions());
+                s.getCourseId(), s.getTopFix(), s.getInterviewType(), s.getPlannedQuestions(),
+                s.getInterviewer().name());
     }
 }

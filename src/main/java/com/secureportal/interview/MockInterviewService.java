@@ -87,7 +87,7 @@ public class MockInterviewService {
      * only needs the role (or a resume to read it from).
      */
     public record StartRequest(String track, String difficulty, String targetRole, List<String> skills, String jobDescription,
-                               String courseId, boolean useResume, String interviewType, Integer questionCount) {
+                               String courseId, boolean useResume, String interviewType, Integer questionCount, String interviewer) {
     }
 
     public record Quota(long used, int limit, int voiceUsed, int voiceLimit) {
@@ -106,30 +106,33 @@ public class MockInterviewService {
         if (count < MIN_QUESTIONS || count > MAX_QUESTIONS) {
             throw new InvalidInterviewException("Choose between " + MIN_QUESTIONS + " and " + MAX_QUESTIONS + " questions.");
         }
+        Interviewer interviewer = request.interviewer() == null || request.interviewer().isBlank() ? Interviewer.defaultFor(type)
+                : Interviewer.parse(request.interviewer()).orElseThrow(() -> new InvalidInterviewException("Choose one of the interviewers."));
         MockInterviewSession.Goal goal = goalFrom(request, type);
-        return begin(userId, track, type, difficulty, count, goal, resumeTextFor(userId, goal));
+        return begin(userId, track, type, interviewer, difficulty, count, goal, resumeTextFor(userId, goal));
     }
 
     /** Practise again with the same setup as an earlier interview of the learner's own. */
     public MockInterviewSession retry(Long userId, Long sessionId) {
         MockInterviewSession earlier = ownedSession(sessionId, userId);
         return begin(userId, InterviewTrack.valueOf(earlier.getTrack()), InterviewType.valueOf(earlier.getInterviewType()),
-                InterviewDifficulty.valueOf(earlier.getDifficulty()), earlier.getPlannedQuestions(), earlier.goal(),
+                earlier.getInterviewer(), InterviewDifficulty.valueOf(earlier.getDifficulty()), earlier.getPlannedQuestions(), earlier.goal(),
                 resumeTextFor(userId, earlier.goal()));
     }
 
-    private MockInterviewSession begin(Long userId, InterviewTrack track, InterviewType type, InterviewDifficulty difficulty, int count,
-                                       MockInterviewSession.Goal goal, String resumeText) {
+    private MockInterviewSession begin(Long userId, InterviewTrack track, InterviewType type, Interviewer interviewer,
+                                       InterviewDifficulty difficulty, int count, MockInterviewSession.Goal goal, String resumeText) {
         if (sessions.countByUserIdAndCreatedAtAfter(userId, Instant.now().minus(1, ChronoUnit.DAYS)) >= MAX_PER_DAY) {
             throw new InterviewLimitException(MAX_PER_DAY);
         }
 
         // The AI is asked before anything is written, so a failure leaves nothing half-created.
-        List<InterviewQuestionBank.Item> items = ai.questionsFor(track, type, difficulty, count, goal, resumeText);
+        List<InterviewQuestionBank.Item> items = ai.questionsFor(track, type, interviewer, difficulty, count, goal, resumeText);
 
         return tx.execute(status -> {
             sessions.abandonOpen(userId);
-            MockInterviewSession session = sessions.save(new MockInterviewSession(userId, track, type, difficulty, goal, items.size()));
+            MockInterviewSession session = sessions.save(new MockInterviewSession(userId, track, type, interviewer, difficulty, goal,
+                    items.size()));
             for (int i = 0; i < items.size(); i++) {
                 questions.save(new MockInterviewQuestion(session.getId(), i, items.get(i).text(), items.get(i).category()));
             }

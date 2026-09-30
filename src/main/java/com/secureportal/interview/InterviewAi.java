@@ -77,12 +77,13 @@ public class InterviewAi {
      * The interview's {@code count} questions: the AI's if it gave a usable set, otherwise the hand-written bank. An HR interview draws
      * its topics at random first, so both the AI's questions and the bank's differ from one interview to the next.
      */
-    public List<InterviewQuestionBank.Item> questionsFor(InterviewTrack track, InterviewType type, InterviewDifficulty difficulty, int count,
-                                                         MockInterviewSession.Goal goal, String resumeText) {
+    public List<InterviewQuestionBank.Item> questionsFor(InterviewTrack track, InterviewType type, Interviewer interviewer,
+                                                         InterviewDifficulty difficulty, int count, MockInterviewSession.Goal goal,
+                                                         String resumeText) {
         List<InterviewQuestionBank.HrTopic> topics = type == InterviewType.HR ? InterviewQuestionBank.pickHrTopics(count - 1, random) : List.of();
         try {
-            StringBuilder prompt = new StringBuilder("Track: ").append(track).append("\nDifficulty: ").append(difficulty)
-                    .append("\nTarget role: ").append(goal.targetRole());
+            StringBuilder prompt = new StringBuilder(interviewer.promptLine()).append("\nTrack: ").append(track)
+                    .append("\nDifficulty: ").append(difficulty).append("\nTarget role: ").append(goal.targetRole());
             if (goal.skills() != null) {
                 prompt.append(goal.source() == InterviewSource.RESUME ? "\nFocus skills: " : "\nSkills: ").append(goal.skills());
             }

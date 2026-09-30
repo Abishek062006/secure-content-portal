@@ -20,7 +20,7 @@ const clock = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s 
  * Record an answer instead of typing it. The transcript is put in the answer box for the learner to read and edit; the recording
  * itself is sent once for transcription and never kept.
  */
-export default function VoiceAnswer({ sessionId, onText, onError, disabled }) {
+export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRecordingChange }) {
   const [state, setState] = useState('idle'); // idle | consent | recording | transcribing
   const [seconds, setSeconds] = useState(0);
   const [notes, setNotes] = useState(null);
@@ -32,6 +32,8 @@ export default function VoiceAnswer({ sessionId, onText, onError, disabled }) {
   const startedAt = useRef(0);
 
   useEffect(() => () => { stopEverything(); }, []);
+  // Lets the interviewer stop talking and listen while the learner records.
+  useEffect(() => { onRecordingChange?.(state === 'recording'); }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function stopEverything() {
     clearInterval(timer.current);

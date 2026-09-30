@@ -76,6 +76,10 @@ public class MockInterviewSession {
     @Column(name = "planned_questions", nullable = false)
     private int plannedQuestions;
 
+    /** Null on interviews from before learners could choose; see {@link #getInterviewer()}. */
+    @Column(length = 12)
+    private String interviewer;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -101,7 +105,13 @@ public class MockInterviewSession {
 
     public MockInterviewSession(Long userId, InterviewTrack track, InterviewType type, InterviewDifficulty difficulty, Goal goal,
                                 int totalQuestions) {
+        this(userId, track, type, Interviewer.defaultFor(type), difficulty, goal, totalQuestions);
+    }
+
+    public MockInterviewSession(Long userId, InterviewTrack track, InterviewType type, Interviewer interviewer, InterviewDifficulty difficulty,
+                                Goal goal, int totalQuestions) {
         this(userId, track, goal.targetRole(), difficulty, totalQuestions);
+        this.interviewer = interviewer.name();
         this.interviewType = type.name();
         this.source = goal.source().name();
         this.targetRole = goal.targetRole();
@@ -211,6 +221,11 @@ public class MockInterviewSession {
 
     public int getPlannedQuestions() {
         return plannedQuestions;
+    }
+
+    /** Who ran the interview; older interviews, from before there was a choice, get the default for their type. */
+    public Interviewer getInterviewer() {
+        return Interviewer.parse(interviewer).orElse(Interviewer.defaultFor(InterviewType.valueOf(interviewType)));
     }
 
     public String getStatus() {

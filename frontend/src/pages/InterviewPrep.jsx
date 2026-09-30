@@ -6,6 +6,8 @@ import Icon from '../components/Icon';
 import ScoreTrend from '../components/interview/ScoreTrend';
 import ResumeCard from '../components/interview/ResumeCard';
 import SkillsInput from '../components/interview/SkillsInput';
+import InterviewerPicker from '../components/interview/InterviewerPicker';
+import { defaultPersonaFor } from '../components/interview/avatar/personas';
 import { DIFFICULTIES, INTERVIEW_TYPES, MAX_SKILLS, QUESTION_COUNTS, READINESS, TRACKS, goalLabel } from '../lib/interview';
 
 /** The skills read off the resume. In a technical interview the learner picks which ones the questions focus on. */
@@ -54,6 +56,7 @@ export default function InterviewPrep() {
   const [resume, setResume] = useState(null);
   const [useResume, setUseResume] = useState(false);
   const [focus, setFocus] = useState([]);
+  const [chosenInterviewer, setChosenInterviewer] = useState(null);
   const [error, setError] = useState(null);
   const [starting, setStarting] = useState(false);
 
@@ -76,6 +79,8 @@ export default function InterviewPrep() {
 
   const fromCourse = Boolean(courseId && course);
   const technical = interviewType === 'TECHNICAL';
+  // Until the learner picks someone, the interviewer suits the round: the HR lead for HR, an engineer for technical.
+  const interviewer = chosenInterviewer || defaultPersonaFor(interviewType);
   const resumeOn = useResume && Boolean(resume);
   const left = quota ? Math.max(0, quota.limit - quota.used) : null;
 
@@ -101,7 +106,7 @@ export default function InterviewPrep() {
 
   function submit(e) {
     e.preventDefault();
-    const shared = { track, difficulty, interviewType, questionCount };
+    const shared = { track, difficulty, interviewType, questionCount, interviewer };
     const payload = fromCourse
       ? { ...shared, courseId }
       : {
@@ -134,6 +139,11 @@ export default function InterviewPrep() {
             ))}
           </div>
         </fieldset>
+
+        <div className="field">
+          <label>Your interviewer</label>
+          <InterviewerPicker value={interviewer} onChange={setChosenInterviewer} />
+        </div>
 
         {fromCourse ? (
           <p className="interview-from-course">

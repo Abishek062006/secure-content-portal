@@ -247,6 +247,27 @@ class MockInterviewFlowTest {
     }
 
     @Test
+    void theChosenInterviewerIsKeptAndWordsTheQuestionsInTheirOwnStyle() throws Exception {
+        List<String> prompts = new ArrayList<>();
+        doAnswer(call -> {
+            prompts.add(call.getArgument(1));
+            return QUESTIONS;
+        }).when(llm).complete(anyString(), anyString());
+
+        long withSarah = startWith(one, "{\"interviewer\":\"sarah\"," + SKILLS_GOAL + "}");
+        mockMvc.perform(get("/api/interviews/sessions/" + withSarah).with(as(one))).andExpect(jsonPath("$.session.interviewer").value("SARAH"));
+        assertThat(prompts.get(0)).startsWith("Interviewer: Sarah, an engineering manager");
+
+        // Nobody picked: an engineer runs a technical round and the HR lead an HR one. Practising again keeps the same person.
+        long defaulted = startWith(one, "{\"interviewType\":\"HR\",\"targetRole\":\"Backend developer\"}");
+        mockMvc.perform(get("/api/interviews/sessions/" + defaulted).with(as(one))).andExpect(jsonPath("$.session.interviewer").value("PRIYA"));
+        mockMvc.perform(post("/api/interviews/sessions/" + withSarah + "/retry").with(csrf()).with(as(one)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.interviewer").value("SARAH"));
+
+        startRejected("{\"interviewer\":\"Somebody else\"," + SKILLS_GOAL + "}", 400);
+    }
+
+    @Test
     void xpGrowsWithTheScoreOnTopOfABaseForFinishing() {
         assertThat(MockInterviewService.xpFor(50, 0)).isEqualTo(50);
         assertThat(MockInterviewService.xpFor(50, 70)).isEqualTo(85);

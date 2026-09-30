@@ -56,7 +56,10 @@ const PATHS = {
   "bell-ring": "<path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\" /> <path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\" /> <path d=\"M4 2C2.8 3.7 2 5.7 2 8\" /> <path d=\"M22 8c0-2.3-.8-4.3-2-6\" />",
   "check-check": "<path d=\"M18 6 7 17l-5-5\" /> <path d=\"m22 10-7.5 7.5L13 16\" />",
   "check-circle": "<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\" /> <path d=\"m9 11 3 3L22 4\" />",
-  "megaphone": "<path d=\"m3 11 18-5v12L3 14v-3z\" /> <path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\" />"
+  "megaphone": "<path d=\"m3 11 18-5v12L3 14v-3z\" /> <path d=\"M11.6 16.8a3 3 0 1 1-5.8-1.6\" />",
+  "volume-2": "<polygon points=\"11 5 6 9 2 9 2 15 6 15 11 19 11 5\" /> <path d=\"M15.54 8.46a5 5 0 0 1 0 7.07\" /> <path d=\"M19.07 4.93a10 10 0 0 1 0 14.14\" />",
+  "volume-x": "<polygon points=\"11 5 6 9 2 9 2 15 6 15 11 19 11 5\" /> <line x1=\"22\" x2=\"16\" y1=\"9\" y2=\"15\" /> <line x1=\"16\" x2=\"22\" y1=\"9\" y2=\"15\" />",
+  "rotate-ccw": "<path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\" /> <path d=\"M3 3v5h5\" />"
 };
 
 export default function Icon({ name, size = 20, strokeWidth = 1.8, className }) {
