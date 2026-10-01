@@ -28,6 +28,9 @@ public class NotificationService {
             NotificationCategory.COURSE,
             NotificationCategory.QUIZ,
             NotificationCategory.ACHIEVEMENT
+            NotificationCategory.ACHIEVEMENT,
+            NotificationCategory.SECURITY,
+            NotificationCategory.CONNECTION
     );
 
     public static final Set<NotificationCategory> LEARNER_CATEGORIES = Set.of(
@@ -38,6 +41,8 @@ public class NotificationService {
             NotificationCategory.ACHIEVEMENT,
             NotificationCategory.SYSTEM,
             NotificationCategory.SECURITY
+            NotificationCategory.SECURITY,
+            NotificationCategory.CONNECTION
     );
 
     private final NotificationRepository notificationRepository;

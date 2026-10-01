@@ -12,6 +12,7 @@ import AttemptView from './pages/AttemptView';
 import MyLearning from './pages/MyLearning';
 import VerifyCertificate from './pages/VerifyCertificate';
 import Feed from './pages/Feed';
+import Network from './pages/Network';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
@@ -31,6 +32,8 @@ import MockInterviews from './pages/MockInterviews';
 import AdminHackathons from './pages/admin/AdminHackathons';
 import AdminMockInterviews from './pages/admin/AdminMockInterviews';
 import Notifications from './pages/Notifications';
+
+import AiChatWidget from './components/AiChatWidget';
 
 export default function App() {
   // Lessons and resources use their own focused player bar instead of the site navigation.
@@ -52,6 +55,7 @@ export default function App() {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/hackathons" element={<Hackathons />} />
           <Route path="/interviews" element={<MockInterviews />} />
+          <Route path="/network" element={<Network />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
@@ -80,6 +84,7 @@ export default function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <AiChatWidget />
     </>
   );
 }

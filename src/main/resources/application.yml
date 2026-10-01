@@ -102,9 +102,12 @@ app:
 ai:
   base-url: ${AI_BASE_URL:https://api.groq.com/openai/v1}
   api-key: ${AI_API_KEY:}
-  model: ${AI_MODEL:}
+  model: ${AI_MODEL:llama-3.3-70b-versatile}
   timeout-seconds: 120
   json-mode: ${AI_JSON_MODE:true}
+  # Speech-to-text for spoken interview answers, on the same provider and key.
+  transcription-model: ${AI_TRANSCRIPTION_MODEL:whisper-large-v3}
+  transcription-language: ${AI_TRANSCRIPTION_LANGUAGE:en}
 
 storage:
   provider: ${STORAGE_PROVIDER:s3}

@@ -171,4 +171,25 @@ export const api = {
   clearReadNotifications: () => api.del('/api/notifications/clear-read'),
   clearAllNotifications: () => api.del('/api/notifications/clear-all'),
   sendAdminAnnouncement: (data) => api.post('/api/admin/notifications/announcement', data),
+
+  // AI Chatbot
+  sendAiChatMessage: (message, history, attachmentName, attachmentData) =>
+    api.post('/api/ai/chat', { message, history, attachmentName, attachmentData }),
+
+  // Network & Connections
+  getNetworkSuggestions: (q = '', page = 0, size = 20) => {
+    const params = new URLSearchParams({ page, size });
+    if (q) params.set('q', q);
+    return request(`/api/network/suggestions?${params}`);
+  },
+  sendConnectionRequest: (userId) => api.post(`/api/network/requests/${userId}`),
+  getReceivedRequests: () => request('/api/network/requests/received'),
+  getSentRequests: () => request('/api/network/requests/sent'),
+  acceptConnectionRequest: (id) => api.post(`/api/network/requests/${id}/accept`),
+  rejectConnectionRequest: (id) => api.post(`/api/network/requests/${id}/reject`),
+  withdrawConnectionRequest: (id) => api.del(`/api/network/requests/${id}`),
+  getConnections: () => request('/api/network/connections'),
+  removeConnection: (userId) => api.del(`/api/network/connections/${userId}`),
+  getConnectionsCount: () => request('/api/network/connections/count'),
 };
+

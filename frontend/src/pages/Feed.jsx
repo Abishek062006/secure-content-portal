@@ -10,6 +10,8 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import PostCard from '../components/PostCard';
 import PriceTag from '../components/PriceTag';
 import ProfileCard from '../components/ProfileCard';
+import PeopleYouMayKnow from '../components/PeopleYouMayKnow';
+import InvitationsCard from '../components/InvitationsCard';
 import { mediaUrl } from '../lib/media';
 
 function RecommendedCourses({ courses }) {
@@ -119,6 +121,8 @@ export default function Feed() {
       <main className="social-main">
         <Alert error={error} />
 
+        <InvitationsCard onNetworkChanged={loadMe} />
+
         <section className="start-post">
           <div className="start-post-top">
             <Avatar name={user?.displayName} url={me?.avatarUrl} userId={user?.id} size={48} />
@@ -146,7 +150,11 @@ export default function Feed() {
         {hasMore && <button type="button" className="btn load-more" onClick={() => load(page + 1)}>Load more</button>}
       </main>
 
-      <div className="social-right"><RecommendedCourses courses={courses} /></div>
+      <div className="social-right">
+        <InvitationsCard onNetworkChanged={loadMe} />
+        <RecommendedCourses courses={courses} />
+        <PeopleYouMayKnow onNetworkChanged={loadMe} />
+      </div>
 
       <ComposerModal open={composer.open} mode={composer.mode} me={me} courses={courses.filter((c) => c.status !== 'DRAFT')}
                      presetCourseId={params.get('promote')} onClose={() => setComposer((c) => ({ ...c, open: false }))}

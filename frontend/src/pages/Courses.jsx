@@ -112,14 +112,16 @@ export default function Courses() {
     <div className="catalog">
       <div className="container-wide catalog-body">
         <header className="welcome">
-          <Avatar name={user?.displayName} url={me?.avatarUrl} userId={user?.id} size={64} />
-          <div className="welcome-text">
-            <h1>Welcome back, {firstName}</h1>
-            <p>{user?.admin ? 'Browse the catalog as your learners see it.' : 'Pick up where you left off, or find something new to learn.'}</p>
+          <div className="welcome-left">
+            <Avatar name={user?.displayName} url={me?.avatarUrl} userId={user?.id} size={56} />
+            <div className="welcome-text">
+              <h1>Welcome back, {firstName}</h1>
+              <p>{user?.admin ? 'Browse the catalog as your learners see it.' : 'Pick up where you left off, or find something new to learn.'}</p>
+            </div>
           </div>
           <label className="catalog-search">
             <Icon name="search" size={18} />
-            <input type="search" placeholder="Search courses" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input type="search" placeholder="Search courses..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </label>
         </header>
 
