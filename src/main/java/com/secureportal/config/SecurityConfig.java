@@ -87,6 +87,7 @@ public class SecurityConfig {
                 .addFilterAfter(new CsrfCookieFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error", "/healthz", "/api/me").permitAll()
+                        .requestMatchers("/error", "/healthz", "/api/me", "/api/ai/chat", "/api/payments/webhooks/**").permitAll()
                         // Anyone holding a certificate code may check it; it reveals only name, course and date.
                         .requestMatchers(HttpMethod.GET, "/api/certificates/verify/*").permitAll()
                         .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")

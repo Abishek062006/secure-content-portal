@@ -69,6 +69,7 @@ export default function Nav() {
             <>
               <NavLink to="/courses">Courses</NavLink>
               <NavLink to="/feed">Feed</NavLink>
+              <NavLink to="/network">My Network</NavLink>
               <NavLink to="/my-learning">My Learning</NavLink>
               <div className="nav-dropdown" ref={dropdownRef} style={{ position: 'relative' }}>
                 <button
