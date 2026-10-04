@@ -113,10 +113,28 @@ export default function NewCourse() {
       }
     }
 
+    // Publishing tells every learner about the course, so it only happens when asked for, and a course needs a lesson first.
+    let published = false;
+    let publishError = null;
+    if (publishNow && videos.length > 0 && failed.length < videos.length) {
+      try {
+        setStatus('Publishing…');
+        await api.post(`/api/admin/courses/${course.id}/publish`);
+        published = true;
+      } catch (err) {
+        publishError = err.message;
+      }
+    }
+
+    const notes = [];
+    if (failed.length) notes.push(`some videos didn't upload, so add them again below (${failed.join(' · ')})`);
+    if (publishError) notes.push(`it wasn't published (${publishError})`);
     navigate(`/admin/courses/${course.id}/edit`, {
-      state: failed.length
-        ? { error: `Course created, but some videos didn't upload — add them again below. ${failed.join(' · ')}` }
-        : { success: videos.length ? 'Course created with your videos.' : 'Course created. Add your videos below.' },
+      state: notes.length
+        ? { error: `Course created, but ${notes.join(' and ')}.` }
+        : { success: published
+            ? 'Course created and published. Learners can now see and enroll in it.'
+            : (videos.length ? 'Course created with your videos.' : 'Course created. Add your videos below.') },
     });
   }
 
@@ -201,6 +219,17 @@ export default function NewCourse() {
             </ol>
           )}
         </div>
+
+        <label className="check-field">
+          <input type="checkbox" checked={publishNow} disabled={submitting || videos.length === 0}
+                 onChange={(e) => setPublishNow(e.target.checked)} />
+          <span>Publish as soon as it is created</span>
+        </label>
+        <p className="field-hint">
+          {videos.length === 0
+            ? 'Add at least one video to publish right away. Otherwise the course is saved as a draft.'
+            : 'Learners are told about the course and can enroll straight away. Leave this off to review it first.'}
+        </p>
 
         {submitting && (
           <div className="course-form-progress">

@@ -16,7 +16,7 @@ export default function CourseList() {
   const [pendingDelete, setPendingDelete] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const [successMessage] = useState(location.state?.success || null);
+  const [successMessage, setSuccessMessage] = useState(location.state?.success || null);
 
   useEffect(() => {
     api.get('/api/admin/courses')
@@ -31,6 +31,19 @@ export default function CourseList() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function togglePublish(course) {
+    const publishing = course.status === 'DRAFT';
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const updated = await api.post(`/api/admin/courses/${course.id}/${publishing ? 'publish' : 'unpublish'}`);
+      setCourses((prev) => prev.map((c) => (c.id === course.id ? { ...c, status: updated.status } : c)));
+      setSuccessMessage(publishing ? `"${course.title}" is published. Learners can now see and enroll in it.` : `"${course.title}" is unpublished.`);
+    } catch (err) {
+      setErrorMessage(err.message);
+    }
+  }
 
   async function confirmDelete() {
     const course = pendingDelete;
@@ -91,6 +104,10 @@ export default function CourseList() {
                   <td>{course.viewCount}</td>
                   <td>{formatDate(course.createdAt)}</td>
                   <td className="row-actions">
+                    <button type="button" className={course.status === 'DRAFT' ? 'btn btn-primary' : 'btn'} onClick={() => togglePublish(course)}
+                            title={course.status === 'DRAFT' ? 'Publish so learners can see it' : 'Take it out of the catalog'}>
+                      {course.status === 'DRAFT' ? 'Publish' : 'Unpublish'}
+                    </button>
                     <Link className="btn" to={`/admin/courses/${course.id}/edit`}>Edit</Link>
                     <Link className="btn" to={`/admin/courses/${course.id}/questions`}>Questions</Link>
                     <Link className="btn" to={`/courses/${course.id}`}>Preview</Link>

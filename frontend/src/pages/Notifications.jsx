@@ -7,76 +7,14 @@ import AnnouncementModal from '../components/AnnouncementModal';
 import { api } from '../api';
 import { formatRelativeTime, getCategoryMeta, getActionLabel } from '../lib/notificationUtils';
 
-// Only necessary, active notification categories (unwanted/dead categories like CONTENT and SYSTEM removed)
 const ACTIVE_CATEGORIES = [
   { id: 'COURSE', label: 'Courses', icon: 'book-open' },
+  { id: 'HACKATHON', label: 'Hackathons', icon: 'award' },
   { id: 'QUIZ', label: 'Quizzes', icon: 'clipboard-check' },
   { id: 'ANNOUNCEMENT', label: 'Announcements', icon: 'megaphone' },
   { id: 'COMMUNITY', label: 'Community', icon: 'message-circle' },
+  { id: 'CONNECTION', label: 'Network', icon: 'user-check', learnersOnly: true },
   { id: 'ACHIEVEMENT', label: 'Achievements', icon: 'award' },
-];
-
-const DEV_SAMPLE_NOTIFICATIONS = [
-  {
-    id: 101,
-    category: 'ANNOUNCEMENT',
-    priority: 'IMPORTANT',
-    title: 'Platform Maintenance & System Update',
-    message: 'GradientNova AI will undergo scheduled maintenance tonight at 11:00 PM UTC. New features will be deployed.',
-    actionUrl: '/courses',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-  },
-  {
-    id: 102,
-    category: 'COURSE',
-    priority: 'NORMAL',
-    title: 'New Lesson: Prompt Engineering Fundamentals',
-    message: 'A brand new module on Advanced Chain-of-Thought prompting has been added to your enrolled course.',
-    actionUrl: '/courses',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-  },
-  {
-    id: 103,
-    category: 'QUIZ',
-    priority: 'NORMAL',
-    title: 'Quiz Result Available: Neural Networks 101',
-    message: 'You scored 92% on Neural Networks 101! Your certificate of completion has been updated.',
-    actionUrl: '/progress',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
-  {
-    id: 104,
-    category: 'ACHIEVEMENT',
-    priority: 'NORMAL',
-    title: 'Badge Unlocked: 7-Day Code Streak!',
-    message: 'Congratulations! You have completed lessons 7 days in a row. Keep the momentum going.',
-    actionUrl: '/profile',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
-  },
-  {
-    id: 105,
-    category: 'COMMUNITY',
-    priority: 'NORMAL',
-    title: 'New Reply on Discussion Thread',
-    message: 'Alex Carter replied to your question about Transformer self-attention weights.',
-    actionUrl: '/feed',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-  },
-  {
-    id: 106,
-    category: 'SECURITY',
-    priority: 'CRITICAL',
-    title: 'Security Alert: Role Updated to Administrator',
-    message: 'Your account permissions have been upgraded to Administrator by the system admin.',
-    actionUrl: '/admin/dashboard',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
-  },
 ];
 
 const sync = () => window.dispatchEvent(new CustomEvent('portal-notification-change'));
@@ -103,18 +41,7 @@ export default function Notifications() {
         setHasMore(!res.last);
         setPage(p);
       })
-      .catch((err) => {
-        if (import.meta.env.DEV) {
-          let samples = DEV_SAMPLE_NOTIFICATIONS;
-          if (category) samples = samples.filter((s) => s.category === category);
-          if (unreadOnly) samples = samples.filter((s) => !s.isRead);
-          setNotifications(samples);
-          setHasMore(false);
-          setPage(0);
-        } else {
-          setErrorMessage(err.message);
-        }
-      })
+      .catch((err) => setErrorMessage(err.message))
       .finally(() => setLoading(false));
   }, [category, unreadOnly]);
 
@@ -130,65 +57,35 @@ export default function Notifications() {
     api.markNotificationRead(id).then(() => {
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
       sync();
-    }).catch((err) => {
-      if (import.meta.env.DEV) {
-        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-      } else {
-        setErrorMessage(err.message);
-      }
-    });
+    }).catch((err) => setErrorMessage(err.message));
   };
 
   const markUnread = (id) => {
     api.markNotificationUnread(id).then(() => {
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)));
       sync();
-    }).catch((err) => {
-      if (import.meta.env.DEV) {
-        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)));
-      } else {
-        setErrorMessage(err.message);
-      }
-    });
+    }).catch((err) => setErrorMessage(err.message));
   };
 
   const remove = (id) => {
     api.deleteNotification(id).then(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       sync();
-    }).catch((err) => {
-      if (import.meta.env.DEV) {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-      } else {
-        setErrorMessage(err.message);
-      }
-    });
+    }).catch((err) => setErrorMessage(err.message));
   };
 
   const markAllRead = () => {
     api.markAllNotificationsRead().then(() => {
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       sync();
-    }).catch((err) => {
-      if (import.meta.env.DEV) {
-        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      } else {
-        setErrorMessage(err.message);
-      }
-    });
+    }).catch((err) => setErrorMessage(err.message));
   };
 
   const clearRead = () => {
     api.clearReadNotifications().then(() => {
       setNotifications((prev) => prev.filter((n) => !n.isRead));
       sync();
-    }).catch((err) => {
-      if (import.meta.env.DEV) {
-        setNotifications((prev) => prev.filter((n) => !n.isRead));
-      } else {
-        setErrorMessage(err.message);
-      }
-    });
+    }).catch((err) => setErrorMessage(err.message));
   };
 
   const openItem = (n) => {
@@ -268,7 +165,7 @@ export default function Notifications() {
             Unread
             {unreadCount > 0 && <span className="chip-count">{unreadCount}</span>}
           </button>
-          {ACTIVE_CATEGORIES.map((cat) => {
+          {ACTIVE_CATEGORIES.filter((cat) => !(cat.learnersOnly && isAdmin)).map((cat) => {
             const isCatActive = category === cat.id && !unreadOnly;
             return (
               <button

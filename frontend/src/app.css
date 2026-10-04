@@ -1284,6 +1284,8 @@ a {
 .notification-icon-wrap.cat-community { background: #f5f3ff; color: #7c3aed; }
 .notification-icon-wrap.cat-announcement { background: var(--accent-wash); color: var(--accent-deep); }
 .notification-icon-wrap.cat-achievement { background: #ecfdf5; color: #059669; }
+.notification-icon-wrap.cat-hackathon { background: #fef3c7; color: #d97706; }
+.notification-icon-wrap.cat-connection { background: var(--accent-wash); color: var(--accent-deep); }
 .notification-icon-wrap.cat-security { background: #fff1f2; color: #e11d48; }
 .notification-icon-wrap.cat-system { background: var(--surface-alt); color: var(--ink-mid); }
 
@@ -1299,6 +1301,8 @@ a {
 .notification-category-tag.cat-quiz { color: #8a6100; }
 .notification-category-tag.cat-community { color: #7c3aed; }
 .notification-category-tag.cat-achievement { color: #059669; }
+.notification-category-tag.cat-hackathon { color: #d97706; }
+.notification-category-tag.cat-connection { color: var(--accent-deep); }
 .notification-category-tag.cat-announcement { color: var(--accent-deep); }
 .notification-category-tag.cat-security { color: #e11d48; }
 .notification-category-tag.cat-system { color: var(--ink-mid); }

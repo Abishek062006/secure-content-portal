@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api';
 
+const AWARDS = { WINNER: 'winner', RUNNER_UP: 'runner-up', PARTICIPATION: 'participation' };
+
 export default function VerifyCertificate() {
   const { code } = useParams();
   const [result, setResult] = useState(null);
@@ -22,7 +24,7 @@ export default function VerifyCertificate() {
         <div className="certificate-card">
           <h2>Valid certificate</h2>
           <p>
-            <strong>{result.recipientName}</strong> completed <strong>{result.courseTitle}</strong> on{' '}
+            <strong>{result.recipientName}</strong> {result.kind === 'HACKATHON' ? `earned a ${AWARDS[result.award] || 'participation'} certificate in` : 'completed'} <strong>{result.courseTitle}</strong> on{' '}
             {new Date(result.issuedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}.
           </p>
           <p className="muted">Certificate ID <code>{code.toUpperCase()}</code></p>
