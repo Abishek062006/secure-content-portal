@@ -110,3 +110,28 @@ export function deliveryTrends(summary, trend, sessionId) {
   add('pauses', 'Long pauses an answer', '', summary.longPausesPerAnswer == null ? null : Math.round(summary.longPausesPerAnswer * 10) / 10, (p) => p.longPausesPerAnswer);
   return rows;
 }
+
+/** The share of an interview with the face in frame is judged against these: most of the time is what matters, not every second. */
+function faceNote(percent) {
+  if (percent >= 90) return { status: 'good', label: 'On track', note: 'Your face stayed in frame.' };
+  if (percent >= 70) return { status: 'watch', label: 'Worth a look', note: 'You were out of frame at times. Sit so your face stays near the middle.' };
+  return { status: 'watch', label: 'Worth a look', note: 'You were often out of frame. Check that the camera is uncovered and sit in front of it.' };
+}
+
+function lightingNote(percent) {
+  if (percent >= 80) return { status: 'good', label: 'On track', note: 'The lighting was good.' };
+  if (percent >= 50) return { status: 'watch', label: 'Worth a look', note: 'The lighting was uneven. Face a window or lamp, and keep bright lights out of the frame behind you.' };
+  return { status: 'watch', label: 'Worth a look', note: 'Your face was often too dark or backlit. Face a light, and close any bright window behind you.' };
+}
+
+/** How the camera setup went, from what the browser measured over the whole interview. Empty when the camera wasn't used. */
+export function setupMeasures(session) {
+  const measures = [];
+  if (session?.faceVisiblePercent != null) {
+    measures.push({ key: 'face', title: 'Face in frame', value: `${session.faceVisiblePercent}% of the time`, ...faceNote(session.faceVisiblePercent) });
+  }
+  if (session?.lightingGoodPercent != null) {
+    measures.push({ key: 'lighting', title: 'Lighting', value: `good ${session.lightingGoodPercent}% of the time`, ...lightingNote(session.lightingGoodPercent) });
+  }
+  return measures;
+}

@@ -8,9 +8,11 @@ import InterviewerStage from '../components/interview/InterviewerStage';
 import RecordingGate from '../components/interview/recording/RecordingGate';
 import DeliveryReport from '../components/interview/DeliveryReport';
 import SelfView, { RecordingPill } from '../components/interview/recording/SelfView';
+import SetupNotice from '../components/interview/recording/SetupNotice';
 import { personaById, pick } from '../components/interview/avatar/personas';
 import { useAuth } from '../context/AuthContext';
-import { InterviewRecorder, startProblem } from '../lib/interviewRecorder';
+import { FrameMonitor } from '../lib/frameMonitor';
+import { InterviewRecorder, openCameraAndMic, startProblem } from '../lib/interviewRecorder';
 import { useLocalRecording } from '../components/interview/recording/useLocalRecording';
 import { formatLength, requestPersistence } from '../lib/localRecordings';
 import { recordingSupported, wantsRecording } from '../lib/recordingPrefs';
@@ -108,7 +110,13 @@ function Running({ session, questions, reload }) {
   // Only offered at the very start: a reload part-way through can't carry on the same recording.
   const [gate, setGate] = useState(() => questions.every((q) => !q.answeredAt) && wantsRecording() && recordingSupported());
   const [rec, setRec] = useState({ status: 'off', stream: null, problem: null });
+  // The camera is opened first for the setup check; pressing start then hands that same stream to the recording.
+  const [preview, setPreview] = useState({ status: 'off', stream: null, problem: null });
+  const previewStream = useRef(null);
   const recorder = useRef(null);
+  // Watches the lighting and framing during the interview, and sums them up for the report.
+  const monitor = useRef(null);
+  const [frame, setFrame] = useState(null);
   const timing = useRef(newTiming(null));
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState(null);
@@ -139,8 +147,12 @@ function Running({ session, questions, reload }) {
     }
   }
 
-  // Whatever is saved so far is kept if the learner leaves part-way.
-  useEffect(() => () => { recorder.current?.stop(); }, []);
+  // Whatever is saved so far is kept if the learner leaves part-way, and the camera is always let go.
+  useEffect(() => () => {
+    recorder.current?.stop();
+    monitor.current?.stop();
+    previewStream.current?.getTracks().forEach((t) => t.stop());
+  }, []);
 
   // Notes where each question begins, so the replay can jump to it.
   useEffect(() => {
@@ -149,20 +161,51 @@ function Running({ session, questions, reload }) {
     }
   }, [rec.status, next?.id, justAnswered]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function openPreview() {
+    setPreview({ status: 'opening', stream: null, problem: null });
+    try {
+      const stream = await openCameraAndMic();
+      previewStream.current = stream;
+      setPreview({ status: 'on', stream, problem: null });
+    } catch (err) {
+      setPreview({ status: 'off', stream: null, problem: startProblem(err) });
+    }
+  }
+
+  function closePreview() {
+    previewStream.current?.getTracks().forEach((t) => t.stop());
+    previewStream.current = null;
+    setPreview({ status: 'off', stream: null, problem: null });
+  }
+
+  function skipRecording() {
+    closePreview();
+    setGate(false);
+  }
+
   async function startRecording() {
+    const stream = previewStream.current;
+    if (!stream) return;
     setRec({ status: 'starting', stream: null, problem: null });
     const instance = new InterviewRecorder({
-      sessionId: session.id, userId: user?.id, title: goalLabel(session),
+      sessionId: session.id, userId: user?.id, title: goalLabel(session), getStream: async () => stream,
       onProblem: (kind, message) => setRec((current) => ({ ...current, problem: message })),
     });
     try {
       await instance.start();
     } catch (err) {
+      // The recorder lets go of the camera when it can't start, so go back to the first step with the reason.
+      closePreview();
       setRec({ status: 'off', stream: null, problem: startProblem(err) });
       return;
     }
     requestPersistence();
     recorder.current = instance;
+    // The recording now owns the camera, so the preview lets go of it without stopping it.
+    previewStream.current = null;
+    setPreview({ status: 'off', stream: null, problem: null });
+    monitor.current = new FrameMonitor(instance.stream, { intervalMs: 1000, onUpdate: setFrame });
+    monitor.current.start();
     setRec({ status: 'on', stream: instance.stream, problem: null });
     setGate(false);
   }
@@ -214,7 +257,10 @@ function Running({ session, questions, reload }) {
     setBusy(true);
     setError(null);
     try {
-      await api.completeInterview(session.id);
+      // How the camera setup went over the whole interview, if the camera was on; the server keeps it for the report.
+      const quality = monitor.current?.summary();
+      await api.completeInterview(session.id, quality ? { setupQuality: quality } : undefined);
+      monitor.current?.stop();
       await recorder.current?.stop();
       await reload();
     } catch (err) {
@@ -235,6 +281,8 @@ function Running({ session, questions, reload }) {
         <span className="interview-clock"><Icon name="timer" size={15} /> {elapsed}</span>
       </header>
 
+      {rec.status === 'on' && <SetupNotice frame={frame} />}
+
       <div className="interview-steps" aria-label={`Question ${position} of ${questions.length}`}>
         {questions.map((q, i) => <span key={q.id} className={q.answeredAt ? 'done' : q === next ? 'current' : ''} aria-hidden="true" data-i={i} />)}
       </div>
@@ -243,8 +291,9 @@ function Running({ session, questions, reload }) {
                         onToggleMute={toggleMute} onSpeakingChange={interviewerSpeaking} />
 
       {gate ? (
-        <RecordingGate onStart={startRecording} onSkip={() => setGate(false)} busy={rec.status === 'starting'}
-                       error={rec.status === 'off' ? rec.problem : null} />
+        <RecordingGate stream={preview.stream} opening={preview.status === 'opening'} starting={rec.status === 'starting'}
+                       error={preview.problem || (rec.status === 'off' ? rec.problem : null)}
+                       onPreview={openPreview} onStart={startRecording} onSkip={skipRecording} />
       ) : justAnswered ? (
         <Feedback result={justAnswered} last={!next} onNext={() => setJustAnswered(null)} onFinish={finish} busy={busy} />
       ) : next ? (
@@ -415,7 +464,7 @@ function Report({ session, questions }) {
         )}
       </section>
 
-      <DeliveryReport questions={questions} trend={trend} sessionId={session.id} />
+      <DeliveryReport session={session} questions={questions} trend={trend} />
 
       <section className="progress-card">
         <header><h2>Question by question</h2></header>

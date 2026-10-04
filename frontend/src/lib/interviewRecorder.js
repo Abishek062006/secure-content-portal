@@ -11,6 +11,11 @@ const CAMERA_AND_MIC = {
   audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 };
 
+/** Asks the browser for the camera and microphone. The same stream serves the setup check and then the recording. */
+export function openCameraAndMic() {
+  return navigator.mediaDevices.getUserMedia(CAMERA_AND_MIC);
+}
+
 function pickType() {
   return TYPES.find((t) => window.MediaRecorder.isTypeSupported?.(t));
 }
@@ -43,7 +48,7 @@ export class InterviewRecorder {
     this.userId = userId;
     this.title = title;
     this.onProblem = onProblem;
-    this.getStream = getStream || (() => navigator.mediaDevices.getUserMedia(CAMERA_AND_MIC));
+    this.getStream = getStream || openCameraAndMic;
     this.stream = null;
     this.recorder = null;
     this.startedAt = 0;

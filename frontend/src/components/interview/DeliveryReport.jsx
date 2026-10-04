@@ -1,25 +1,49 @@
-import { deliveryMeasures, deliverySummary, deliveryTrends } from '../../lib/delivery';
+import { deliveryMeasures, deliverySummary, deliveryTrends, setupMeasures } from '../../lib/delivery';
 
 const STATUS_TEXT = { good: 'On track', watch: 'Worth a look' };
+
+/** How the camera setup went, when the camera was on. */
+function SetupList({ measures }) {
+  if (measures.length === 0) return null;
+  return (
+    <div className="delivery-setup">
+      <h3 className="report-subhead">Your camera setup</h3>
+      <ul className="delivery-list">
+        {measures.map((m) => (
+          <li key={m.key}>
+            <div className="delivery-head">
+              <strong>{m.title}</strong>
+              <span className="delivery-value">{m.value}</span>
+              <span className={`delivery-status ${m.status}`} title={STATUS_TEXT[m.status]}>{m.label}</span>
+            </div>
+            <p>{m.note}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 /**
  * How the answers were delivered, from the timing measured in the learner's browser: pace, time before starting and long pauses,
  * with a plain note on each and how they compare with earlier interviews. Feedback only; it doesn't change the score.
  */
-export default function DeliveryReport({ questions, trend, sessionId }) {
+export default function DeliveryReport({ session, questions, trend }) {
   const summary = deliverySummary(questions);
+  const setup = setupMeasures(session);
 
   if (!summary) {
     return (
-      <section className="progress-card">
+      <section className="progress-card delivery-report">
         <header><h2>How you delivered your answers</h2></header>
         <p className="field-hint">No speech timing was recorded for this interview. Answer by voice to see your pace and pauses.</p>
+        <SetupList measures={setup} />
       </section>
     );
   }
 
   const measures = deliveryMeasures(summary);
-  const trends = deliveryTrends(summary, trend, sessionId);
+  const trends = deliveryTrends(summary, trend, session.id);
   const noisyOnly = summary.spoken > 0 && summary.pace == null && summary.longPausesPerAnswer == null;
 
   return (
@@ -55,6 +79,8 @@ export default function DeliveryReport({ questions, trend, sessionId }) {
         </p>
       )}
       {summary.spoken === 0 && <p className="field-hint">You typed every answer. Answer by voice to see your pace and pauses too.</p>}
+
+      <SetupList measures={setup} />
 
       {trends.length > 0 && (
         <div className="delivery-trends">

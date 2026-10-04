@@ -360,3 +360,30 @@ button.keyword-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--a
 .delivery-sequence span + span::before { content: '\2192'; margin-right: 6px; color: var(--ink-soft); }
 .delivery-sequence .now { color: var(--accent-deep); font-weight: 700; }
 .replay-delivery { margin: 4px 4px 0 14px; font-size: 0.82rem; color: var(--ink-mid); }
+
+/* ---------- Checking the camera setup ---------- */
+.setup-check { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.setup-preview { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; transform: scaleX(-1); border-radius: var(--radius); background: var(--ink); }
+.setup-check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.setup-check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 0.92rem; line-height: 1.45; }
+.setup-check-item > svg { flex: none; margin-top: 2px; }
+.setup-check-item > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.setup-check-item.ok > svg { color: var(--accent); }
+.setup-check-item.warn > svg { color: #8a6100; }
+.setup-check-item.pending > svg { color: var(--ink-soft); }
+.setup-check-note { grid-column: 1 / -1; }
+.mic-meter { display: block; height: 8px; border-radius: 999px; background: var(--surface-alt); overflow: hidden; }
+.mic-meter > span { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width 0.1s linear; }
+
+.setup-notice {
+  display: flex; align-items: center; gap: 8px; margin: 10px 0 0; padding: 8px 12px; border-radius: var(--radius-sm);
+  background: #fff4d6; color: #8a6100; font-size: 0.88rem; line-height: 1.4;
+}
+.setup-notice svg { flex: none; }
+
+.delivery-setup { margin-top: 14px; }
+
+@media (max-width: 640px) {
+  .setup-check { grid-template-columns: 1fr; }
+  .setup-preview { max-width: 320px; }
+}
