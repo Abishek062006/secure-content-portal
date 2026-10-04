@@ -151,6 +151,14 @@ class MockInterviewFlowTest {
                 .andExpect(status().is(expectedStatus));
     }
 
+    private void answerWith(User who, long sessionId, long questionId, String delivery, int expectedStatus) throws Exception {
+        mockMvc.perform(post("/api/interviews/sessions/" + sessionId + "/answer").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"questionId\":" + questionId + ",\"learnerAnswer\":" + objectMapper.writeValueAsString(ANSWER)
+                                + ",\"delivery\":" + delivery + "}")
+                        .with(csrf()).with(as(who)))
+                .andExpect(status().is(expectedStatus));
+    }
+
     @Test
     void anInterviewRunsFromStartToFinishAndPaysItsXpOnce() throws Exception {
         long session = start(one);
@@ -273,6 +281,114 @@ class MockInterviewFlowTest {
         assertThat(MockInterviewService.xpFor(50, 70)).isEqualTo(85);
         assertThat(MockInterviewService.xpFor(50, 100)).isEqualTo(100);
         assertThat(MockInterviewService.xpFor(0, 100)).isZero(); // an admin who prices it at zero pays nothing
+    }
+
+    @Test
+    void howAnAnswerWasGivenIsKeptAsFeedbackOnlyAndAdminsNeverSeeIt() throws Exception {
+        long session = start(one);
+        List<Long> ids = questionIds(one, session);
+
+        // A clear spoken answer, a typed one, a spoken one in a noisy room, one with a made-up mode, and one with nothing sent.
+        answerWith(one, session, ids.get(0), "{\"mode\":\"VOICE\",\"thinkingSeconds\":6,\"speakingSeconds\":58,\"wordsPerMinute\":146,"
+                + "\"longPauses\":2,\"longestPauseSeconds\":3.4,\"audioClear\":true}", 200);
+        answerWith(one, session, ids.get(1), "{\"mode\":\"TYPED\",\"thinkingSeconds\":21,\"speakingSeconds\":40,\"wordsPerMinute\":150,"
+                + "\"longPauses\":5,\"audioClear\":true}", 200);
+        answerWith(one, session, ids.get(2), "{\"mode\":\"VOICE\",\"thinkingSeconds\":4,\"speakingSeconds\":30,\"wordsPerMinute\":150,"
+                + "\"longPauses\":1,\"longestPauseSeconds\":2,\"audioClear\":false}", 200);
+        answerWith(one, session, ids.get(3), "{\"mode\":\"TELEPATHY\",\"thinkingSeconds\":3}", 200);
+        answer(one, session, ids.get(4), ANSWER, 200);
+
+        String detail = mockMvc.perform(get("/api/interviews/sessions/" + session).with(as(one)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode questions = json(detail).get("questions");
+
+        JsonNode spoken = questions.get(0).get("delivery");
+        assertThat(spoken.get("mode").asText()).isEqualTo("VOICE");
+        assertThat(spoken.get("thinkingSeconds").asInt()).isEqualTo(6);
+        assertThat(spoken.get("speakingSeconds").asInt()).isEqualTo(58);
+        assertThat(spoken.get("wordsPerMinute").asInt()).isEqualTo(146);
+        assertThat(spoken.get("longPauses").asInt()).isEqualTo(2);
+        assertThat(spoken.get("longestPauseSeconds").asDouble()).isEqualTo(3.4);
+        assertThat(spoken.get("audioClear").asBoolean()).isTrue();
+
+        JsonNode typed = questions.get(1).get("delivery");
+        assertThat(typed.get("mode").asText()).isEqualTo("TYPED");
+        assertThat(typed.get("thinkingSeconds").asInt()).isEqualTo(21);
+        assertThat(typed.path("speakingSeconds").isNull() || typed.path("speakingSeconds").isMissingNode()).isTrue();
+        assertThat(typed.path("wordsPerMinute").isNull() || typed.path("wordsPerMinute").isMissingNode()).isTrue();
+        assertThat(typed.path("longPauses").isNull() || typed.path("longPauses").isMissingNode()).isTrue();
+
+        JsonNode noisy = questions.get(2).get("delivery");
+        assertThat(noisy.get("audioClear").asBoolean()).isFalse();
+        assertThat(noisy.get("thinkingSeconds").asInt()).isEqualTo(4);
+        assertThat(noisy.path("wordsPerMinute").isNull() || noisy.path("wordsPerMinute").isMissingNode()).isTrue();
+        assertThat(noisy.path("longPauses").isNull() || noisy.path("longPauses").isMissingNode()).isTrue();
+
+        assertThat(questions.get(3).path("delivery").isNull() || questions.get(3).path("delivery").isMissingNode()).isTrue();
+        assertThat(questions.get(4).path("delivery").isNull() || questions.get(4).path("delivery").isMissingNode()).isTrue();
+
+        // It never touches the score or the XP: the same answers score the same with or without it.
+        mockMvc.perform(post("/api/interviews/sessions/" + session + "/complete").with(csrf()).with(as(one)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.session.overallScore").value(70))
+                .andExpect(jsonPath("$.questions[0].delivery.wordsPerMinute").value(146));
+
+        // Only the learner sees it.
+        mockMvc.perform(get("/api/admin/interviews/sessions/" + session).with(as(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questions[0].delivery").doesNotExist())
+                .andExpect(jsonPath("$.questions[0].score").value(7));
+        mockMvc.perform(get("/api/interviews/sessions/" + session).with(as(two))).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void theDeliveryTrendSumsUpFinishedInterviewsOldestFirstAndBelongsToTheLearner() throws Exception {
+        // Interview one: two clear spoken answers (150 wpm over 60 s, 100 wpm over 20 s), a noisy one, a typed one, one with nothing.
+        long first = start(one);
+        List<Long> ids = questionIds(one, first);
+        answerWith(one, first, ids.get(0), "{\"mode\":\"VOICE\",\"thinkingSeconds\":4,\"speakingSeconds\":60,\"wordsPerMinute\":150,"
+                + "\"longPauses\":2,\"longestPauseSeconds\":3,\"audioClear\":true}", 200);
+        answerWith(one, first, ids.get(1), "{\"mode\":\"VOICE\",\"thinkingSeconds\":8,\"speakingSeconds\":20,\"wordsPerMinute\":100,"
+                + "\"longPauses\":0,\"longestPauseSeconds\":0.8,\"audioClear\":true}", 200);
+        answerWith(one, first, ids.get(2), "{\"mode\":\"VOICE\",\"thinkingSeconds\":6,\"audioClear\":false}", 200);
+        answerWith(one, first, ids.get(3), "{\"mode\":\"TYPED\",\"thinkingSeconds\":12}", 200);
+        answer(one, first, ids.get(4), ANSWER, 200);
+
+        // An unfinished interview has no place in the trend.
+        mockMvc.perform(get("/api/interviews/delivery-trend").with(as(one)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(post("/api/interviews/sessions/" + first + "/complete").with(csrf()).with(as(one))).andExpect(status().isOk());
+
+        // Interview two: one clear spoken answer, the rest without any delivery.
+        long second = start(one);
+        List<Long> more = questionIds(one, second);
+        answerWith(one, second, more.get(0), "{\"mode\":\"VOICE\",\"thinkingSeconds\":2,\"speakingSeconds\":30,\"wordsPerMinute\":180,"
+                + "\"longPauses\":1,\"longestPauseSeconds\":1.7,\"audioClear\":true}", 200);
+        for (long id : more.subList(1, more.size())) {
+            answer(one, second, id, ANSWER, 200);
+        }
+        mockMvc.perform(post("/api/interviews/sessions/" + second + "/complete").with(csrf()).with(as(one))).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/interviews/delivery-trend").with(as(one)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].sessionId").value(first))
+                // (150 x 60 + 100 x 20) / 80 seconds, so a long answer counts for more than a short one.
+                .andExpect(jsonPath("$[0].wordsPerMinute").value(138))
+                .andExpect(jsonPath("$[0].thinkingSeconds").value(8))
+                .andExpect(jsonPath("$[0].longPausesPerAnswer").value(1.0))
+                .andExpect(jsonPath("$[0].clearSpokenAnswers").value(2))
+                .andExpect(jsonPath("$[0].answers").value(4))
+                .andExpect(jsonPath("$[1].sessionId").value(second))
+                .andExpect(jsonPath("$[1].wordsPerMinute").value(180))
+                .andExpect(jsonPath("$[1].thinkingSeconds").value(2))
+                .andExpect(jsonPath("$[1].longPausesPerAnswer").value(1.0))
+                .andExpect(jsonPath("$[1].answers").value(1));
+
+        // Someone else sees none of it.
+        mockMvc.perform(get("/api/interviews/delivery-trend").with(as(two)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test

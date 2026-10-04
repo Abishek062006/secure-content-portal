@@ -93,6 +93,17 @@ public class MockInterviewService {
     public record Quota(long used, int limit, int voiceUsed, int voiceLimit) {
     }
 
+    /**
+     * One finished interview's delivery in a line, for comparing with the learner's earlier ones. Pace and thinking time are
+     * averages over the answers that have them; null when none did.
+     */
+    public record DeliveryPoint(Long sessionId, Instant createdAt, Integer wordsPerMinute, Integer thinkingSeconds,
+                                Double longPausesPerAnswer, int clearSpokenAnswers, int answers) {
+    }
+
+    /** How many past interviews the delivery trend looks back over. */
+    static final int TREND_SESSIONS = 8;
+
     // ---- Starting -----------------------------------------------------------------------------------------------------
 
     public MockInterviewSession start(Long userId, StartRequest request) {
@@ -246,6 +257,23 @@ public class MockInterviewService {
         });
     }
 
+    /** The delivery of the learner's last few finished interviews, oldest first. Interviews with no measured delivery are left out. */
+    public List<DeliveryPoint> deliveryTrend(Long userId) {
+        List<DeliveryPoint> points = new ArrayList<>();
+        for (Object[] row : questions.deliveryBySession(userId, PageRequest.of(0, TREND_SESSIONS))) {
+            long paceTimesSeconds = ((Number) row[2]).longValue();
+            long speakingSeconds = ((Number) row[3]).longValue();
+            Integer pace = speakingSeconds > 0 ? (int) Math.round((double) paceTimesSeconds / speakingSeconds) : null;
+            Integer thinking = row[4] == null ? null : (int) Math.round(((Number) row[4]).doubleValue());
+            long pauses = ((Number) row[5]).longValue();
+            int clear = ((Number) row[6]).intValue();
+            points.add(new DeliveryPoint((Long) row[0], (Instant) row[1], pace, thinking,
+                    clear > 0 ? Math.round(10.0 * pauses / clear) / 10.0 : null, clear, ((Number) row[7]).intValue()));
+        }
+        java.util.Collections.reverse(points);
+        return points;
+    }
+
     public List<MockInterviewSession> history(Long userId) {
         return sessions.findByUserIdOrderByCreatedAtDescIdDesc(userId, PageRequest.of(0, HISTORY_LIMIT));
     }
@@ -253,6 +281,11 @@ public class MockInterviewService {
     // ---- Answering ----------------------------------------------------------------------------------------------------
 
     public AnswerResult submitAnswer(Long sessionId, Long userId, Long questionId, String rawAnswer) {
+        return submitAnswer(sessionId, userId, questionId, rawAnswer, null);
+    }
+
+    /** As above, with how the answer was given (timing measured by the browser, if it sent any). Never affects the score. */
+    public AnswerResult submitAnswer(Long sessionId, Long userId, Long questionId, String rawAnswer, AnswerDelivery delivery) {
         String answer = rawAnswer == null ? "" : rawAnswer.strip();
         if (answer.length() < MIN_ANSWER) {
             throw new InvalidInterviewException("Write a fuller answer (at least " + MIN_ANSWER + " characters) so it can be assessed.");
@@ -285,6 +318,9 @@ public class MockInterviewService {
                 throw new InterviewStateException("You've already answered this question.");
             }
             question.recordAnswer(answer, evaluation);
+            if (delivery != null) {
+                delivery.measured().ifPresent(question::recordDelivery);
+            }
             session.questionAnswered();
             questions.save(question);
 

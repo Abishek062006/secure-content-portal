@@ -5,6 +5,7 @@ import com.secureportal.api.dto.InterviewQuestionDto;
 import com.secureportal.api.dto.InterviewSessionDto;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.AdminNotALearnerException;
+import com.secureportal.interview.AnswerDelivery;
 import com.secureportal.interview.MockInterviewService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +22,8 @@ import java.util.List;
 @RequestMapping("/api/interviews")
 public class MockInterviewApiController {
 
-    public record AnswerRequest(Long questionId, String learnerAnswer) {
+    /** {@code delivery} is optional: how the answer was given, as the browser measured it. */
+    public record AnswerRequest(Long questionId, String learnerAnswer, AnswerDelivery delivery) {
     }
 
     public record AnswerResponse(InterviewQuestionDto question, InterviewSessionDto session, InterviewQuestionDto followUp) {
@@ -68,7 +70,7 @@ public class MockInterviewApiController {
     public AnswerResponse answer(@PathVariable Long sessionId, @RequestBody AnswerRequest request,
                                  @AuthenticationPrincipal AppPrincipal principal) {
         MockInterviewService.AnswerResult result = interviewService.submitAnswer(sessionId, principal.getUserId(), request.questionId(),
-                request.learnerAnswer());
+                request.learnerAnswer(), request.delivery());
         return new AnswerResponse(InterviewQuestionDto.of(result.question()), InterviewSessionDto.of(result.session()),
                 result.followUp() == null ? null : InterviewQuestionDto.of(result.followUp()));
     }
@@ -81,6 +83,12 @@ public class MockInterviewApiController {
                 : "Mock interview complete!";
         return new CompletionResponse(InterviewSessionDto.of(completion.session()),
                 completion.questions().stream().map(InterviewQuestionDto::of).toList(), completion.xpEarned(), message);
+    }
+
+    /** How the learner's speech timing has moved over their last few interviews, oldest first. */
+    @GetMapping("/delivery-trend")
+    public List<MockInterviewService.DeliveryPoint> deliveryTrend(@AuthenticationPrincipal AppPrincipal principal) {
+        return interviewService.deliveryTrend(principal.getUserId());
     }
 
     @GetMapping("/history")

@@ -2,6 +2,8 @@ package com.secureportal.interview;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -68,6 +70,29 @@ public class MockInterviewQuestion {
     @Column(name = "answered_at")
     private Instant answeredAt;
 
+    /** How the answer was given and, for a spoken one, its timing: all null when the browser reported nothing usable. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "answer_mode", length = 5)
+    private AnswerMode answerMode;
+
+    @Column(name = "thinking_seconds")
+    private Integer thinkingSeconds;
+
+    @Column(name = "speaking_seconds")
+    private Integer speakingSeconds;
+
+    @Column(name = "words_per_minute")
+    private Integer wordsPerMinute;
+
+    @Column(name = "long_pauses")
+    private Integer longPauses;
+
+    @Column(name = "longest_pause_ms")
+    private Integer longestPauseMs;
+
+    @Column(name = "audio_clear")
+    private Boolean audioClear;
+
     protected MockInterviewQuestion() {
         // for JPA
     }
@@ -111,6 +136,49 @@ public class MockInterviewQuestion {
         this.structureScore = evaluation.structure();
         this.communicationScore = evaluation.communication();
         this.answeredAt = Instant.now();
+    }
+
+    /** Keeps the delivery measured for this answer. Feedback only: it plays no part in the score. */
+    public void recordDelivery(AnswerDelivery.Measured delivery) {
+        this.answerMode = delivery.mode();
+        this.thinkingSeconds = delivery.thinkingSeconds();
+        this.speakingSeconds = delivery.speakingSeconds();
+        this.wordsPerMinute = delivery.wordsPerMinute();
+        this.longPauses = delivery.longPauses();
+        this.longestPauseMs = delivery.longestPauseMs();
+        this.audioClear = delivery.audioClear();
+    }
+
+    public boolean hasDelivery() {
+        return answerMode != null;
+    }
+
+    public AnswerMode getAnswerMode() {
+        return answerMode;
+    }
+
+    public Integer getThinkingSeconds() {
+        return thinkingSeconds;
+    }
+
+    public Integer getSpeakingSeconds() {
+        return speakingSeconds;
+    }
+
+    public Integer getWordsPerMinute() {
+        return wordsPerMinute;
+    }
+
+    public Integer getLongPauses() {
+        return longPauses;
+    }
+
+    public Integer getLongestPauseMs() {
+        return longestPauseMs;
+    }
+
+    public Boolean getAudioClear() {
+        return audioClear;
     }
 
     public Long getId() {
