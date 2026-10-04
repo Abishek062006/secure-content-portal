@@ -8,6 +8,8 @@ import './app.css';
 import './styles/progress.css';
 import './styles/hackathons.css';
 import './styles/interview.css';
+import './styles/network.css';
+import './styles/chat.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

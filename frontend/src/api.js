@@ -164,6 +164,26 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
+  // AI assistant
+  sendAiChatMessage: (message, history, attachmentName, attachmentText) =>
+    api.post('/api/ai/chat', { message, history, attachmentName, attachmentText }),
+
+  // Network and connections
+  getNetworkSuggestions: (q = '', page = 0, size = 20) => {
+    const params = new URLSearchParams({ page, size });
+    if (q) params.set('q', q);
+    return request(`/api/network/suggestions?${params}`);
+  },
+  sendConnectionRequest: (userId) => api.post(`/api/network/requests/${userId}`),
+  getReceivedRequests: () => request('/api/network/requests/received'),
+  getSentRequests: () => request('/api/network/requests/sent'),
+  acceptConnectionRequest: (id) => api.post(`/api/network/requests/${id}/accept`),
+  rejectConnectionRequest: (id) => api.post(`/api/network/requests/${id}/reject`),
+  withdrawConnectionRequest: (id) => api.del(`/api/network/requests/${id}`),
+  getConnections: () => request('/api/network/connections'),
+  removeConnection: (userId) => api.del(`/api/network/connections/${userId}`),
+  getConnectionsCount: () => request('/api/network/connections/count'),
+
   // Interview practice
   startInterview: (body) => api.post('/api/interviews/start', body),
   retryInterview: (id) => api.post(`/api/interviews/sessions/${id}/retry`),

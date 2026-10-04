@@ -7,7 +7,9 @@ import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import ComposerModal from '../components/ComposerModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import InvitationsCard from '../components/InvitationsCard';
 import PostCard from '../components/PostCard';
+import PeopleYouMayKnow from '../components/PeopleYouMayKnow';
 import PriceTag from '../components/PriceTag';
 import ProfileCard from '../components/ProfileCard';
 import { mediaUrl } from '../lib/media';
@@ -148,7 +150,11 @@ export default function Feed() {
         {hasMore && <button type="button" className="btn load-more" onClick={() => load(page + 1)}>Load more</button>}
       </main>
 
-      <div className="social-right"><RecommendedCourses courses={courses} /></div>
+      <div className="social-right">
+        {!user?.admin && <InvitationsCard onNetworkChanged={loadMe} />}
+        <RecommendedCourses courses={courses} />
+        {!user?.admin && <PeopleYouMayKnow onNetworkChanged={loadMe} />}
+      </div>
 
       <ComposerModal open={composer.open} mode={composer.mode} me={me} courses={courses.filter((c) => c.status !== 'DRAFT')}
                      hackathons={hackathons} presetCourseId={params.get('promote')} presetHackathonId={params.get('hackathon')} onClose={() => setComposer((c) => ({ ...c, open: false }))}

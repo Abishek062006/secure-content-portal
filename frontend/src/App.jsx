@@ -1,4 +1,5 @@
 import { Route, Routes, useMatch } from 'react-router-dom';
+import AiChatWidget from './components/AiChatWidget';
 import Nav from './components/Nav';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 import Home from './pages/Home';
@@ -20,6 +21,7 @@ import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
 import AttemptView from './pages/AttemptView';
 import MyLearning from './pages/MyLearning';
+import Network from './pages/Network';
 import Notifications from './pages/Notifications';
 import PaymentSuccess from './pages/PaymentSuccess';
 import Progress from './pages/Progress';
@@ -60,6 +62,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/my-learning" element={<MyLearning />} />
+          <Route path="/network" element={<Network />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/progress" element={<Progress />} />
@@ -96,6 +99,7 @@ export default function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+      {!inPlayer && <AiChatWidget />}
     </>
   );
 }

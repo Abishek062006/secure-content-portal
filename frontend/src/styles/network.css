@@ -1,0 +1,414 @@
+/* My Network page, the invitations card and "People you may know". */
+
+.network-container {
+  max-width: 1080px;
+  margin: 24px auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.network-header-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.network-title-group h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px 0;
+}
+
+.network-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.network-stat-box {
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-snap);
+}
+
+.network-stat-box:hover {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-mid);
+}
+
+.network-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 980px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-mid);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s var(--ease-snap);
+}
+
+.tab-btn:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+
+.tab-btn.active {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  border-color: var(--accent-bright);
+  font-weight: 600;
+}
+
+.network-search-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.network-search-bar .search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--ink-mid);
+}
+
+.network-search-bar input {
+  width: 100%;
+  padding: 12px 16px 12px 42px;
+  border-radius: 980px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.network-search-bar input:focus {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: var(--ink-mid);
+  cursor: pointer;
+}
+
+.network-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.network-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  box-shadow: var(--shadow-xs);
+  transition: all 0.2s var(--ease-snap);
+}
+
+.network-card:hover {
+  border-color: var(--accent-bright);
+  box-shadow: var(--shadow-sm);
+}
+
+.network-user-name {
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.network-user-name:hover {
+  color: var(--accent-deep);
+}
+
+.network-user-role {
+  font-size: 0.78rem;
+  color: var(--ink-mid);
+}
+
+.mutual-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.73rem;
+  color: var(--ink-mid);
+  background: var(--surface-alt);
+  padding: 3px 8px;
+  border-radius: 980px;
+  margin-top: 4px;
+}
+
+.network-card-actions {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.badge-connected {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  padding: 6px 12px;
+  border-radius: 980px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.request-row-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.request-row-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.request-user-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.request-user-name:hover {
+  color: var(--accent-deep);
+}
+
+.request-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-state-card {
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  padding: 40px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-icon {
+  color: var(--ink-mid);
+  opacity: 0.6;
+}
+
+.people-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.people-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.people-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.people-item-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.people-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.people-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.people-headline {
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.people-mutual {
+  font-size: 0.7rem;
+  color: var(--ink-mid);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.people-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.invitations-feed-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-xs);
+}
+
+.invitations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.invitations-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.invitations-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-deep);
+  text-decoration: none;
+}
+
+.invitation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.invitation-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.invitation-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.invitation-sub {
+  font-size: 0.76rem;
+  margin: 0;
+}
+
+.invitation-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The stat boxes are buttons now, so they can be reached and used from the keyboard. */
+button.network-stat-box {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.network-stat-box:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
