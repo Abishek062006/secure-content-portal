@@ -32,7 +32,8 @@ public class NotificationService {
             NotificationCategory.COMMUNITY,
             NotificationCategory.ANNOUNCEMENT,
             NotificationCategory.ACHIEVEMENT,
-            NotificationCategory.SECURITY
+            NotificationCategory.SECURITY,
+            NotificationCategory.CONNECTION
     );
 
     private final NotificationRepository notificationRepository;

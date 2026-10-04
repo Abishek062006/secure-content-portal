@@ -209,6 +209,26 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.network.ConnectionNotFoundException.class)
+    public ResponseEntity<ApiError> handleConnectionNotFound(com.secureportal.network.ConnectionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.network.InvalidConnectionException.class)
+    public ResponseEntity<ApiError> handleInvalidConnection(com.secureportal.network.InvalidConnectionException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.network.ConnectionConflictException.class)
+    public ResponseEntity<ApiError> handleConnectionConflict(com.secureportal.network.ConnectionConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
+    }
+
+    @ExceptionHandler(com.secureportal.network.NetworkAccessException.class)
+    public ResponseEntity<ApiError> handleNetworkAccess(com.secureportal.network.NetworkAccessException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(new ApiError("That file is too large to upload."));

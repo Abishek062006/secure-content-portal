@@ -35,5 +35,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """)
     Page<User> search(@Param("search") String search, Pageable pageable);
 
+    /**
+     * Other members to connect with, by name only (never by email), one page at a time. {@code excludeRole} keeps admins out, since
+     * they run the platform rather than take part in the network. Pass "" rather than null to list everyone.
+     */
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.id <> :excludeId AND u.role <> :excludeRole
+              AND (:search = '' OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :search, '%')))
+            ORDER BY u.displayName, u.id
+            """)
+    Page<User> findPeople(@Param("excludeId") Long excludeId, @Param("excludeRole") Role excludeRole, @Param("search") String search,
+                          Pageable pageable);
+
     long countByRole(Role role);
 }
