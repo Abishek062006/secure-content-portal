@@ -6,6 +6,7 @@ import com.secureportal.api.dto.InterviewSessionDto;
 import com.secureportal.auth.AppPrincipal;
 import com.secureportal.course.AdminNotALearnerException;
 import com.secureportal.interview.AnswerDelivery;
+import com.secureportal.interview.SetupQuality;
 import com.secureportal.interview.MockInterviewService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,10 @@ public class MockInterviewApiController {
 
     /** {@code delivery} is optional: how the answer was given, as the browser measured it. */
     public record AnswerRequest(Long questionId, String learnerAnswer, AnswerDelivery delivery) {
+    }
+
+    /** {@code setupQuality} is optional: how the camera setup went, as the browser measured it. */
+    public record CompleteRequest(SetupQuality setupQuality) {
     }
 
     public record AnswerResponse(InterviewQuestionDto question, InterviewSessionDto session, InterviewQuestionDto followUp) {
@@ -76,8 +81,10 @@ public class MockInterviewApiController {
     }
 
     @PostMapping("/sessions/{sessionId}/complete")
-    public CompletionResponse complete(@PathVariable Long sessionId, @AuthenticationPrincipal AppPrincipal principal) {
-        MockInterviewService.Completion completion = interviewService.complete(sessionId, principal.getUserId());
+    public CompletionResponse complete(@PathVariable Long sessionId, @RequestBody(required = false) CompleteRequest request,
+                                       @AuthenticationPrincipal AppPrincipal principal) {
+        MockInterviewService.Completion completion = interviewService.complete(sessionId, principal.getUserId(),
+                request == null ? null : request.setupQuality());
         String message = completion.xpEarned() > 0
                 ? "Mock interview complete! Earned +" + completion.xpEarned() + " XP."
                 : "Mock interview complete!";

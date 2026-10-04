@@ -159,6 +159,12 @@ class MockInterviewFlowTest {
                 .andExpect(status().is(expectedStatus));
     }
 
+    private void completeWith(User who, long sessionId, String body) throws Exception {
+        mockMvc.perform(post("/api/interviews/sessions/" + sessionId + "/complete").contentType(MediaType.APPLICATION_JSON).content(body)
+                        .with(csrf()).with(as(who)))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void anInterviewRunsFromStartToFinishAndPaysItsXpOnce() throws Exception {
         long session = start(one);
@@ -389,6 +395,50 @@ class MockInterviewFlowTest {
         // Someone else sees none of it.
         mockMvc.perform(get("/api/interviews/delivery-trend").with(as(two)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void howTheCameraSetupWentIsKeptOnceAsFeedbackOnlyAndAdminsNeverSeeIt() throws Exception {
+        // Enough readings: kept, rounded, and never changes the score or the XP.
+        long session = start(one);
+        for (long id : questionIds(one, session)) {
+            answer(one, session, id, ANSWER, 200);
+        }
+        completeWith(one, session, "{\"setupQuality\":{\"faceVisiblePercent\":96.4,\"lightingGoodPercent\":87.6,\"samples\":240}}");
+        mockMvc.perform(get("/api/interviews/sessions/" + session).with(as(one)))
+                .andExpect(jsonPath("$.session.faceVisiblePercent").value(96))
+                .andExpect(jsonPath("$.session.lightingGoodPercent").value(88))
+                .andExpect(jsonPath("$.session.overallScore").value(70));
+
+        // Finishing again with different numbers doesn't rewrite what was kept.
+        completeWith(one, session, "{\"setupQuality\":{\"faceVisiblePercent\":10,\"lightingGoodPercent\":10,\"samples\":500}}");
+        mockMvc.perform(get("/api/interviews/sessions/" + session).with(as(one)))
+                .andExpect(jsonPath("$.session.faceVisiblePercent").value(96));
+
+        // Only the learner sees it.
+        mockMvc.perform(get("/api/admin/interviews/sessions/" + session).with(as(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.session.faceVisiblePercent").doesNotExist())
+                .andExpect(jsonPath("$.session.lightingGoodPercent").doesNotExist())
+                .andExpect(jsonPath("$.session.overallScore").value(70));
+
+        // Too few readings, or none sent at all, leave nothing behind.
+        long brief = start(one);
+        for (long id : questionIds(one, brief)) {
+            answer(one, brief, id, ANSWER, 200);
+        }
+        completeWith(one, brief, "{\"setupQuality\":{\"faceVisiblePercent\":100,\"lightingGoodPercent\":100,\"samples\":5}}");
+        mockMvc.perform(get("/api/interviews/sessions/" + brief).with(as(one)))
+                .andExpect(jsonPath("$.session.faceVisiblePercent").doesNotExist());
+
+        long plain = start(one);
+        for (long id : questionIds(one, plain)) {
+            answer(one, plain, id, ANSWER, 200);
+        }
+        mockMvc.perform(post("/api/interviews/sessions/" + plain + "/complete").with(csrf()).with(as(one))).andExpect(status().isOk());
+        mockMvc.perform(get("/api/interviews/sessions/" + plain).with(as(one)))
+                .andExpect(jsonPath("$.session.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.session.lightingGoodPercent").doesNotExist());
     }
 
     @Test

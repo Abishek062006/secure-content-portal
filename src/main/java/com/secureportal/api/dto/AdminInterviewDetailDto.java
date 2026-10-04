@@ -8,7 +8,7 @@ public record AdminInterviewDetailDto(InterviewSessionDto session, List<Intervie
                                       String candidateEmail) {
 
     public static AdminInterviewDetailDto of(MockInterviewService.AdminDetail d) {
-        return new AdminInterviewDetailDto(InterviewSessionDto.of(d.session()), d.questions().stream().map(InterviewQuestionDto::withoutDelivery).toList(),
+        return new AdminInterviewDetailDto(InterviewSessionDto.forAdmin(d.session()), d.questions().stream().map(InterviewQuestionDto::withoutDelivery).toList(),
                 d.candidateName(), d.candidateEmail());
     }
 }

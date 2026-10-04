@@ -86,6 +86,13 @@ public class MockInterviewSession {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    /** How well the camera setup worked, as measured by the learner's browser; null when the camera wasn't used. */
+    @Column(name = "face_visible_percent")
+    private Integer faceVisiblePercent;
+
+    @Column(name = "lighting_good_percent")
+    private Integer lightingGoodPercent;
+
     protected MockInterviewSession() {
         // for JPA
     }
@@ -143,6 +150,19 @@ public class MockInterviewSession {
 
     public void questionAnswered() {
         currentQuestionIndex++;
+    }
+
+    public void recordSetupQuality(SetupQuality.Measured quality) {
+        this.faceVisiblePercent = quality.faceVisiblePercent();
+        this.lightingGoodPercent = quality.lightingGoodPercent();
+    }
+
+    public Integer getFaceVisiblePercent() {
+        return faceVisiblePercent;
+    }
+
+    public Integer getLightingGoodPercent() {
+        return lightingGoodPercent;
     }
 
     public void complete(int score, String readiness, String summary, String topFix, int xp) {

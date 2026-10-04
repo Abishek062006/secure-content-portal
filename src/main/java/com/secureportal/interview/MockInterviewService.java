@@ -347,6 +347,11 @@ public class MockInterviewService {
 
     /** Finishes the interview and pays its XP, once. Asking again just returns the finished result. */
     public Completion complete(Long sessionId, Long userId) {
+        return complete(sessionId, userId, null);
+    }
+
+    /** As above, also keeping how the camera setup went (measured by the browser), the first time only. Never affects the score. */
+    public Completion complete(Long sessionId, Long userId, SetupQuality setupQuality) {
         return tx.execute(status -> {
             MockInterviewSession session = ownedSession(sessionId, userId);
             List<MockInterviewQuestion> all = questions.findBySessionIdOrderByQuestionIndexAsc(sessionId);
@@ -366,6 +371,9 @@ public class MockInterviewService {
             boolean paid = xp > 0 && gamification.award(userId, PointAction.MOCK_INTERVIEW_COMPLETE, xp,
                     "Completed AI mock interview: " + session.getStream() + " (" + percent + "%)", session.getStream(), sessionId.toString());
             session.complete(percent, readiness, summaryFor(readiness, session.getInterviewType()), topFixOf(all), paid ? xp : 0);
+            if (setupQuality != null) {
+                setupQuality.measured().ifPresent(session::recordSetupQuality);
+            }
             sessions.save(session);
             return new Completion(session, all, session.getXpEarned());
         });
