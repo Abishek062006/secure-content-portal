@@ -40,6 +40,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             new Rule(HttpMethod.POST, "/api/interviews/sessions/*/retry", "interview-start", 5),
             new Rule(HttpMethod.POST, "/api/interviews/sessions/*/answer", "interview-answer", 12),
             new Rule(HttpMethod.POST, "/api/interviews/sessions/*/complete", "interview-complete", 10),
+            // Every question to the assistant is an AI call.
+            new Rule(HttpMethod.POST, "/api/ai/chat", "ai-chat", 8),
             // Invitations and messages reach other people, so they are limited more tightly than ordinary use.
             new Rule(HttpMethod.POST, "/api/network/requests/*", "connect", 10),
             new Rule(HttpMethod.POST, "/api/messages/to/*", "message", 30),

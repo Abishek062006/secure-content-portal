@@ -204,6 +204,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError(ex.getMessage()));
     }
 
+    @ExceptionHandler(com.secureportal.ai.AiChatLimitException.class)
+    public ResponseEntity<ApiError> handleChatLimit(com.secureportal.ai.AiChatLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ApiError(ex.getMessage()));
+    }
+
     @ExceptionHandler(com.secureportal.interview.InterviewLimitException.class)
     public ResponseEntity<ApiError> handleInterviewLimit(com.secureportal.interview.InterviewLimitException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ApiError(ex.getMessage()));

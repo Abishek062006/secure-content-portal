@@ -13,6 +13,9 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
 
     List<Course> findByStatusOrderByCreatedAtDesc(CourseStatus status);
 
+    /** The newest published courses, for a short catalogue summary. */
+    List<Course> findTop6ByStatusOrderByCreatedAtDesc(CourseStatus status);
+
     @Query("SELECT DISTINCT c.category FROM Course c WHERE c.category IS NOT NULL AND c.category != ''")
     List<String> findDistinctCategories();
 
