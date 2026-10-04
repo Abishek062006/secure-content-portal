@@ -10,6 +10,7 @@
   h1 { font-size: 1.4rem; }
   h2 { font-size: 1.05rem; margin-top: 2rem; }
   a { color: #0b6b5f; }
+  li { margin: 0.6rem 0; }
   footer { margin-top: 3rem; font-size: 0.85rem; color: #7c9298; }
 </style>
 </head>
@@ -29,9 +30,20 @@
   <h2>Content you view</h2>
   <p>If you watch a video or view a PDF hosted on this portal, that activity may be logged (timestamp and item) so the portal's admin can see basic usage statistics. This log is visible only to admins of this portal.</p>
 
+  <h2>Mock interviews</h2>
+  <p>If you use interview practice, this is what happens with what you give it:</p>
+  <ul>
+    <li><strong>Stored on our server:</strong> your interview questions, your answers, and the AI's scores and feedback. For each answer we also keep a few timing figures your browser measured (how long you took to start and, for spoken answers, your speaking pace and long pauses). If you used the camera, we keep two percentages: how much of the interview your face was in frame and how much of it the lighting was good. These figures are feedback for you only. An admin reviewing an interview sees the questions, answers and scores, not these figures.</li>
+    <li><strong>Your resume (optional):</strong> only its text is kept, only you can see it, and it is deleted after 90 days or when you delete it. The text is sent to the AI service so it can pick out your skills and write your questions.</li>
+    <li><strong>The AI service:</strong> your answers, and your resume text if you used it, are sent to a third-party AI provider (Groq, by default) to write questions and score answers. Don't include anything you wouldn't want shared with it.</li>
+    <li><strong>Voice answers:</strong> a recording is sent to a speech-to-text service to be turned into words, then discarded. Only the text you submit is kept.</li>
+    <li><strong>Interview recordings (optional, off unless you turn them on):</strong> your camera and microphone record the whole interview into your browser's own storage on your device. The video is never uploaded to this portal. You can delete it at any time, and clearing your browser's site data removes it too.</li>
+    <li><strong>Camera setup checks:</strong> the lighting and face-in-frame checks run in your browser, and the pictures are never uploaded. To run them, your browser downloads a small face-detection program and model from public content networks (jsDelivr and Google), which can see your IP address, as any website you visit can.</li>
+  </ul>
+
   <h2>Contact</h2>
   <p>Questions about this policy can be sent to the email listed on the <a href="./index.html">project page</a>.</p>
 
-  <footer>Last updated: September 2026.</footer>
+  <footer>Last updated: October 2026.</footer>
 </body>
 </html>

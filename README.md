@@ -21,6 +21,7 @@ else below was chosen deliberately, not defaulted to.
 - [Tech stack, and why](#tech-stack-and-why)
 - [Architecture](#architecture)
 - [Running it locally](#running-it-locally)
+- [Interview recording, replay and delivery feedback](#interview-recording-replay-and-delivery-feedback)
 - [Environment variables](#environment-variables)
 - [Deployment](#deployment)
 - [Content protection — what's real, what's a deterrent](#content-protection--whats-real-what-a-deterrent)
@@ -122,13 +123,18 @@ else below was chosen deliberately, not defaulted to.
   browse and filter them, and registering earns the hackathon's XP once and opens the organiser's link. Everything an admin
   enters is validated (only `https://` links, enums for mode and status, length limits, sensible dates), registration closes when
   a hackathon is completed or its deadline passes, and create, edit and delete are audited. There is no sample data.
-- **AI mock interviews.** A learner picks a track (student or working professional), a stream and a difficulty and gets three
-  questions (written by the AI, or drawn from a built-in bank when it is unavailable), answers each for AI feedback and a score
-  from 1 to 10, then finishes for an overall readiness score and XP. An interview is private to its learner (someone else's looks
-  like it doesn't exist), a question is answered once, an interview completes once and pays once, the AI is never called while a
-  database transaction is open, learner text reaches the model as marked-off data, and a failed AI evaluation is reported as an
-  error instead of being replaced with invented feedback. Each learner is limited to 15 interviews a day and the interview
-  endpoints have the app's tightest request limits. Admins see usage analytics and can open any interview.
+- **AI mock interviews.** A learner chooses a technical or an HR interview, how many questions (3 to 10), the difficulty and one
+  of five animated 3D interviewers (each with their own look, voice and way of speaking, using the browser's own voices). A
+  technical interview is built from the learner's skills, a pasted job description, a course or their resume (the skills found in
+  the resume are shown, and the learner picks which to focus on); an HR interview draws behavioural questions on random topics.
+  Questions are written by the AI, or drawn from a built-in bank when it is unavailable. The learner answers each by typing or
+  speaking (speech-to-text) for AI feedback and a score from 1 to 10, then finishes for an overall readiness score, a "good at /
+  work on" report and score-based XP on the leaderboard. An interview is private to its learner (someone else's looks like it
+  doesn't exist), a question is answered once, an interview completes once and pays once, the AI is never called while a database
+  transaction is open, learner text reaches the model as marked-off data, and a failed AI evaluation is reported as an error
+  instead of being replaced with invented feedback. Each learner is limited to 15 interviews a day. Admins see usage analytics
+  and can open any interview. Optional recording, replay and delivery feedback are described
+  [below](#interview-recording-replay-and-delivery-feedback).
 - **My learning and certificates.** "My learning" lists enrolled courses with progress and a Continue button.
   A certificate is earned by completing every lesson and passing every graded assessment (quizzes are practice
   and never required). It is issued once, rendered as a PDF on the server, and carries an ID that anyone can
@@ -348,6 +354,11 @@ On real S3 the bucket needs a CORS rule that allows `PUT` from your site and exp
   is passed. Admins are never locked out, so they can preview everything.
 - **Results** for admins: attempts, learners, average score and pass rate per assessment, plus the questions
   learners miss most.
+- **Question types.** Besides multiple choice, a question can be *fill in the code* (one blank, marked `____`) or *predict
+  the output*. For those the admin chooses per question whether learners type the answer or pick from the options. A typed
+  answer is right if it matches the correct option or one of the extra accepted answers, ignoring spacing and quote style (code
+  is case-sensitive, output is not); no code is ever executed. A typed question never sends its options or the answer to the
+  browser until the attempt is revealed. The AI generator can write these too ("Question styles": mixed, code only, choice only).
 
 ### AI question generation
 
@@ -366,6 +377,81 @@ Rate limits (HTTP 429) are retried automatically. A CSV import needs the columns
 option1, option2, option3, option4, correct` (correct is 1-4 or A-D) and an optional `explanation`; the
 question bank page offers a template.
 
+## Interview recording, replay and delivery feedback
+
+An optional extra on interview practice. Off unless the learner turns it on, and the video never leaves their device.
+
+### What it does
+
+- **Record and replay.** With "Record this interview on my device" on, the camera and microphone record the whole interview into
+  the browser's IndexedDB, in short chunks so a closed tab loses little. The latest five recordings are kept per learner (and a
+  different user of the same browser never sees them). A replay page has a working seek bar, speed control, a chapter for each
+  question, captions and the answers as text; every recording can be deleted, and a storage manager shows the space used, whether
+  the browser has agreed to keep the data, and offers "Delete all".
+- **Setup check.** Before the first question the camera opens for a live check: lighting (good, dark, bright, or a bright window
+  behind), how the face sits in the frame (far, close, off to one side, cut off, high, low), and a microphone level meter. The
+  same camera stream then becomes the recording, so there is one permission prompt. During the interview a quiet note appears
+  only after a sustained problem. Face detection is MediaPipe's small detector, in the browser.
+- **Delivery feedback.** For every answer the browser measures the time before starting and, for spoken answers, the speaking
+  pace (words per minute, over speaking time only) and long pauses (1.5 s or more), from the microphone's loudness. The report
+  shows each with a plain note, how they compare with the learner's earlier interviews, and how the camera setup went (the
+  share of the interview with the face in frame and with good lighting).
+
+### What is stored where
+
+| Data | Where | Who can see it |
+|---|---|---|
+| The recorded video | The learner's browser only (IndexedDB), never uploaded | The learner, on that device |
+| Pictures for the setup checks | Not stored; analysed in the browser | Nobody |
+| Per-answer timing (thinking time, pace, pauses) | Our database, columns on `mock_interview_questions` (`V40`) | The learner only; the admin interview view leaves it out |
+| Camera setup percentages | Our database, two columns on `mock_interview_sessions` (`V41`) | The learner only |
+| Spoken answers' audio | Sent once to the speech-to-text service, then discarded | Nobody; only the text is kept |
+
+The server never trusts what the browser reports: `AnswerDelivery` and `SetupQuality` keep only plausible values (a typed
+answer keeps only the thinking time, unclear audio keeps no pace or pauses, too few camera readings are dropped, and an
+impossible pace is discarded). None of it touches the score, XP or leaderboard. The privacy policy page describes all of this.
+
+### Related pieces
+
+- Migrations: `V39` (coding questions), `V40` (answer speech timing), `V41` (camera setup percentages).
+- API: `POST /api/interviews/sessions/{id}/answer` accepts an optional `delivery`; `POST .../complete` an optional
+  `setupQuality`; `GET /api/interviews/delivery-trend` returns the last few finished interviews' averages.
+- Optional frontend settings: `VITE_MEDIAPIPE_WASM_URL` (default: jsDelivr, pinned to the installed `@mediapipe/tasks-vision`
+  version) and `VITE_FACE_MODEL_URL` (default: Google's hosted `blaze_face_short_range.tflite`).
+
+### Demo walkthrough
+
+1. **Interview practice page** → turn on "Record this interview on my device" (it says the video stays in the browser).
+2. Choose an HR interview and an interviewer, then **Start**. The start prompt explains the recording; press **Check my setup**.
+3. Allow the camera. The **setup check** shows the mirrored preview and ticks for lighting, face position and the microphone;
+   say a few words to see the meter. Cover the camera or turn off a light to see the tips change.
+4. **Start recording and begin.** The interviewer greets and asks the first question; a red "Recording" pill and a small self-view
+   appear. Answer the first question **by voice** and the second **by typing**.
+5. Turn your head away or cover the camera for a few seconds to see the quiet "we can't see your face" note.
+6. **See your report.** Point out the score and "good at / work on", then **How you delivered your answers**: the pace, time
+   before starting and long pauses with their notes, the comparison with earlier interviews (after two or more), and **Your camera
+   setup**. Open "Question by question" to see the per-answer line (spoken or typed, pace, thinking time, pauses).
+7. **Watch recording** → the replay page. Click a chapter to jump to that question, change the speed, and expand "Your answer".
+8. Back on the practice page, the **Recordings on this device** panel shows the size, the storage note, and **Delete**.
+9. Mention what stays private: the video never leaves the device, admins can't see the timing or camera figures, and none of it
+   changes the score.
+
+### Manual checks on real devices
+
+These need a real camera and microphone, so they are not automated. Tick each on Chrome, Firefox, Safari (desktop) and a phone:
+
+- [ ] The setup check opens the camera once, the preview shows, and the lighting, framing and microphone tips respond.
+- [ ] Recording starts, the pill and self-view show, and finishing the interview saves a recording (size and length look right).
+- [ ] A voice answer works while recording (one microphone, no second permission prompt) and reports a sensible pace.
+- [ ] Replay: video plays, the seek bar works, chapters jump to the right question, speed changes.
+- [ ] Deleting one recording and "Delete all" remove them; closing the tab mid-interview leaves a "stopped early" recording.
+- [ ] A quiet room reports pace and pauses; a noisy room (a fan, music) reports "too noisy to measure".
+- [ ] With the network blocked for the face-detection files, setup still works with lighting only and says so.
+- [ ] The report's delivery and camera sections read correctly; no timing or camera figures appear in the admin interview view.
+
+Known browser differences: Safari records MP4 rather than WebM (no length repair is needed), may clear stored data after a week
+of not visiting, and phones are best-effort for recording.
+
 ## Environment variables
 
 All variables are listed with placeholders in [`.env.example`](.env.example). None are committed
@@ -382,7 +468,9 @@ with real values.
 
 The frontend has its own, much smaller set: `VITE_API_URL`, the backend's origin — see
 [`frontend/.env.development`](frontend/.env.development) and
-[`frontend/.env.production`](frontend/.env.production).
+[`frontend/.env.production`](frontend/.env.production). Two optional ones, `VITE_MEDIAPIPE_WASM_URL` and
+`VITE_FACE_MODEL_URL`, point the camera setup check at your own copies of the face-detection files instead of the public CDNs
+(see [below](#interview-recording-replay-and-delivery-feedback)).
 
 ## Deployment
 
@@ -523,6 +611,11 @@ of what actually stops a determined viewer versus what just discourages a casual
 mvn test
 ```
 
+The frontend's logic has its own fast unit tests (`cd frontend && npm test`, Vitest, no browser needed): speech-timing
+analysis from loudness readings, the camera lighting and framing rules, the delivery summaries and their plain-language notes,
+replay chapters, and the on-device recording storage (against an in-memory IndexedDB). The screens themselves are checked by
+hand; see [the manual checklist](#manual-checks-on-real-devices).
+
 | Suite | What it covers | Needs a real DB? |
 |---|---|---|
 | `FileValidatorTest` (13 cases) | Extension/size/magic-byte checks; a renamed text file or executable is rejected regardless of its extension or claimed `Content-Type` | No |
@@ -551,6 +644,17 @@ All five bonus items from the brief are implemented.
 - **No silent ticket refresh for long videos.** A video ticket is valid for 30 minutes; a video
   longer than that would need to be reloaded. Chosen over building refresh logic given the time
   available — see below.
+- **Interview recordings live in one browser.** They are saved on the learner's device only (IndexedDB), so they can't be
+  watched from another device, are lost if the browser's site data is cleared, and the browser may clear them when short of
+  space unless it agrees to keep them. The interviewer's synthesised voice isn't in the recording; replay shows it as captions.
+  Reloading mid-interview ends that recording (what was saved is kept).
+- **Delivery feedback is measurement, not judgement, and its thresholds are untuned.** Pace, thinking time, long pauses and the
+  camera setup percentages come from the microphone's loudness and simple camera rules, with ranges chosen as sensible
+  starting points. A noisy room is reported as "not clear enough to measure" instead of guessed. Nothing inferred about a
+  person's confidence or emotions is attempted, and none of it affects the score.
+- **The face check loads about 12 MB from public CDNs the first time** (jsDelivr and Google storage). If they can't be reached
+  the checks fall back to lighting only and recording still works. Self-hosting is a configuration change, at the cost of
+  adding those files to the deployment.
 - Assumed "basic view tracking" (a stated bonus) means a raw count is enough — no per-user dedup, no
   analytics dashboard.
 
