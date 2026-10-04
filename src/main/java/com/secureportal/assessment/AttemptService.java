@@ -6,6 +6,7 @@ import com.secureportal.quiz.Difficulty;
 import com.secureportal.quiz.Question;
 import com.secureportal.quiz.QuestionOption;
 import com.secureportal.quiz.QuestionRepository;
+import com.secureportal.quiz.TypedAnswer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,8 @@ public class AttemptService {
 
     /** Time allowed after the clock hits zero, for the auto-submit request to arrive. */
     static final Duration GRACE = Duration.ofSeconds(5);
+
+    static final int MAX_TYPED_ANSWER = 1000;
 
     /** An attempt with everything needed to show it. */
     public record Detail(Attempt attempt, Assessment assessment, List<AttemptQuestion> items, Map<UUID, Question> questions) {
@@ -113,7 +116,11 @@ public class AttemptService {
         return detail(attempt, assessment);
     }
 
-    public Detail saveAnswer(UUID attemptId, UUID questionId, int displayedIndex, Long userId) {
+    /**
+     * Records one answer: {@code displayedIndex} for a question answered by picking, {@code typedAnswer} for one answered by typing.
+     * Sending the wrong kind for the question is refused, so a typed answer can't be smuggled in for an option question.
+     */
+    public Detail saveAnswer(UUID attemptId, UUID questionId, Integer displayedIndex, String typedAnswer, Long userId) {
         Attempt attempt = find(attemptId, userId, false);
         Assessment assessment = assessmentService.find(attempt.getAssessmentId());
         if (attempt.getStatus() != AttemptStatus.IN_PROGRESS) {
@@ -123,9 +130,6 @@ public class AttemptService {
             finalizeIfExpired(attempt, assessment);
             throw new AttemptClosedException("Time's up — your answers so far were submitted.");
         }
-        if (displayedIndex < 0 || displayedIndex > 3) {
-            throw new InvalidAssessmentException("Choose one of the 4 options.");
-        }
 
         List<AttemptQuestion> items = itemRepository.findByAttemptIdOrderByPositionAsc(attemptId);
         AttemptQuestion item = items.stream().filter(i -> i.getQuestionId().equals(questionId)).findFirst()
@@ -133,8 +137,22 @@ public class AttemptService {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new InvalidAssessmentException("That question no longer exists."));
 
-        int original = item.originalIndexOf(displayedIndex);
-        item.answer(original, original == correctIndex(question));
+        if (question.isTyped()) {
+            String typed = typedAnswer == null ? "" : typedAnswer.strip();
+            if (typed.isEmpty()) {
+                throw new InvalidAssessmentException("Type your answer.");
+            }
+            if (typed.length() > MAX_TYPED_ANSWER) {
+                throw new InvalidAssessmentException("Keep your answer under " + MAX_TYPED_ANSWER + " characters.");
+            }
+            item.answerTyped(typed, TypedAnswer.matches(question, typed));
+        } else {
+            if (displayedIndex == null || displayedIndex < 0 || displayedIndex > 3) {
+                throw new InvalidAssessmentException("Choose one of the 4 options.");
+            }
+            int original = item.originalIndexOf(displayedIndex);
+            item.answer(original, original == correctIndex(question));
+        }
         itemRepository.save(item);
         return detail(attempt, assessment);
     }
@@ -194,8 +212,11 @@ public class AttemptService {
         int correct = 0;
         for (AttemptQuestion item : items) {
             Question question = questions.get(item.getQuestionId());
-            boolean right = question != null && item.getSelectedIndex() != null
-                    && item.getSelectedIndex() == correctIndex(question);
+            // Graded on how it was answered, so an admin switching a question's options on or off mid-attempt can't turn a
+            // learner's saved answer into a wrong one.
+            boolean right = question != null && (item.getTypedAnswer() != null
+                    ? TypedAnswer.matches(question, item.getTypedAnswer())
+                    : item.getSelectedIndex() != null && item.getSelectedIndex() == correctIndex(question));
             item.mark(right);
             if (right) {
                 correct++;

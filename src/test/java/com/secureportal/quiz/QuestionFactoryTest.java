@@ -71,4 +71,48 @@ class QuestionFactoryTest {
                 .isInstanceOf(InvalidQuestionException.class)
                 .hasMessageContaining(message);
     }
+
+    @Test
+    void multipleChoiceIgnoresAnyCodeFieldsSentWithIt() {
+        QuestionFactory.Style style = QuestionFactory.style("MULTIPLE_CHOICE", "print(1)", false, List.of("x"));
+
+        assertThat(style.type()).isEqualTo(QuestionType.MULTIPLE_CHOICE);
+        assertThat(style.codeSnippet()).isNull();
+        assertThat(style.showOptions()).isTrue();
+        assertThat(style.acceptedAnswers()).isEmpty();
+    }
+
+    @Test
+    void aCodingQuestionKeepsItsCodeAndTidiesTheAcceptedAnswers() {
+        QuestionFactory.Style style = QuestionFactory.style("predict_output", "\r\n\nprint(2 + 2)  \n\n", false,
+                java.util.Arrays.asList(" 4 ", "4", "", null, "four"));
+
+        assertThat(style.type()).isEqualTo(QuestionType.PREDICT_OUTPUT);
+        assertThat(style.codeSnippet()).isEqualTo("print(2 + 2)");
+        assertThat(style.showOptions()).isFalse();
+        assertThat(style.acceptedAnswers()).containsExactly("4", "four");
+    }
+
+    @Test
+    void aFillTheCodeQuestionNeedsExactlyOneBlank() {
+        assertThat(QuestionFactory.style("FILL_CODE", "df = df.____()", false, null).type()).isEqualTo(QuestionType.FILL_CODE);
+
+        assertStyleRejected("FILL_CODE", "df = df.dropna()", "exactly one blank");
+        assertStyleRejected("FILL_CODE", "x = ____ + ____", "exactly one blank");
+    }
+
+    @Test
+    void codingQuestionsRejectMissingOrOversizedCodeAndUnknownTypes() {
+        assertStyleRejected("PREDICT_OUTPUT", "  ", "Add the code");
+        assertStyleRejected("PREDICT_OUTPUT", "x".repeat(4001), "4000 characters");
+        assertStyleRejected("ESSAY", "print(1)", "MULTIPLE_CHOICE, FILL_CODE or PREDICT_OUTPUT");
+        assertThatThrownBy(() -> QuestionFactory.style("PREDICT_OUTPUT", "print(1)", false, java.util.Collections.nCopies(11, "a")
+                .stream().map(a -> a + java.util.UUID.randomUUID()).toList()))
+                .isInstanceOf(InvalidQuestionException.class).hasMessageContaining("at most 10");
+    }
+
+    private static void assertStyleRejected(String type, String code, String message) {
+        assertThatThrownBy(() -> QuestionFactory.style(type, code, false, null))
+                .isInstanceOf(InvalidQuestionException.class).hasMessageContaining(message);
+    }
 }

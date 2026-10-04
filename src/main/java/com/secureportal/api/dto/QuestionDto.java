@@ -19,6 +19,10 @@ public record QuestionDto(
         String source,
         String grounding,
         boolean finalOnly,
+        String type,
+        String codeSnippet,
+        boolean showOptions,
+        List<String> acceptedAnswers,
         List<Option> options
 ) {
     public record Option(String text, boolean correct) {
@@ -38,6 +42,10 @@ public record QuestionDto(
                 question.getSource().name(),
                 question.getGrounding() == null ? null : question.getGrounding().name(),
                 question.isFinalOnly(),
+                question.getType().name(),
+                question.getCodeSnippet(),
+                question.isShowOptions(),
+                List.copyOf(question.getAcceptedAnswers()),
                 question.getOptions().stream().map(o -> new Option(o.getText(), o.isCorrect())).toList()
         );
     }

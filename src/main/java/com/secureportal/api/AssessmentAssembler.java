@@ -89,7 +89,7 @@ public class AssessmentAssembler {
         detail.items().stream().sorted(Comparator.comparingInt(AttemptQuestion::getPosition)).forEach(item -> {
             Question question = detail.questions().get(item.getQuestionId());
             if (question != null) {
-                questions.add(questionView(item, question, done || (practice && item.getSelectedIndex() != null)));
+                questions.add(questionView(item, question, done || (practice && (item.getSelectedIndex() != null || item.getTypedAnswer() != null))));
             }
         });
         return new AttemptDto(attempt.getId(), assessment.getId(), assessment.getCourseId(), assessment.getModuleId(),
@@ -100,17 +100,24 @@ public class AssessmentAssembler {
     }
 
     private QuestionView questionView(AttemptQuestion item, Question question, boolean reveal) {
+        boolean typed = question.isTyped();
         List<String> options = new ArrayList<>();
-        for (int i = 0; i < 4; i++) {
-            options.add(question.getOptions().get(item.originalIndexOf(i)).getText());
+        if (!typed) {
+            for (int i = 0; i < 4; i++) {
+                options.add(question.getOptions().get(item.originalIndexOf(i)).getText());
+            }
         }
-        Integer selected = item.getSelectedIndex() == null ? null : item.displayedIndexOf(item.getSelectedIndex());
+        Integer selected = item.getSelectedIndex() == null || typed ? null : item.displayedIndexOf(item.getSelectedIndex());
+        String type = question.getType().name();
         if (!reveal) {
             return new QuestionView(question.getId(), question.getText(), question.getDifficulty().name(), options,
-                    selected, null, null, null, null, null);
+                    selected, null, null, null, null, null, type, question.getCodeSnippet(), typed, item.getTypedAnswer(), null);
         }
+        Integer correctIndex = typed ? null : item.displayedIndexOf(AttemptService.correctIndex(question));
+        String correctAnswer = typed ? question.expectedAnswers().get(0) : null;
         return new QuestionView(question.getId(), question.getText(), question.getDifficulty().name(), options, selected,
-                Boolean.TRUE.equals(item.getCorrect()), item.displayedIndexOf(AttemptService.correctIndex(question)),
-                question.getExplanation(), question.getLessonId(), question.getSourceSeconds());
+                Boolean.TRUE.equals(item.getCorrect()), correctIndex,
+                question.getExplanation(), question.getLessonId(), question.getSourceSeconds(),
+                type, question.getCodeSnippet(), typed, item.getTypedAnswer(), correctAnswer);
     }
 }

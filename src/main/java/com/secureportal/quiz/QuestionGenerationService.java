@@ -19,8 +19,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Turns a lesson's transcript into draft multiple-choice questions. Model
- * output is never trusted: every question goes through {@link QuestionFactory}
+ * Turns a lesson's transcript into draft questions: multiple choice, and for lectures that teach code, fill-the-code and
+ * predict-the-output ones. Model output is never trusted: every question goes through {@link QuestionFactory}
  * (options are shuffled there, since models tend to put the right answer
  * first) and is saved as DRAFT for an admin to review before any learner sees it.
  */
@@ -33,7 +33,7 @@ public class QuestionGenerationService {
     private static final Logger log = LoggerFactory.getLogger(QuestionGenerationService.class);
 
     private static final String SYSTEM_PROMPT =
-            "You write multiple-choice quiz questions for a training course from a lecture transcript. "
+            "You write quiz questions for a training course from a lecture transcript. "
                     + "Respond with a single JSON object and nothing else.";
 
     private final LlmClient llmClient;
@@ -71,6 +71,12 @@ public class QuestionGenerationService {
      * {@code onProgress} how many have been made so far.
      */
     public List<Question> generate(UUID lessonId, int count, Difficulty only, boolean finalOnly, java.util.function.IntConsumer onProgress) {
+        return generate(lessonId, count, only, QuestionMix.MIXED, finalOnly, onProgress);
+    }
+
+    /** As above, with {@code mix} choosing which styles of question the model writes. */
+    public List<Question> generate(UUID lessonId, int count, Difficulty only, QuestionMix mix, boolean finalOnly,
+                                   java.util.function.IntConsumer onProgress) {
         Lesson lesson = structureService.findLesson(lessonId);
         List<TranscriptCue> cues = structureService.transcript(lesson);
         if (cues.isEmpty()) {
@@ -85,7 +91,7 @@ public class QuestionGenerationService {
 
         Set<String> seen = new HashSet<>();
         questionRepository.findByLessonIdOrderByCreatedAtAsc(lessonId)
-                .forEach(existing -> seen.add(existing.getText().toLowerCase(Locale.ROOT)));
+                .forEach(existing -> seen.add(identity(existing)));
 
         List<Question> accepted = new ArrayList<>();
         AiException lastFailure = null;
@@ -98,10 +104,10 @@ public class QuestionGenerationService {
                 for (int remaining = perChunk[i]; remaining > 0; remaining -= BATCH) {
                     int ask = Math.min(BATCH, remaining);
                     try {
-                        String reply = llmClient.complete(SYSTEM_PROMPT, userPrompt(ask, chunks.get(i), only, round));
+                        String reply = llmClient.complete(SYSTEM_PROMPT, userPrompt(ask, chunks.get(i), only, mix, round));
                         List<Question> fresh = new ArrayList<>();
                         for (Question question : parse(reply, lesson.getCourseId(), lessonId, lastSecond, only, finalOnly)) {
-                            if (accepted.size() + fresh.size() < count && seen.add(question.getText().toLowerCase(Locale.ROOT))) {
+                            if (accepted.size() + fresh.size() < count && seen.add(identity(question))) {
                                 fresh.add(question);
                             }
                         }
@@ -189,7 +195,32 @@ public class QuestionGenerationService {
         return perChunk;
     }
 
-    private String userPrompt(int count, String excerpt, Difficulty only, int round) {
+    /** What makes a question the same as another: its wording, and for a coding question its code too ("What does this print?" recurs). */
+    private static String identity(Question question) {
+        String code = question.getCodeSnippet() == null ? "" : "\n" + question.getCodeSnippet();
+        return (question.getText() + code).toLowerCase(Locale.ROOT);
+    }
+
+    private static String styleRules(QuestionMix mix) {
+        String coding = "A coding question has \"type\" FILL_CODE or PREDICT_OUTPUT and a \"code\" field holding a short, "
+                + "runnable snippet (at most 12 lines, real code, no markdown fences, \\n between lines).\n"
+                + "  - FILL_CODE: the snippet has exactly one blank written as ____ (four underscores). The question asks what code "
+                + "goes in the blank. The correct option is exactly what fills the blank, kept short.\n"
+                + "  - PREDICT_OUTPUT: the question asks what the snippet prints or returns. The correct option is the exact output.\n"
+                + "  - Every coding question still has 4 options, one correct; the wrong ones are realistic mistakes. Optionally add "
+                + "\"alsoAccept\": other ways to write the correct answer that would be equally right (an empty list if none).\n"
+                + "  - Only write code the lecture's own topic covers, and be sure the correct answer really is right for the code.\n";
+        return switch (mix) {
+            case CHOICE -> "- Every question has \"type\": \"MULTIPLE_CHOICE\" and no \"code\".\n";
+            case CODING -> "- Write coding questions: about half FILL_CODE and half PREDICT_OUTPUT. " + coding
+                    + "  - If the excerpt contains nothing about code, write MULTIPLE_CHOICE questions about its ideas instead.\n";
+            case MIXED -> "- Most questions have \"type\": \"MULTIPLE_CHOICE\" (no \"code\"). If the excerpt teaches programming, data "
+                    + "analysis or another kind of code, make about a third of the questions coding ones, split between the two kinds. "
+                    + coding;
+        };
+    }
+
+    private String userPrompt(int count, String excerpt, Difficulty only, QuestionMix mix, int round) {
         String difficultyRule = only == null
                 ? "- Mix difficulty: EASY (recall a stated fact), MEDIUM (understand or explain), HARD (apply or combine ideas). "
                 + "Aim for about 40% EASY, 40% MEDIUM, 20% HARD.\n"
@@ -199,10 +230,11 @@ public class QuestionGenerationService {
                     case MEDIUM -> "MEDIUM means understanding or explaining an idea, not just recalling it.";
                     case HARD -> "HARD means applying or combining ideas, for example predicting the result of an example.";
                 } + "\n";
-        return "Write exactly " + count + " multiple-choice questions that test understanding of the lecture excerpt below.\n"
+        return "Write exactly " + count + " quiz questions that test understanding of the lecture excerpt below.\n"
                 + "Rules:\n"
                 + "- Base every question only on the excerpt; never invent facts.\n"
                 + "- Give 4 options per question with exactly one correct; the wrong options must be plausible.\n"
+                + styleRules(mix)
                 + difficultyRule
                 + "- Tag each question's \"grounding\" as \"DIRECT\" if the excerpt states the answer outright — a fact, "
                 + "number, name or step the speaker actually says — or \"RELATED\" if answering it means connecting or "
@@ -213,8 +245,9 @@ public class QuestionGenerationService {
                 + (round > 0 ? "- Earlier attempts already covered the obvious points; look for less obvious details.\n" : "")
                 + "- \"timestampSeconds\" is the transcript time in seconds where the answer is discussed.\n"
                 + "- \"explanation\" is one sentence on why the answer is correct.\n"
-                + "Return JSON exactly like: {\"questions\":[{\"question\":\"...\",\"difficulty\":\"EASY\",\"grounding\":\"DIRECT\","
-                + "\"options\":[\"A\",\"B\",\"C\",\"D\"],\"correctIndex\":0,\"timestampSeconds\":123,\"explanation\":\"...\"}]}\n\n"
+                + "Return JSON exactly like: {\"questions\":[{\"type\":\"MULTIPLE_CHOICE\",\"question\":\"...\",\"difficulty\":\"EASY\","
+                + "\"grounding\":\"DIRECT\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"correctIndex\":0,\"timestampSeconds\":123,"
+                + "\"explanation\":\"...\"}]}. A coding question also has \"code\" and \"alsoAccept\" fields.\n\n"
                 + "Transcript excerpt (each line starts with its time in seconds):\n" + excerpt;
     }
 
@@ -244,11 +277,18 @@ public class QuestionGenerationService {
                     seconds = value;
                 }
             }
+            List<String> alsoAccept = new ArrayList<>();
+            if (node.path("alsoAccept").isArray()) {
+                node.path("alsoAccept").forEach(a -> alsoAccept.add(a.asText("")));
+            }
             try {
+                // The model's coding questions come out typed: the admin can turn the options on for any of them in review.
+                QuestionFactory.Style style = QuestionFactory.style(node.path("type").asText(""), node.path("code").asText(""),
+                        false, alsoAccept);
                 Question question = QuestionFactory.build(courseId, lessonId, QuestionSource.AI, QuestionStatus.DRAFT,
                         node.path("question").asText(""), node.path("difficulty").asText(""), options,
                         node.path("correctIndex").asInt(-1), node.path("explanation").asText(""), seconds, true,
-                        node.path("grounding").asText(""));
+                        node.path("grounding").asText(""), style);
                 if (only != null && question.getDifficulty() != only) {
                     continue;
                 }

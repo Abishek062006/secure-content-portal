@@ -13,9 +13,24 @@ const LEVELS = [
   { key: 'HARD', label: 'Hard', hint: 'All questions test applying ideas.' },
 ];
 
+const MIXES = [
+  { key: 'MIXED', label: 'Mixed', hint: 'Concept questions, plus fill-the-code and predict-the-output when the lecture teaches code.' },
+  { key: 'CODING', label: 'Code questions', hint: 'Fill-the-code and predict-the-output, as many as the lecture supports.' },
+  { key: 'CHOICE', label: 'Multiple choice only', hint: 'Concept questions with options, no code.' },
+];
+
 const TEMPLATE = 'question,difficulty,option1,option2,option3,option4,correct,explanation\n'
   + '"What does HMAC stand for?",easy,Hash-based Message Authentication Code,Hyper Media Access Control,'
   + 'High-speed Memory Access Cache,Host Machine Address Check,1,"It signs data with a secret key"\n';
+
+/** What the admin API takes for a question, from the form's values. */
+function questionBody(values) {
+  return {
+    text: values.text, difficulty: values.difficulty, explanation: values.explanation,
+    options: values.options, correctIndex: values.correctIndex,
+    type: values.type, codeSnippet: values.codeSnippet, showOptions: values.showOptions, acceptedAnswers: values.acceptedAnswers,
+  };
+}
 
 /** Where an admin builds a course's question bank: generate with AI, write or import questions, review and approve. */
 export default function QuestionBank() {
@@ -25,8 +40,9 @@ export default function QuestionBank() {
   const [lessonId, setLessonId] = useState('');
   const [count, setCount] = useState(10);
   const [level, setLevel] = useState(0);
+  const [mix, setMix] = useState('MIXED');
   const [finalOnly, setFinalOnly] = useState(false);
-  const [filters, setFilters] = useState({ lesson: '', difficulty: '', status: '', source: '', grounding: '' });
+  const [filters, setFilters] = useState({ lesson: '', difficulty: '', status: '', source: '', grounding: '', type: '' });
   const [adding, setAdding] = useState(false);
   const [job, setJob] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -56,7 +72,8 @@ export default function QuestionBank() {
     && (!filters.difficulty || q.difficulty === filters.difficulty)
     && (!filters.status || q.status === filters.status)
     && (!filters.source || q.source === filters.source)
-    && (!filters.grounding || q.grounding === filters.grounding));
+    && (!filters.grounding || q.grounding === filters.grounding)
+    && (!filters.type || q.type === filters.type));
   const drafts = visible.filter((q) => q.status === 'DRAFT');
 
   function replace(updated) {
@@ -80,11 +97,18 @@ export default function QuestionBank() {
 
   const actions = {
     edit: async (question, values) => {
-      const body = { text: values.text, difficulty: values.difficulty, explanation: values.explanation,
-        options: values.options, correctIndex: values.correctIndex };
-      replace(await api.put(`/api/admin/questions/${question.id}`, body));
+      replace(await api.put(`/api/admin/questions/${question.id}`, questionBody(values)));
       notify('Question updated.');
     },
+    // Switches a coding question between typed answers and picking from its options.
+    setShowOptions: (question, showOptions) => run(async () => {
+      replace(await api.put(`/api/admin/questions/${question.id}`, questionBody({
+        text: question.text, difficulty: question.difficulty, explanation: question.explanation || '',
+        options: question.options.map((o) => o.text), correctIndex: question.options.findIndex((o) => o.correct),
+        type: question.type, codeSnippet: question.codeSnippet, showOptions, acceptedAnswers: question.acceptedAnswers,
+      })));
+      notify(showOptions ? 'Learners will now pick from the options.' : 'Learners will now type the answer.');
+    }),
     setApproved: (question, approve) => run(async () => {
       replace(await api.post(`/api/admin/questions/${question.id}/${approve ? 'approve' : 'unapprove'}`));
     }),
@@ -131,7 +155,7 @@ export default function QuestionBank() {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      setJob(await api.post(`/api/admin/lessons/${lessonId}/questions/generate`, { count, difficulty: LEVELS[level].key, finalOnly }));
+      setJob(await api.post(`/api/admin/lessons/${lessonId}/questions/generate`, { count, difficulty: LEVELS[level].key, mix, finalOnly }));
     } catch (err) {
       setErrorMessage(err.message);
     }
@@ -232,6 +256,15 @@ export default function QuestionBank() {
               </p>
             </div>
             <div className="field">
+              <label>Question styles</label>
+              <div className="type-choice">
+                {MIXES.map((m) => (
+                  <label key={m.key}><input type="radio" name="mix" checked={mix === m.key} onChange={() => setMix(m.key)} />{m.label}</label>
+                ))}
+              </div>
+              <p className="field-hint">{MIXES.find((m) => m.key === mix).hint} Code questions start out as typed answers; you can show their options while reviewing.</p>
+            </div>
+            <div className="field">
               <label htmlFor="count">How many questions: <strong>{count}</strong></label>
               <div className="count-row">
                 <input id="count-range" type="range" min={1} max={100} value={count} aria-label="Number of questions"
@@ -281,10 +314,7 @@ export default function QuestionBank() {
               submitLabel="Add question"
               onCancel={() => setAdding(false)}
               onSubmit={async (values) => {
-                const created = await api.post(`/api/admin/lessons/${lessonId}/questions`, {
-                  text: values.text, difficulty: values.difficulty, explanation: values.explanation,
-                  options: values.options, correctIndex: values.correctIndex, finalOnly,
-                });
+                const created = await api.post(`/api/admin/lessons/${lessonId}/questions`, { ...questionBody(values), finalOnly });
                 setQuestions((prev) => [...prev, created]);
                 setAdding(false);
                 notify('Question added and approved.');
@@ -315,6 +345,12 @@ export default function QuestionBank() {
           <option value="AI">AI-generated</option>
           <option value="MANUAL">Written by hand</option>
           <option value="IMPORT">Imported</option>
+        </select>
+        <select aria-label="Filter by question type" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
+          <option value="">Any type</option>
+          <option value="MULTIPLE_CHOICE">Multiple choice</option>
+          <option value="FILL_CODE">Fill the code</option>
+          <option value="PREDICT_OUTPUT">Predict the output</option>
         </select>
         <select aria-label="Filter by transcript grounding" value={filters.grounding} onChange={(e) => setFilters({ ...filters, grounding: e.target.value })}>
           <option value="">Any grounding</option>

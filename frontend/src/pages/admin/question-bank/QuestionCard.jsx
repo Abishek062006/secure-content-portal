@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import CodeBlock from '../../../components/CodeBlock';
 import QuestionForm from './QuestionForm';
 
 const SOURCE_LABEL = { AI: 'AI-generated', MANUAL: 'Written by hand', IMPORT: 'Imported' };
 const GROUNDING_LABEL = { DIRECT: 'Direct from transcript', RELATED: 'Related to transcript' };
+const TYPE_LABEL = { FILL_CODE: 'Fill the code', PREDICT_OUTPUT: 'Predict the output' };
 const LETTERS = ['A', 'B', 'C', 'D'];
 
 function clock(seconds) {
@@ -29,12 +31,15 @@ export default function QuestionCard({ question, actions }) {
   }
 
   const approved = question.status === 'APPROVED';
+  const coding = question.type !== 'MULTIPLE_CHOICE';
+  const typed = coding && !question.showOptions;
   return (
     <article className="question-card">
       <header className="question-card-head">
         <div className="question-badges">
           <span className={`badge difficulty-${question.difficulty.toLowerCase()}`}>{question.difficulty}</span>
           <span className={`badge status-${approved ? 'published' : 'draft'}`}>{approved ? 'Approved' : 'Draft'}</span>
+          {coding && <span className="badge type-code">{TYPE_LABEL[question.type]}</span>}
           <span className="badge">{SOURCE_LABEL[question.source]}</span>
           {question.grounding && <span className={`badge grounding-${question.grounding.toLowerCase()}`}>{GROUNDING_LABEL[question.grounding]}</span>}
           {question.finalOnly && <span className="badge admin">Final assessment only</span>}
@@ -45,6 +50,13 @@ export default function QuestionCard({ question, actions }) {
       </header>
 
       <p className="question-text">{question.text}</p>
+      <CodeBlock code={question.codeSnippet} />
+      {coding && (
+        <p className="field-hint">
+          {typed ? 'Learners type the answer; the options stay hidden.' : 'Learners pick from the options.'}
+          {question.acceptedAnswers.length > 0 && ` Also accepted: ${question.acceptedAnswers.join(', ')}.`}
+        </p>
+      )}
       <ol className="question-options">
         {question.options.map((option, i) => (
           <li key={LETTERS[i]} className={option.correct ? 'correct' : ''}>
@@ -60,6 +72,11 @@ export default function QuestionCard({ question, actions }) {
         <button type="button" className={approved ? 'btn' : 'btn btn-primary'} onClick={() => actions.setApproved(question, !approved)}>
           {approved ? 'Move to drafts' : 'Approve'}
         </button>
+        {coding && (
+          <button type="button" className="btn" onClick={() => actions.setShowOptions(question, typed)}>
+            {typed ? 'Show options to learners' : 'Have learners type it'}
+          </button>
+        )}
         <button type="button" className="btn" onClick={() => actions.setScope(question, !question.finalOnly)}>
           {question.finalOnly ? 'Use in module quizzes' : 'Move to final only'}
         </button>

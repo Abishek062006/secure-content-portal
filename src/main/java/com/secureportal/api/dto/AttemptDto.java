@@ -27,7 +27,8 @@ public record AttemptDto(
     /**
      * Options are in this learner's own order; {@code selectedIndex}/{@code correctIndex} refer to that order.
      * {@code correct}, {@code correctIndex}, {@code explanation} and {@code lessonId}/{@code sourceSeconds} appear
-     * only once revealed.
+     * only once revealed. A coding question carries its {@code codeSnippet}; one answered by typing ({@code typed}) has no options,
+     * keeps the learner's text in {@code typedAnswer}, and shows the {@code correctAnswer} once revealed.
      */
     public record QuestionView(
             UUID id,
@@ -39,7 +40,12 @@ public record AttemptDto(
             Integer correctIndex,
             String explanation,
             UUID lessonId,
-            Integer sourceSeconds
+            Integer sourceSeconds,
+            String type,
+            String codeSnippet,
+            boolean typed,
+            String typedAnswer,
+            String correctAnswer
     ) {
     }
 }

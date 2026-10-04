@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,8 +40,10 @@ public class AssessmentApiController {
         this.notificationService = notificationService;
     }
 
+    /** Either {@code optionIndex} (a question answered by picking) or {@code typedAnswer} (one answered by typing). */
     public record AnswerRequest(@NotNull(message = "Send the question id") UUID questionId,
-                                @Min(value = 0, message = "Choose one of the 4 options") @Max(value = 3, message = "Choose one of the 4 options") int optionIndex) {
+                                @Min(value = 0, message = "Choose one of the 4 options") @Max(value = 3, message = "Choose one of the 4 options") Integer optionIndex,
+                                @Size(max = 1000, message = "Keep your answer under 1000 characters") String typedAnswer) {
     }
 
     /** Starts an attempt — or hands back the one already in progress, so a refresh never costs an attempt. */
@@ -69,7 +72,7 @@ public class AssessmentApiController {
     public AttemptDto answer(@PathVariable UUID attemptId, @Valid @RequestBody AnswerRequest request,
                              @AuthenticationPrincipal AppPrincipal principal) {
         return assembler.attempt(attemptService.saveAnswer(attemptId, request.questionId(), request.optionIndex(),
-                principal.getUserId()));
+                request.typedAnswer(), principal.getUserId()));
     }
 
     @PostMapping("/attempts/{attemptId}/submit")

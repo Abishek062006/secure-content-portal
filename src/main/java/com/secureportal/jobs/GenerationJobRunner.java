@@ -41,7 +41,7 @@ public class GenerationJobRunner {
 
         try {
             List<Question> made = generationService.generate(job.getLessonId(), job.getRequestedCount(), job.getDifficulty(),
-                    job.isFinalOnly(), produced -> {
+                    job.getQuestionMix(), job.isFinalOnly(), produced -> {
                         job.progress(produced);
                         jobRepository.save(job);
                     });

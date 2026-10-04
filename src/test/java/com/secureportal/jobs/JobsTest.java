@@ -46,12 +46,12 @@ class JobsTest {
     void aSuccessfulRunReportsProgressAndFinishes() {
         GenerationJob job = job(3);
         doAnswer(invocation -> {
-            IntConsumer progress = invocation.getArgument(4);
+            IntConsumer progress = invocation.getArgument(5);
             progress.accept(2);
             assertThat(job.getProduced()).isEqualTo(2);
             assertThat(job.getStatus()).isEqualTo(JobStatus.RUNNING);
             return List.of(mock(Question.class), mock(Question.class), mock(Question.class));
-        }).when(generation).generate(eq(lesson), eq(3), any(), anyBoolean(), any());
+        }).when(generation).generate(eq(lesson), eq(3), any(), any(), anyBoolean(), any());
 
         runner.run(job.getId());
 
@@ -61,9 +61,23 @@ class JobsTest {
     }
 
     @Test
+    void theJobHandsItsQuestionMixToTheGenerator() {
+        GenerationJob job = new GenerationJob(course, lesson, 1L, 4, null, com.secureportal.quiz.QuestionMix.CODING, false);
+        when(repository.findById(job.getId())).thenReturn(java.util.Optional.of(job));
+        when(generation.generate(eq(lesson), eq(4), any(), eq(com.secureportal.quiz.QuestionMix.CODING), anyBoolean(), any()))
+                .thenReturn(List.of(mock(Question.class), mock(Question.class), mock(Question.class), mock(Question.class)));
+
+        runner.run(job.getId());
+
+        assertThat(job.getStatus()).isEqualTo(JobStatus.DONE);
+        assertThat(new GenerationJob(course, lesson, 1L, 1, null, null, false).getQuestionMix())
+                .as("an unset mix means mixed").isEqualTo(com.secureportal.quiz.QuestionMix.MIXED);
+    }
+
+    @Test
     void makingFewerThanAskedFinishesWithAnExplanation() {
         GenerationJob job = job(50);
-        when(generation.generate(eq(lesson), eq(50), any(), anyBoolean(), any())).thenReturn(List.of(mock(Question.class)));
+        when(generation.generate(eq(lesson), eq(50), any(), any(), anyBoolean(), any())).thenReturn(List.of(mock(Question.class)));
 
         runner.run(job.getId());
 
@@ -74,13 +88,13 @@ class JobsTest {
     @Test
     void expectedAndUnexpectedFailuresBothEndTheJobAsFailedWithAUsefulMessage() {
         GenerationJob rateLimited = job(5);
-        when(generation.generate(eq(lesson), anyInt(), any(), anyBoolean(), any())).thenThrow(new AiException("The AI service answered HTTP 429"));
+        when(generation.generate(eq(lesson), anyInt(), any(), any(), anyBoolean(), any())).thenThrow(new AiException("The AI service answered HTTP 429"));
         runner.run(rateLimited.getId());
         assertThat(rateLimited.getStatus()).isEqualTo(JobStatus.FAILED);
         assertThat(rateLimited.getMessage()).contains("429");
 
         GenerationJob crashed = job(5);
-        when(generation.generate(eq(lesson), anyInt(), any(), anyBoolean(), any())).thenThrow(new IllegalStateException("boom: internal detail"));
+        when(generation.generate(eq(lesson), anyInt(), any(), any(), anyBoolean(), any())).thenThrow(new IllegalStateException("boom: internal detail"));
         runner.run(crashed.getId());
         assertThat(crashed.getStatus()).isEqualTo(JobStatus.FAILED);
         assertThat(crashed.getMessage()).doesNotContain("internal detail");
@@ -93,7 +107,7 @@ class JobsTest {
         runner.run(done.getId());
         runner.run(UUID.randomUUID());
 
-        verify(generation, never()).generate(any(), anyInt(), any(), anyBoolean(), any());
+        verify(generation, never()).generate(any(), anyInt(), any(), any(), anyBoolean(), any());
     }
 
     @Test

@@ -192,4 +192,33 @@ class QuestionGenerationServiceTest {
         assertThat(QuestionGenerationService.windows(cues, 500)).hasSizeLessThanOrEqualTo(100);
         assertThat(QuestionGenerationService.windows(cues.subList(0, 1), 5)).hasSize(1);
     }
+
+    @Test
+    void parsesCodingQuestionsAsTypedAndDropsBrokenOnes() {
+        String fill = "{\"type\":\"FILL_CODE\",\"question\":\"Which method drops rows with missing values?\",\"difficulty\":\"EASY\","
+                + "\"grounding\":\"DIRECT\",\"code\":\"df = df.____()\",\"options\":[\"dropna\",\"fillna\",\"drop\",\"isna\"],"
+                + "\"correctIndex\":0,\"alsoAccept\":[\"dropna()\"],\"timestampSeconds\":20,\"explanation\":\"dropna removes them.\"}";
+        String predict = "{\"type\":\"PREDICT_OUTPUT\",\"question\":\"What does this print?\",\"difficulty\":\"MEDIUM\","
+                + "\"code\":\"print(len([1, 2, 3]))\",\"options\":[\"3\",\"2\",\"4\",\"Error\"],\"correctIndex\":0,"
+                + "\"timestampSeconds\":40,\"explanation\":\"The list has three items.\"}";
+        String noBlank = "{\"type\":\"FILL_CODE\",\"question\":\"Missing the blank?\",\"difficulty\":\"EASY\","
+                + "\"code\":\"df = df.dropna()\",\"options\":[\"a\",\"b\",\"c\",\"d\"],\"correctIndex\":0}";
+        String reply = "{\"questions\":[" + fill + "," + predict + "," + noBlank + ","
+                + question("A plain concept?", "EASY", FOUR, 0, 10) + "]}";
+
+        List<Question> parsed = service.parse(reply, courseId, lessonId, 600);
+
+        assertThat(parsed).extracting(Question::getText)
+                .containsExactly("Which method drops rows with missing values?", "What does this print?", "A plain concept?");
+        Question first = parsed.get(0);
+        assertThat(first.getType()).isEqualTo(QuestionType.FILL_CODE);
+        assertThat(first.getCodeSnippet()).isEqualTo("df = df.____()");
+        assertThat(first.isTyped()).as("generated coding questions start out typed").isTrue();
+        assertThat(first.getAcceptedAnswers()).containsExactly("dropna()");
+        assertThat(first.expectedAnswers()).containsExactly("dropna", "dropna()");
+        assertThat(parsed.get(1).getType()).isEqualTo(QuestionType.PREDICT_OUTPUT);
+        assertThat(parsed.get(2).getType()).isEqualTo(QuestionType.MULTIPLE_CHOICE);
+        assertThat(parsed.get(2).isTyped()).isFalse();
+        assertThat(parsed.get(2).getCodeSnippet()).isNull();
+    }
 }

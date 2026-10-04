@@ -49,7 +49,7 @@ public class QuestionService {
         Lesson lesson = structureService.findLesson(lessonId);
         Question question = QuestionFactory.build(lesson.getCourseId(), lessonId, QuestionSource.MANUAL,
                 QuestionStatus.APPROVED, input.text(), input.difficulty(), input.options(), input.correctIndex(),
-                input.explanation(), null, false);
+                input.explanation(), null, false, null, input.style());
         question.setFinalOnly(finalOnly);
         return questionRepository.save(question);
     }
@@ -123,8 +123,8 @@ public class QuestionService {
         Question question = find(questionId);
         int correct = input.correctIndex();
         QuestionFactory.Checked checked = QuestionFactory.check(input.text(), input.difficulty(), input.options(),
-                correct, input.explanation(), false);
-        question.edit(checked.text(), checked.difficulty(), checked.explanation(), checked.options());
+                correct, input.explanation(), false, input.style());
+        question.edit(checked.text(), checked.difficulty(), checked.explanation(), checked.options(), checked.style());
         return question;
     }
 

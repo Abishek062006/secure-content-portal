@@ -34,6 +34,10 @@ public class AttemptQuestion {
     @Column(name = "selected_index")
     private Integer selectedIndex;
 
+    /** What the learner typed, for a question answered by typing (a coding question with its options hidden). */
+    @Column(name = "typed_answer", length = 1000)
+    private String typedAnswer;
+
     private Boolean correct;
 
     protected AttemptQuestion() {
@@ -49,6 +53,11 @@ public class AttemptQuestion {
 
     public void answer(int selectedIndex, boolean correct) {
         this.selectedIndex = selectedIndex;
+        this.correct = correct;
+    }
+
+    public void answerTyped(String typedAnswer, boolean correct) {
+        this.typedAnswer = typedAnswer;
         this.correct = correct;
     }
 
@@ -90,6 +99,10 @@ public class AttemptQuestion {
 
     public Integer getSelectedIndex() {
         return selectedIndex;
+    }
+
+    public String getTypedAnswer() {
+        return typedAnswer;
     }
 
     public Boolean getCorrect() {

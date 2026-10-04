@@ -427,6 +427,148 @@ class AssessmentFlowTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void adminCodingQuestionsAreValidatedAndKeepTheirTypeAndSettings() throws Exception {
+        Fixture f = fixture();
+        String url = "/api/admin/lessons/" + f.lesson1 + "/questions";
+
+        mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON)
+                        .content(codingQuestion("Fill the gap", "FILL_CODE", "df = df.____()", false, List.of("dropna()"), "dropna"))
+                        .with(csrf()).with(as(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("FILL_CODE"))
+                .andExpect(jsonPath("$.codeSnippet").value("df = df.____()"))
+                .andExpect(jsonPath("$.showOptions").value(false))
+                .andExpect(jsonPath("$.acceptedAnswers[0]").value("dropna()"));
+
+        // Multiple choice stays exactly as it was: no code, options always shown.
+        mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON)
+                        .content(codingQuestion("Plain", "MULTIPLE_CHOICE", "ignored()", false, List.of("ignored"), RIGHT))
+                        .with(csrf()).with(as(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("MULTIPLE_CHOICE"))
+                .andExpect(jsonPath("$.codeSnippet").doesNotExist())
+                .andExpect(jsonPath("$.showOptions").value(true))
+                .andExpect(jsonPath("$.acceptedAnswers.length()").value(0));
+
+        for (String bad : List.of(
+                codingQuestion("No blank", "FILL_CODE", "df = df.dropna()", false, List.of(), RIGHT),
+                codingQuestion("Two blanks", "FILL_CODE", "____ = ____", false, List.of(), RIGHT),
+                codingQuestion("No code", "PREDICT_OUTPUT", "  ", false, List.of(), RIGHT),
+                codingQuestion("Unknown type", "ESSAY", "print(1)", false, List.of(), RIGHT))) {
+            mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(bad).with(csrf()).with(as(admin)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        // Changing how learners answer is an ordinary edit.
+        String id = questionId(f, "Fill the gap");
+        mockMvc.perform(put("/api/admin/questions/" + id).contentType(MediaType.APPLICATION_JSON)
+                        .content(codingQuestion("Fill the gap", "FILL_CODE", "df = df.____()", true, List.of(), "dropna"))
+                        .with(csrf()).with(as(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.showOptions").value(true))
+                .andExpect(jsonPath("$.acceptedAnswers.length()").value(0));
+        mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON)
+                        .content(codingQuestion("By a learner", "FILL_CODE", "df = df.____()", false, List.of(), "dropna"))
+                        .with(csrf()).with(as(learner)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aTypedQuestionHidesItsOptionsAndIsGradedOnWhatTheLearnerTypes() throws Exception {
+        Fixture f = fixture();
+        deleteAllQuestions(f);
+        String url = "/api/admin/lessons/" + f.lesson1 + "/questions";
+        for (String body : List.of(
+                codingQuestion("Typed fill", "FILL_CODE", "df = df.____()", false, List.of("dropna()"), "dropna"),
+                codingQuestion("Typed output", "PREDICT_OUTPUT", "print(len([1, 2, 3]))", false, List.of(), "3"),
+                codingQuestion("Picked fill", "FILL_CODE", "df = df.____()", true, List.of(), "dropna"),
+                codingQuestion("Plain concept", "MULTIPLE_CHOICE", null, true, List.of(), RIGHT))) {
+            mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body).with(csrf()).with(as(admin)))
+                    .andExpect(status().isOk());
+        }
+        String assessment = saveModuleAssessment(f.module1, config("ASSESSMENT", "Code test", 4, 0, 0, 50, null, 2, false));
+        mockMvc.perform(post("/api/courses/" + f.course + "/enroll").with(csrf()).with(as(learner))).andExpect(status().isOk());
+        complete(f, f.lesson1);
+        complete(f, f.lesson2);
+
+        JsonNode attempt = json(mockMvc.perform(post("/api/assessments/" + assessment + "/attempts").with(csrf()).with(as(learner)))
+                .andExpect(status().isOk()).andReturn());
+        String attemptId = attempt.get("id").asText();
+        JsonNode typedFill = byText(attempt, "Typed fill");
+        JsonNode typedOutput = byText(attempt, "Typed output");
+        JsonNode pickedFill = byText(attempt, "Picked fill");
+        JsonNode plain = byText(attempt, "Plain concept");
+
+        // A typed question shows its code and nothing that gives the answer away.
+        assertThat(typedFill.get("typed").asBoolean()).isTrue();
+        assertThat(typedFill.get("options")).isEmpty();
+        assertThat(typedFill.get("codeSnippet").asText()).isEqualTo("df = df.____()");
+        assertThat(typedFill.path("correctAnswer").asText("")).isEmpty();
+        assertThat(typedFill.toString()).doesNotContain("dropna");
+        // A coding question with its options on is answered by picking, like any other.
+        assertThat(pickedFill.get("typed").asBoolean()).isFalse();
+        assertThat(pickedFill.get("options")).hasSize(4);
+        assertThat(pickedFill.get("codeSnippet").asText()).isEqualTo("df = df.____()");
+        assertThat(plain.path("codeSnippet").asText("")).isEmpty();
+
+        // Picking an option for a typed question, or typing for an option question, is refused.
+        answer(attemptId, typedFill, "{\"optionIndex\":0}").andExpect(status().isBadRequest());
+        answer(attemptId, pickedFill, "{\"typedAnswer\":\"dropna\"}").andExpect(status().isBadRequest());
+        answer(attemptId, typedFill, "{\"typedAnswer\":\"   \"}").andExpect(status().isBadRequest());
+
+        // Spacing, quotes and the extra accepted answer all count; a running attempt reveals nothing.
+        JsonNode running = json(answer(attemptId, typedFill, "{\"typedAnswer\":\" dropna ( ) \"}")
+                .andExpect(status().isOk()).andReturn());
+        assertThat(byText(running, "Typed fill").get("typedAnswer").asText()).isEqualTo("dropna ( )");
+        assertThat(byText(running, "Typed fill").path("correct").isMissingNode() || byText(running, "Typed fill").get("correct").isNull()).isTrue();
+        answer(attemptId, typedOutput, "{\"typedAnswer\":\"4\"}").andExpect(status().isOk());
+        answer(attemptId, pickedFill, "{\"optionIndex\":" + indexOf(pickedFill, "dropna") + "}").andExpect(status().isOk());
+        answer(attemptId, plain, "{\"optionIndex\":" + indexOf(plain, RIGHT) + "}").andExpect(status().isOk());
+
+        // Retyping replaces the earlier answer.
+        answer(attemptId, typedOutput, "{\"typedAnswer\":\"3\"}").andExpect(status().isOk());
+        answer(attemptId, typedOutput, "{\"typedAnswer\":\"4\"}").andExpect(status().isOk());
+
+        MvcResult done = mockMvc.perform(post("/api/attempts/" + attemptId + "/submit").with(csrf()).with(as(learner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.correctCount").value(3))
+                .andExpect(jsonPath("$.scorePercent").value(75))
+                .andReturn();
+        JsonNode reviewed = json(done);
+        assertThat(byText(reviewed, "Typed fill").get("correct").asBoolean()).isTrue();
+        assertThat(byText(reviewed, "Typed fill").get("correctAnswer").asText()).isEqualTo("dropna");
+        assertThat(byText(reviewed, "Typed output").get("correct").asBoolean()).isFalse();
+        assertThat(byText(reviewed, "Typed output").get("correctAnswer").asText()).isEqualTo("3");
+        assertThat(byText(reviewed, "Typed output").get("typedAnswer").asText()).isEqualTo("4");
+        assertThat(byText(reviewed, "Typed output").get("options")).isEmpty();
+        assertThat(byText(reviewed, "Picked fill").get("correct").asBoolean()).isTrue();
+    }
+
+    @Test
+    void aPracticeQuizMarksATypedAnswerAsSoonAsItIsGiven() throws Exception {
+        Fixture f = fixture();
+        deleteAllQuestions(f);
+        mockMvc.perform(post("/api/admin/lessons/" + f.lesson1 + "/questions").contentType(MediaType.APPLICATION_JSON)
+                        .content(codingQuestion("Typed output", "PREDICT_OUTPUT", "print('Hi'.upper())", false, List.of(), "HI"))
+                        .with(csrf()).with(as(admin)))
+                .andExpect(status().isOk());
+        String quiz = saveModuleAssessment(f.module1, config("QUIZ", "Practice", 1, 0, 0, null, null, null, false));
+        mockMvc.perform(post("/api/courses/" + f.course + "/enroll").with(csrf()).with(as(learner))).andExpect(status().isOk());
+        complete(f, f.lesson1);
+        complete(f, f.lesson2);
+
+        JsonNode attempt = json(mockMvc.perform(post("/api/assessments/" + quiz + "/attempts").with(csrf()).with(as(learner)))
+                .andExpect(status().isOk()).andReturn());
+        JsonNode question = attempt.get("questions").get(0);
+
+        answer(attempt.get("id").asText(), question, "{\"typedAnswer\":\"hi\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questions[0].correct").value(true))
+                .andExpect(jsonPath("$.questions[0].correctAnswer").value("HI"))
+                .andExpect(jsonPath("$.questions[0].explanation").exists());
+    }
+
     private static List<String> texts(JsonNode attempt) {
         List<String> texts = new ArrayList<>();
         attempt.get("questions").forEach(q -> texts.add(q.get("text").asText()));
@@ -460,6 +602,53 @@ class AssessmentFlowTest {
                             .with(csrf()).with(as(admin)))
                     .andExpect(status().isOk());
         }
+    }
+
+    private ResultActions answer(String attemptId, JsonNode question, String fields) throws Exception {
+        return mockMvc.perform(put("/api/attempts/" + attemptId + "/answers").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"questionId\":\"" + question.get("id").asText() + "\"," + fields.substring(1))
+                .with(csrf()).with(as(learner)));
+    }
+
+    private static JsonNode byText(JsonNode attempt, String text) {
+        for (JsonNode q : attempt.get("questions")) {
+            if (q.get("text").asText().equals(text)) {
+                return q;
+            }
+        }
+        throw new AssertionError("question not found: " + text);
+    }
+
+    private String questionId(Fixture f, String text) throws Exception {
+        for (JsonNode q : json(mockMvc.perform(get("/api/admin/courses/" + f.course + "/questions").with(as(admin))).andReturn())) {
+            if (q.get("text").asText().equals(text)) {
+                return q.get("id").asText();
+            }
+        }
+        throw new AssertionError("question not found: " + text);
+    }
+
+    private void deleteAllQuestions(Fixture f) throws Exception {
+        for (JsonNode q : json(mockMvc.perform(get("/api/admin/courses/" + f.course + "/questions").with(as(admin))).andReturn())) {
+            mockMvc.perform(delete("/api/admin/questions/" + q.get("id").asText()).with(csrf()).with(as(admin)))
+                    .andExpect(status().isNoContent());
+        }
+    }
+
+    /** A question as the admin form sends it: the right answer is always the first option. */
+    private String codingQuestion(String text, String type, String code, boolean showOptions, List<String> acceptedAnswers,
+                                  String correct) throws Exception {
+        java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("text", text);
+        body.put("difficulty", "EASY");
+        body.put("explanation", "Because.");
+        body.put("options", List.of(correct, "Wrong one", "Wrong two", "Wrong three"));
+        body.put("correctIndex", 0);
+        body.put("type", type);
+        body.put("codeSnippet", code);
+        body.put("showOptions", showOptions);
+        body.put("acceptedAnswers", acceptedAnswers);
+        return objectMapper.writeValueAsString(body);
     }
 
     private String saveModuleAssessment(String moduleId, String body) throws Exception {

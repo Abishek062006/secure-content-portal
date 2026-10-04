@@ -5,6 +5,7 @@ import com.secureportal.ai.AiProperties;
 import com.secureportal.course.CourseStructureService;
 import com.secureportal.course.Lesson;
 import com.secureportal.quiz.Difficulty;
+import com.secureportal.quiz.QuestionMix;
 import com.secureportal.quiz.QuestionGenerationException;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,10 @@ public class GenerationJobService {
 
     /** Problems the admin can fix right now are reported up front rather than as a job that fails a moment later. */
     public GenerationJob submit(UUID lessonId, int count, Difficulty difficulty, boolean finalOnly, Long userId) {
+        return submit(lessonId, count, difficulty, QuestionMix.MIXED, finalOnly, userId);
+    }
+
+    public GenerationJob submit(UUID lessonId, int count, Difficulty difficulty, QuestionMix mix, boolean finalOnly, Long userId) {
         Lesson lesson = structureService.findLesson(lessonId);
         if (structureService.transcript(lesson).isEmpty()) {
             throw new QuestionGenerationException("Upload a transcript (.vtt) for this lesson first — questions are generated from it.");
@@ -40,7 +45,7 @@ public class GenerationJobService {
         if (jobRepository.existsByLessonIdAndStatusIn(lessonId, List.of(JobStatus.QUEUED, JobStatus.RUNNING))) {
             throw new QuestionGenerationException("Questions are already being generated for this lesson. Wait for that to finish.");
         }
-        GenerationJob job = jobRepository.save(new GenerationJob(lesson.getCourseId(), lessonId, userId, count, difficulty, finalOnly));
+        GenerationJob job = jobRepository.save(new GenerationJob(lesson.getCourseId(), lessonId, userId, count, difficulty, mix, finalOnly));
         dispatcher.dispatch(job.getId());
         return job;
     }

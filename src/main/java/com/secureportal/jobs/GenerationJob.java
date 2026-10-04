@@ -1,6 +1,7 @@
 package com.secureportal.jobs;
 
 import com.secureportal.quiz.Difficulty;
+import com.secureportal.quiz.QuestionMix;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -34,6 +35,10 @@ public class GenerationJob {
     @Column(length = 8)
     private Difficulty difficulty;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "question_mix", nullable = false, length = 10)
+    private QuestionMix questionMix = QuestionMix.MIXED;
+
     @Column(name = "final_only", nullable = false)
     private boolean finalOnly;
 
@@ -61,11 +66,17 @@ public class GenerationJob {
     }
 
     public GenerationJob(UUID courseId, UUID lessonId, Long requestedBy, int requestedCount, Difficulty difficulty, boolean finalOnly) {
+        this(courseId, lessonId, requestedBy, requestedCount, difficulty, QuestionMix.MIXED, finalOnly);
+    }
+
+    public GenerationJob(UUID courseId, UUID lessonId, Long requestedBy, int requestedCount, Difficulty difficulty,
+                         QuestionMix questionMix, boolean finalOnly) {
         this.courseId = courseId;
         this.lessonId = lessonId;
         this.requestedBy = requestedBy;
         this.requestedCount = requestedCount;
         this.difficulty = difficulty;
+        this.questionMix = questionMix == null ? QuestionMix.MIXED : questionMix;
         this.finalOnly = finalOnly;
     }
 
@@ -117,6 +128,10 @@ public class GenerationJob {
 
     public Difficulty getDifficulty() {
         return difficulty;
+    }
+
+    public QuestionMix getQuestionMix() {
+        return questionMix;
     }
 
     public boolean isFinalOnly() {

@@ -13,6 +13,7 @@ import com.secureportal.quiz.ImportResult;
 import com.secureportal.quiz.Question;
 import com.secureportal.quiz.QuestionGenerationService;
 import com.secureportal.quiz.QuestionInput;
+import com.secureportal.quiz.QuestionMix;
 import com.secureportal.quiz.QuestionService;
 import com.secureportal.quiz.QuestionStatus;
 import jakarta.validation.Valid;
@@ -62,7 +63,7 @@ public class AdminQuestionApiController {
         this.auditService = auditService;
     }
 
-    public record GenerateRequest(@Min(1) @Max(100) Integer count, Difficulty difficulty, boolean finalOnly) {
+    public record GenerateRequest(@Min(1) @Max(100) Integer count, Difficulty difficulty, QuestionMix mix, boolean finalOnly) {
     }
 
     public record QuestionRequest(
@@ -72,10 +73,16 @@ public class AdminQuestionApiController {
             @NotNull(message = "A question needs exactly 4 options") @Size(min = 4, max = 4, message = "A question needs exactly 4 options")
             List<@NotBlank(message = "Options can't be empty") @Size(max = 500, message = "Each option must be 500 characters or fewer") String> options,
             @Min(value = 0, message = "Choose the correct option") @Max(value = 3, message = "Choose the correct option") int correctIndex,
-            boolean finalOnly
+            boolean finalOnly,
+            @Size(max = 16, message = "Unknown question type") String type,
+            @Size(max = 4000, message = "The code must be 4000 characters or fewer") String codeSnippet,
+            Boolean showOptions,
+            @Size(max = 10, message = "List at most 10 extra accepted answers")
+            List<@Size(max = 500, message = "Each accepted answer must be 500 characters or fewer") String> acceptedAnswers
     ) {
         QuestionInput toInput() {
-            return new QuestionInput(text, difficulty.name(), options, correctIndex, explanation);
+            return new QuestionInput(text, difficulty.name(), options, correctIndex, explanation, type, codeSnippet,
+                    showOptions == null || showOptions, acceptedAnswers == null ? List.of() : acceptedAnswers);
         }
     }
 
@@ -96,7 +103,7 @@ public class AdminQuestionApiController {
         Lesson lesson = structureService.findLesson(lessonId);
         int count = request != null && request.count() != null ? request.count() : DEFAULT_COUNT;
         GenerationJob job = jobService.submit(lessonId, count, request == null ? null : request.difficulty(),
-                request != null && request.finalOnly(), principal.getUserId());
+                request == null ? QuestionMix.MIXED : request.mix(), request != null && request.finalOnly(), principal.getUserId());
         auditService.log(principal.getEmail(), "QUESTIONS_GENERATE", lesson.getCourseId(),
                 "requested " + count + " questions for \"" + lesson.getTitle() + "\"");
         return GenerationJobDto.of(job);
