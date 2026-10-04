@@ -139,6 +139,13 @@ export async function settleInterrupted(userId, activeSessionId = null) {
   })));
 }
 
+/** Deletes every recording this learner has on this device. */
+export async function deleteAllRecordings(userId) {
+  const mine = await listRecordings(userId);
+  await Promise.all(mine.map((r) => deleteRecording(r.sessionId)));
+  return mine.length;
+}
+
 /** Deletes a learner's oldest recordings beyond `keep`, never the one named by `protectedId` (the one being recorded). */
 export async function enforceLimit(userId, keep = KEEP_RECORDINGS, protectedId = null) {
   const mine = await listRecordings(userId);
@@ -158,6 +165,15 @@ export async function storageUsage(userId) {
     browserQuota = estimate?.quota ?? null;
   } catch { /* some browsers don't say */ }
   return { count: mine.length, appBytes, browserUsage, browserQuota };
+}
+
+/** Whether the browser has promised not to clear this site's data when it is short of space. False when it hasn't, or can't say. */
+export async function isPersisted() {
+  try {
+    return (await navigator.storage?.persisted?.()) ?? false;
+  } catch {
+    return false;
+  }
 }
 
 /** Asks the browser not to clear the recordings when it is short of space. It may say no, and that's fine. */

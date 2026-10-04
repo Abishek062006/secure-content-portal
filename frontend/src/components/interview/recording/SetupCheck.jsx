@@ -77,7 +77,8 @@ export default function SetupCheck({ stream }) {
       </ul>
       <p className="field-hint setup-check-note">
         Wear headphones if you can, so the interviewer's voice isn't picked up by your microphone. These checks run in your browser and the
-        picture never leaves your device.
+        picture never leaves your device. The first time, your browser downloads a small face-detection program from a public content
+        network (jsDelivr and Google).
       </p>
     </div>
   );

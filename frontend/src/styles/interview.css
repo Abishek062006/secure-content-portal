@@ -304,6 +304,10 @@ button.keyword-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--a
 @media (max-width: 640px) {
   .selfview, .selfview-show { right: auto; left: 12px; bottom: 12px; }
   .selfview { width: 104px; }
+  /* A long interview title needs the whole row, so the buttons drop below it. */
+  .recordings-list li { flex-direction: column; align-items: stretch; }
+  .recordings-actions { justify-content: flex-end; }
+  .recordings-main strong { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rec-pill i { animation: none; }
@@ -387,3 +391,9 @@ button.keyword-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--a
   .setup-check { grid-template-columns: 1fr; }
   .setup-preview { max-width: 320px; }
 }
+
+/* ---------- Managing recordings on this device ---------- */
+.recordings-storage { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 10px; }
+.recordings-storage .link-button { font-size: inherit; }
+.recordings-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+.recordings-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
