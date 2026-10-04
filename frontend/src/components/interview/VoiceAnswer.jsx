@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import Icon from '../Icon';
+import { SpeechTimer } from '../../lib/speechTiming';
 
 const CONSENT_KEY = 'gn-voice-consent';
 const MAX_SECONDS = 170;
@@ -20,7 +21,7 @@ const clock = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s 
  * Record an answer instead of typing it. The transcript is put in the answer box for the learner to read and edit; the recording
  * itself is sent once for transcription and never kept.
  */
-export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRecordingChange }) {
+export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRecordingChange, getSharedAudio, onTiming }) {
   const [state, setState] = useState('idle'); // idle | consent | recording | transcribing
   const [seconds, setSeconds] = useState(0);
   const [notes, setNotes] = useState(null);
@@ -30,6 +31,9 @@ export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRe
   const cancelled = useRef(false);
   const timer = useRef(null);
   const startedAt = useRef(0);
+  // Listens to the microphone's loudness while recording, to work out the pauses and how long it took to begin.
+  const meter = useRef(null);
+  const recordStart = useRef(0);
 
   useEffect(() => () => { stopEverything(); }, []);
   // Lets the interviewer stop talking and listen while the learner records.
@@ -37,6 +41,8 @@ export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRe
 
   function stopEverything() {
     clearInterval(timer.current);
+    meter.current?.dispose();
+    meter.current = null;
     if (recorder.current && recorder.current.state !== 'inactive') {
       cancelled.current = true;
       recorder.current.stop();
@@ -51,15 +57,19 @@ export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRe
   async function begin() {
     onError(null);
     setNotes(null);
-    try {
-      // Clean, single-channel audio with the room noise and echo removed: the biggest single help to what gets heard correctly.
-      stream.current = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-    } catch {
-      onError('Microphone access was blocked. Allow it in your browser, or type your answer instead.');
-      setState('idle');
-      return;
+    // While the interview is being recorded the microphone is already open: use a copy of it instead of asking for a second one.
+    stream.current = getSharedAudio?.() || null;
+    if (!stream.current) {
+      try {
+        // Clean, single-channel audio with the room noise and echo removed: the biggest single help to what gets heard correctly.
+        stream.current = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+      } catch {
+        onError('Microphone access was blocked. Allow it in your browser, or type your answer instead.');
+        setState('idle');
+        return;
+      }
     }
     const type = TYPES.find((t) => window.MediaRecorder.isTypeSupported?.(t));
     const options = { audioBitsPerSecond: 128000, ...(type ? { mimeType: type } : {}) };
@@ -70,6 +80,9 @@ export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRe
     recorder.current.onstop = finish;
     recorder.current.start();
     startedAt.current = Date.now();
+    recordStart.current = performance.now();
+    meter.current = new SpeechTimer(stream.current);
+    meter.current.start();
     setSeconds(0);
     setState('recording');
     timer.current = setInterval(() => {
@@ -91,6 +104,8 @@ export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRe
 
   async function finish() {
     stream.current?.getTracks().forEach((t) => t.stop());
+    const level = meter.current?.finish() || null;
+    meter.current = null;
     if (cancelled.current) return;
     const length = Math.round((Date.now() - startedAt.current) / 1000);
     const blob = new Blob(chunks.current, { type: recorder.current?.mimeType || 'audio/webm' });
@@ -98,7 +113,10 @@ export default function VoiceAnswer({ sessionId, onText, onError, disabled, onRe
     try {
       const result = await api.transcribeAnswer(blob, length, sessionId);
       onText(result.text);
-      setNotes(result);
+      // The pace the learner is shown counts only the time they were speaking, not the silence around it.
+      const pace = level?.clear && level.speakingSeconds >= 5 ? Math.round((result.words * 60) / level.speakingSeconds) : result.wordsPerMinute;
+      setNotes({ ...result, wordsPerMinute: pace });
+      onTiming?.({ ...level, words: result.words, recordStart: recordStart.current });
     } catch (err) {
       onError(err.message);
     } finally {

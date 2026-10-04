@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import Alert from '../components/Alert';
@@ -7,7 +7,11 @@ import ScoreTrend from '../components/interview/ScoreTrend';
 import ResumeCard from '../components/interview/ResumeCard';
 import SkillsInput from '../components/interview/SkillsInput';
 import InterviewerPicker from '../components/interview/InterviewerPicker';
+import RecordingsList from '../components/interview/recording/RecordingsList';
 import { defaultPersonaFor } from '../components/interview/avatar/personas';
+import { useAuth } from '../context/AuthContext';
+import { listRecordings } from '../lib/localRecordings';
+import { recordingSupported, setWantsRecording, wantsRecording } from '../lib/recordingPrefs';
 import { DIFFICULTIES, INTERVIEW_TYPES, MAX_SKILLS, QUESTION_COUNTS, READINESS, TRACKS, goalLabel } from '../lib/interview';
 
 /** The skills read off the resume. In a technical interview the learner picks which ones the questions focus on. */
@@ -39,6 +43,19 @@ function ResumeKeywordList({ keywords, selected, onToggle, selectable }) {
 
 export default function InterviewPrep() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canRecord = recordingSupported();
+  const [record, setRecord] = useState(() => canRecord && wantsRecording());
+  // The interviews that have a recording on this device, so only those get a Replay link.
+  const [recorded, setRecorded] = useState(() => new Set());
+  const userId = user?.id;
+  const loadRecorded = useCallback(() => {
+    if (userId == null) return;
+    listRecordings(userId)
+      .then((list) => setRecorded(new Set(list.filter((r) => r.sizeBytes > 0).map((r) => r.sessionId))))
+      .catch(() => {});
+  }, [userId]);
+  useEffect(() => { loadRecorded(); }, [loadRecorded]);
   const [params] = useSearchParams();
   const courseId = params.get('courseId');
 
@@ -207,6 +224,19 @@ export default function InterviewPrep() {
             </select></div>
         </div>
 
+        <div className="field interview-record">
+          <label className="board-toggle">
+            <input type="checkbox" checked={record} disabled={!canRecord}
+                   onChange={(e) => { setRecord(e.target.checked); setWantsRecording(e.target.checked); }} />
+            Record this interview on my device so I can replay it
+          </label>
+          <p className="field-hint">
+            {canRecord
+              ? 'Off unless you turn it on. The video stays in this browser and is never uploaded. You will be asked again before the camera starts.'
+              : 'Recording needs a recent Chrome, Edge, Firefox or Safari.'}
+          </p>
+        </div>
+
         <div className="form-actions interview-start">
           {left !== null && <span className="field-hint">{left} of {quota.limit} interviews left today</span>}
           <button type="submit" className="btn btn-primary btn-lg" disabled={starting || left === 0}>
@@ -214,6 +244,8 @@ export default function InterviewPrep() {
           </button>
         </div>
       </form>
+
+      <RecordingsList userId={userId} onChange={loadRecorded} />
 
       {history.length > 0 && (
         <section className="progress-card">
@@ -230,8 +262,11 @@ export default function InterviewPrep() {
                     {s.status === 'COMPLETED' ? `${s.overallScore}% · ${READINESS[s.readinessLevel]}` : s.status === 'IN_PROGRESS' ? 'In progress' : 'Not finished'}
                   </span>
                 </Link>
-                <button type="button" className="btn btn-sm" disabled={starting || left === 0}
-                        onClick={() => begin(() => api.retryInterview(s.id))}>Practise again</button>
+                <span className="interview-history-actions">
+                  {recorded.has(s.id) && <Link className="btn btn-sm" to={`/interview/${s.id}/replay`}>Replay</Link>}
+                  <button type="button" className="btn btn-sm" disabled={starting || left === 0}
+                          onClick={() => begin(() => api.retryInterview(s.id))}>Practise again</button>
+                </span>
               </li>
             ))}
           </ul>

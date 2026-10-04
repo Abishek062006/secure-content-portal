@@ -5,12 +5,53 @@ import Alert from '../components/Alert';
 import Icon from '../components/Icon';
 import VoiceAnswer from '../components/interview/VoiceAnswer';
 import InterviewerStage from '../components/interview/InterviewerStage';
+import RecordingGate from '../components/interview/recording/RecordingGate';
+import DeliveryReport from '../components/interview/DeliveryReport';
+import SelfView, { RecordingPill } from '../components/interview/recording/SelfView';
 import { personaById, pick } from '../components/interview/avatar/personas';
+import { useAuth } from '../context/AuthContext';
+import { InterviewRecorder, startProblem } from '../lib/interviewRecorder';
+import { useLocalRecording } from '../components/interview/recording/useLocalRecording';
+import { formatLength, requestPersistence } from '../lib/localRecordings';
+import { recordingSupported, wantsRecording } from '../lib/recordingPrefs';
+import { answerDeliveryLine } from '../lib/delivery';
 import { CATEGORY, READINESS, categoryAverages, goalLabel, rubricAverages, strengthsAndGaps } from '../lib/interview';
 
 const MIN_ANSWER = 10;
 const MAX_ANSWER = 4000;
 const MUTE_KEY = 'gn-interviewer-muted';
+
+/** A fresh stopwatch for one question. `thinkStart` is when the learner could begin: the question being asked, then the interviewer finishing it. */
+const newTiming = (questionId) => ({
+  questionId, thinkStart: performance.now(), spoke: false, heardEnd: false, firstKey: null, recordings: [],
+});
+
+const sum = (list) => list.reduce((total, value) => total + value, 0);
+
+/**
+ * How the answer was given, for feedback: how long the learner thought before starting, and for spoken answers their pace and
+ * pauses. Typed answers get the thinking time only, and a spoken answer from a room too noisy to measure gets no pace or pauses.
+ */
+function deliveryOf(timing) {
+  const voice = timing.recordings;
+  const startedVoice = voice.map((r) => r.recordStart + (r.clear ? r.leadingSilenceSeconds * 1000 : 0));
+  const firsts = [timing.firstKey, ...startedVoice].filter((v) => v != null);
+  const thinkingSeconds = timing.thinkStart != null && firsts.length ? Math.max(0, (Math.min(...firsts) - timing.thinkStart) / 1000) : null;
+  if (voice.length === 0) return { mode: 'TYPED', thinkingSeconds };
+
+  const clear = voice.every((r) => r.clear);
+  const speakingSeconds = sum(voice.map((r) => r.speakingSeconds || 0));
+  const words = sum(voice.map((r) => r.words || 0));
+  return {
+    mode: 'VOICE',
+    thinkingSeconds,
+    audioClear: clear,
+    speakingSeconds: clear ? speakingSeconds : null,
+    wordsPerMinute: clear && speakingSeconds > 0 ? (words * 60) / speakingSeconds : null,
+    longPauses: clear ? sum(voice.map((r) => r.longPauses || 0)) : null,
+    longestPauseSeconds: clear ? Math.max(0, ...voice.map((r) => r.longestPauseSeconds || 0)) : null,
+  };
+}
 
 function readMuted() {
   try { return localStorage.getItem(MUTE_KEY) === 'yes'; } catch { return false; }
@@ -60,8 +101,15 @@ export default function InterviewSession() {
 
 /** One question at a time, in a calm full-width layout: the question, a box for the answer, then the feedback. */
 function Running({ session, questions, reload }) {
+  const { user } = useAuth();
   const next = questions.find((q) => !q.answeredAt);
   const [justAnswered, setJustAnswered] = useState(null);
+  // Recording is the learner's choice (off unless turned on) and starts only when they press the button, never on its own.
+  // Only offered at the very start: a reload part-way through can't carry on the same recording.
+  const [gate, setGate] = useState(() => questions.every((q) => !q.answeredAt) && wantsRecording() && recordingSupported());
+  const [rec, setRec] = useState({ status: 'off', stream: null, problem: null });
+  const recorder = useRef(null);
+  const timing = useRef(newTiming(null));
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -69,11 +117,55 @@ function Running({ session, questions, reload }) {
   const [recording, setRecording] = useState(false);
   const [line, setLine] = useState(null);
   const boxRef = useRef(null);
-  const elapsed = useElapsed(next?.id);
+  const elapsed = useElapsed(gate ? 'gate' : next?.id);
   const persona = personaById(session.interviewer);
   const answeredCount = questions.filter((q) => q.answeredAt).length;
 
-  useEffect(() => { boxRef.current?.focus(); }, [next?.id]);
+  useEffect(() => { boxRef.current?.focus(); }, [next?.id, gate]);
+
+  // Each question starts a new stopwatch for how long the learner takes to begin.
+  useEffect(() => {
+    if (!gate && next && !justAnswered) timing.current = newTiming(next.id);
+  }, [gate, next?.id, justAnswered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The learner could begin once the interviewer finished the question. Only the first time they stop counts: stopping them again
+  // by starting to record, or asking to hear it again, doesn't move it.
+  function interviewerSpeaking(speaking) {
+    const t = timing.current;
+    if (speaking) t.spoke = true;
+    else if (t.spoke && !t.heardEnd) {
+      t.thinkStart = performance.now();
+      t.heardEnd = true;
+    }
+  }
+
+  // Whatever is saved so far is kept if the learner leaves part-way.
+  useEffect(() => () => { recorder.current?.stop(); }, []);
+
+  // Notes where each question begins, so the replay can jump to it.
+  useEffect(() => {
+    if (rec.status === 'on' && next && !justAnswered) {
+      recorder.current?.mark('question', { questionId: next.id, text: next.questionText.slice(0, 300) });
+    }
+  }, [rec.status, next?.id, justAnswered]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function startRecording() {
+    setRec({ status: 'starting', stream: null, problem: null });
+    const instance = new InterviewRecorder({
+      sessionId: session.id, userId: user?.id, title: goalLabel(session),
+      onProblem: (kind, message) => setRec((current) => ({ ...current, problem: message })),
+    });
+    try {
+      await instance.start();
+    } catch (err) {
+      setRec({ status: 'off', stream: null, problem: startProblem(err) });
+      return;
+    }
+    requestPersistence();
+    recorder.current = instance;
+    setRec({ status: 'on', stream: instance.stream, problem: null });
+    setGate(false);
+  }
 
   // What the interviewer says: a hello with the first question, a natural lead-in to each next one, a reaction to each answer
   // (and a heads-up when a follow-up is coming), and a goodbye once everything is answered.
@@ -106,7 +198,8 @@ function Running({ session, questions, reload }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.answerInterview(session.id, next.id, answer);
+      const res = await api.answerInterview(session.id, next.id, answer, deliveryOf(timing.current));
+      recorder.current?.mark('answer', { questionId: next.id });
       setJustAnswered({ question: res.question, followUp: res.followUp });
       setAnswer('');
       await reload();
@@ -122,6 +215,7 @@ function Running({ session, questions, reload }) {
     setError(null);
     try {
       await api.completeInterview(session.id);
+      await recorder.current?.stop();
       await reload();
     } catch (err) {
       setError(err.message);
@@ -133,10 +227,11 @@ function Running({ session, questions, reload }) {
 
   return (
     <div className="interview-stage">
-      <Alert error={error} />
+      <Alert error={error || (rec.status === 'on' ? rec.problem : null)} />
       <header className="interview-top">
         <Link to="/interview" className="interview-exit"><Icon name="arrow-left" size={16} /> Leave</Link>
         <span className="interview-goal">{goalLabel(session)}</span>
+        {rec.status === 'on' && <RecordingPill />}
         <span className="interview-clock"><Icon name="timer" size={15} /> {elapsed}</span>
       </header>
 
@@ -144,9 +239,13 @@ function Running({ session, questions, reload }) {
         {questions.map((q, i) => <span key={q.id} className={q.answeredAt ? 'done' : q === next ? 'current' : ''} aria-hidden="true" data-i={i} />)}
       </div>
 
-      <InterviewerStage personaId={session.interviewer} line={line} mode={mode} muted={muted} hush={recording} onToggleMute={toggleMute} />
+      <InterviewerStage personaId={session.interviewer} line={gate ? null : line} mode={mode} muted={muted} hush={recording}
+                        onToggleMute={toggleMute} onSpeakingChange={interviewerSpeaking} />
 
-      {justAnswered ? (
+      {gate ? (
+        <RecordingGate onStart={startRecording} onSkip={() => setGate(false)} busy={rec.status === 'starting'}
+                       error={rec.status === 'off' ? rec.problem : null} />
+      ) : justAnswered ? (
         <Feedback result={justAnswered} last={!next} onNext={() => setJustAnswered(null)} onFinish={finish} busy={busy} />
       ) : next ? (
         <form className="interview-question" onSubmit={submit}>
@@ -156,9 +255,15 @@ function Running({ session, questions, reload }) {
             <span className="badge">{CATEGORY[next.category] || next.category}</span>
           </p>
           <h1>{next.questionText}</h1>
-          <textarea ref={boxRef} rows={9} maxLength={MAX_ANSWER} value={answer} onChange={(e) => setAnswer(e.target.value)}
+          <textarea ref={boxRef} rows={9} maxLength={MAX_ANSWER} value={answer}
+                    onChange={(e) => {
+                      if (timing.current.firstKey == null) timing.current.firstKey = performance.now();
+                      setAnswer(e.target.value);
+                    }}
                     placeholder="Answer as you would in the room. Explain your reasoning." aria-label="Your answer" />
           <VoiceAnswer sessionId={session.id} disabled={busy} onError={setError} onRecordingChange={setRecording}
+                       getSharedAudio={() => recorder.current?.audioForAnswer() || null}
+                       onTiming={(t) => timing.current.recordings.push(t)}
                        onText={(text) => setAnswer((current) => (current.trim() ? `${current.trim()} ${text}` : text).slice(0, MAX_ANSWER))} />
           <div className="interview-answer-foot">
             <span className="field-hint">{answer.length}/{MAX_ANSWER}</span>
@@ -175,6 +280,7 @@ function Running({ session, questions, reload }) {
           </button>
         </div>
       )}
+      {rec.status === 'on' && <SelfView stream={rec.stream} />}
     </div>
   );
 }
@@ -201,6 +307,10 @@ function Feedback({ result, last, onNext, onFinish, busy }) {
 
 function Report({ session, questions }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const recording = useLocalRecording(session.id, user?.id);
+  const [trend, setTrend] = useState([]);
+  useEffect(() => { api.getDeliveryTrend().then(setTrend).catch(() => setTrend([])); }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const rubric = rubricAverages(questions);
@@ -235,6 +345,16 @@ function Report({ session, questions }) {
           )}
         </div>
       </section>
+
+      {recording && (
+        <section className="progress-card replay-card">
+          <div>
+            <h2>Watch your interview back</h2>
+            <p className="field-hint">Recorded on this device, {formatLength(recording.durationMs)} long. Only you can see it.</p>
+          </div>
+          <Link className="btn btn-primary" to={`/interview/${session.id}/replay`}><Icon name="play" size={16} /> Watch recording</Link>
+        </section>
+      )}
 
       <section className="progress-card">
         <header><h2>What you're good at, and what to work on</h2></header>
@@ -295,6 +415,8 @@ function Report({ session, questions }) {
         )}
       </section>
 
+      <DeliveryReport questions={questions} trend={trend} sessionId={session.id} />
+
       <section className="progress-card">
         <header><h2>Question by question</h2></header>
         {questions.map((q, i) => (
@@ -305,6 +427,7 @@ function Report({ session, questions }) {
             </summary>
             <div className="report-q-body">
               <p><strong>Your answer.</strong> {q.learnerAnswer}</p>
+              {answerDeliveryLine(q) && <p className="field-hint">{answerDeliveryLine(q)}</p>}
               <p><strong>Feedback.</strong> {q.aiFeedback}</p>
               {q.keyStrengths && <p><strong>Went well.</strong> {q.keyStrengths}</p>}
               {q.areasToImprove && <p><strong>Work on.</strong> {q.areasToImprove}</p>}

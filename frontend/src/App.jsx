@@ -14,6 +14,7 @@ import Judging from './pages/Judging';
 import AdminHackathonManage from './pages/admin/AdminHackathonManage';
 import InterviewPrep from './pages/InterviewPrep';
 import InterviewSession from './pages/InterviewSession';
+import InterviewReplay from './pages/InterviewReplay';
 import AdminHackathons from './pages/admin/AdminHackathons';
 import MaterialView from './pages/MaterialView';
 import AssessmentView from './pages/AssessmentView';
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/judging" element={<Judging />} />
           <Route path="/interview" element={<InterviewPrep />} />
           <Route path="/interview/:id" element={<InterviewSession />} />
+          <Route path="/interview/:id/replay" element={<InterviewReplay />} />
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseView />} />
           <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />
