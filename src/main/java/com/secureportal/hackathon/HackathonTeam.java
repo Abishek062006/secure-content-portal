@@ -33,6 +33,9 @@ public class HackathonTeam {
     @Column(name = "leader_id", nullable = false)
     private Long leaderId;
 
+    @Column(name = "problem_statement_id")
+    private Long problemStatementId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -79,6 +82,14 @@ public class HackathonTeam {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Long getProblemStatementId() {
+        return problemStatementId;
+    }
+
+    public void selectProblemStatement(Long problemStatementId) {
+        this.problemStatementId = problemStatementId;
     }
 
 }

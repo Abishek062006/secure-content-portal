@@ -13,6 +13,7 @@ import com.secureportal.course.Enrollment;
 import com.secureportal.course.EnrollmentRepository;
 import com.secureportal.course.LearningService;
 import com.secureportal.course.LessonProgressRepository;
+import com.secureportal.hackathon.HostedHackathonService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -43,11 +44,12 @@ public class CertificateApiController {
     private final EnrollmentRepository enrollmentRepository;
     private final LessonProgressRepository progressRepository;
     private final CourseOutlineAssembler assembler;
+    private final HostedHackathonService hackathons;
 
     public CertificateApiController(CertificateService certificateService, CertificatePdfRenderer renderer,
                                     LearningService learningService, CourseRepository courseRepository,
                                     EnrollmentRepository enrollmentRepository, LessonProgressRepository progressRepository,
-                                    CourseOutlineAssembler assembler) {
+                                    CourseOutlineAssembler assembler, HostedHackathonService hackathons) {
         this.certificateService = certificateService;
         this.renderer = renderer;
         this.learningService = learningService;
@@ -55,6 +57,7 @@ public class CertificateApiController {
         this.enrollmentRepository = enrollmentRepository;
         this.progressRepository = progressRepository;
         this.assembler = assembler;
+        this.hackathons = hackathons;
     }
 
     public record LearningItem(CourseDto course, UUID resumeLessonId, Instant enrolledAt, CertificateDto certificate) {
@@ -63,7 +66,8 @@ public class CertificateApiController {
     public record CertificateStatus(boolean earned, List<String> missing, CertificateDto certificate) {
     }
 
-    public record Verification(boolean valid, String recipientName, String courseTitle, Instant issuedAt) {
+    /** What a certificate code proves: who, for what, when. `kind` is COURSE or HACKATHON; `award` is set for hackathons only. */
+    public record Verification(boolean valid, String recipientName, String courseTitle, Instant issuedAt, String kind, String award) {
     }
 
     /** Every course the learner is enrolled in, with progress, where to resume and any certificate. */
@@ -132,8 +136,10 @@ public class CertificateApiController {
     @GetMapping("/api/certificates/verify/{code}")
     public Verification verify(@PathVariable String code) {
         return certificateService.findByCode(code)
-                .map(c -> new Verification(true, c.getRecipientName(), c.getCourseTitle(), c.getIssuedAt()))
-                .orElse(new Verification(false, null, null, null));
+                .map(c -> new Verification(true, c.getRecipientName(), c.getCourseTitle(), c.getIssuedAt(), "COURSE", null))
+                .or(() -> hackathons.certificateByCode(code)
+                        .map(h -> new Verification(true, h.recipientName(), h.hackathonTitle(), h.issuedAt(), "HACKATHON", h.type())))
+                .orElse(new Verification(false, null, null, null, null, null));
     }
 
     private void requireEnrolled(AppPrincipal principal, Course course) {

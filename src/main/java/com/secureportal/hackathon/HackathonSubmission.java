@@ -2,6 +2,8 @@ package com.secureportal.hackathon;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,7 +11,7 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** A team's project. One per team; the team can change it until the submission deadline. */
+/** A team's project. One per team; the team can save drafts and change it until the submission deadline. */
 @Entity
 @Table(name = "hackathon_submissions")
 public class HackathonSubmission {
@@ -27,16 +29,20 @@ public class HackathonSubmission {
     @Column(name = "title", nullable = false, length = 150)
     private String title;
 
-    @Column(name = "repo_url", nullable = false, length = 500)
+    @Column(name = "repo_url", length = 500)
     private String repoUrl;
 
     @Column(name = "demo_url", length = 500)
     private String demoUrl;
 
-    @Column(name = "description", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "submitted_at", nullable = false, updatable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private SubmissionStatus status;
+
+    @Column(name = "submitted_at", nullable = false)
     private Instant submittedAt;
 
     @Column(name = "updated_at", nullable = false)
@@ -46,19 +52,33 @@ public class HackathonSubmission {
         // for JPA
     }
 
-    public HackathonSubmission(Long teamId, Long hackathonId, String title, String repoUrl, String demoUrl, String description) {
+    public HackathonSubmission(Long teamId, Long hackathonId, String title, String repoUrl, String demoUrl, String description,
+                               SubmissionStatus status) {
         this.teamId = teamId;
         this.hackathonId = hackathonId;
         this.submittedAt = Instant.now();
-        update(title, repoUrl, demoUrl, description);
+        update(title, repoUrl, demoUrl, description, status);
     }
 
-    public final void update(String title, String repoUrl, String demoUrl, String description) {
+    /** Saves the team's latest version. `submittedAt` moves to the moment a draft is turned in. */
+    public final void update(String title, String repoUrl, String demoUrl, String description, SubmissionStatus status) {
+        if (status == SubmissionStatus.SUBMITTED && this.status != SubmissionStatus.SUBMITTED) {
+            this.submittedAt = Instant.now();
+        }
         this.title = title;
         this.repoUrl = repoUrl;
         this.demoUrl = demoUrl;
         this.description = description;
+        this.status = status;
         this.updatedAt = Instant.now();
+    }
+
+    public SubmissionStatus getStatus() {
+        return status;
+    }
+
+    public boolean isSubmitted() {
+        return status == SubmissionStatus.SUBMITTED;
     }
 
     public Long getId() {
