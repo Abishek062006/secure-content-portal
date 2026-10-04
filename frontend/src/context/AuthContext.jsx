@@ -11,23 +11,9 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const me = await api.get('/api/me');
-      if (me.authenticated) {
-        setUser(me.user);
-      } else {
-        const devStored = import.meta.env.DEV && typeof window !== 'undefined' ? localStorage.getItem('dev_user') : null;
-        if (devStored) {
-          try { setUser(JSON.parse(devStored)); } catch { setUser(null); }
-        } else {
-          setUser(null);
-        }
-      }
+      setUser(me.authenticated ? me.user : null);
     } catch {
-      const devStored = import.meta.env.DEV && typeof window !== 'undefined' ? localStorage.getItem('dev_user') : null;
-      if (devStored) {
-        try { setUser(JSON.parse(devStored)); } catch { setUser(null); }
-      } else {
-        setUser(null);
-      }
+      setUser(null);
     } finally {
       setLoading(false);
     }
