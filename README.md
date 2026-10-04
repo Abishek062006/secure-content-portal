@@ -123,6 +123,36 @@ else below was chosen deliberately, not defaulted to.
   browse and filter them, and registering earns the hackathon's XP once and opens the organiser's link. Everything an admin
   enters is validated (only `https://` links, enums for mode and status, length limits, sensible dates), registration closes when
   a hackathon is completed or its deadline passes, and create, edit and delete are audited. There is no sample data.
+- **Hosted hackathons.** An admin can also host an event on the platform. Its phase comes from its dates (registration, building,
+  judging, results) and every rule is enforced on the server: teams form with invite codes only while registration is open, a
+  project can be saved or submitted only while the build runs, judges (people who aren't competing) score only after it closes,
+  and results appear only when an admin publishes them with every project scored. On top of that:
+  - **Problem statements.** Organisers add up to 20 problems (title, description, track, requirements, evaluation criteria, an https
+    resources link); the team leader picks one for the team until submissions close. Deleting a problem frees the teams that chose it.
+  - **Drafts.** A team can save a draft with whatever it has so far. Only a *submitted* project is judged, ranked or rewarded, a
+    submitted project can't be turned back into a draft, and a draft left at the deadline stays a draft (it is never presented as
+    locked-and-judged). Teammates are told about a real submission, not every saved draft.
+  - **Certificates.** When results are published, every member of a ranked team gets a winner, runner-up (top three) or
+    participation certificate: issued once per person (`UNIQUE (hackathon_id, user_id)`), rendered as a PDF on the server, downloadable
+    only by its owner, and verifiable by anyone holding its `HACK-...` code at `/verify/<code>` (name, event and award only, the same
+    page and rules as course certificates). There is deliberately no public download-by-code.
+  - **Reminders.** Teams that haven't submitted are reminded a day and an hour before the deadline, once each (flags on the event,
+    and the candidate query takes a row lock so two servers can't both send them).
+  - **Notifications.** Joining or leaving a team, a submission, a problem choice, a judge assignment, results and certificates raise
+    in-app notifications in a Hackathons category.
+- **My network.** Members find each other by name (never by email, and no email or role is ever shown), send and answer
+  connection requests, and see invitations, "People you may know" and a connections count. There is one relationship per pair
+  whichever of them asked first (a computed unique key in the database), nobody can connect with themselves, someone else's
+  request looks like it doesn't exist, up to 100 requests can be waiting, and connecting is rate limited. One-to-one messaging
+  between connected members is built and tested on the server (`/api/messages/...`, 2000 characters, rate limited) but has **no
+  screen yet**. Admins stay out of the network.
+- **Nova, the AI assistant.** A chat widget on every page except graded quizzes and live interviews. It answers questions about
+  the platform and the member's learning, and can take a text or code file as context (not images or PDFs, and it says so). The
+  question and history are length limited, learner text reaches the model as marked-off data, the AI is never called inside a
+  database transaction, a failed answer is shown as an error rather than replaced with invented text, each member gets a daily
+  quota (`app.ai.chat-daily-limit`, default 100, counted in the database so it survives restarts and several servers) and a
+  per-minute limit. Saved chats stay in the member's own browser, keyed by member, so the next person on a shared computer
+  doesn't see them. It needs the same `AI_API_KEY` / `AI_MODEL` as [question generation](#ai-question-generation).
 - **AI mock interviews.** A learner chooses a technical or an HR interview, how many questions (3 to 10), the difficulty and one
   of five animated 3D interviewers (each with their own look, voice and way of speaking, using the browser's own voices). A
   technical interview is built from the learner's skills, a pasted job description, a course or their resume (the skills found in
@@ -372,7 +402,8 @@ AI_MODEL="a-current-model-name"
 # AI_BASE_URL defaults to Groq (https://api.groq.com/openai/v1); set it to use Gemini, OpenRouter, Ollama, ...
 ```
 
-Without `AI_MODEL` the rest of the app works and the Generate button explains that AI isn't configured.
+Without `AI_MODEL` the rest of the app works and the Generate button explains that AI isn't configured (Nova, the chat widget, says the
+same). Nova's per-member daily quota is `APP_AI_CHAT_DAILY_LIMIT` (default 100).
 Rate limits (HTTP 429) are retried automatically. A CSV import needs the columns `question, difficulty,
 option1, option2, option3, option4, correct` (correct is 1-4 or A-D) and an optional `explanation`; the
 question bank page offers a template.
@@ -621,6 +652,10 @@ hand; see [the manual checklist](#manual-checks-on-real-devices).
 | `FileValidatorTest` (13 cases) | Extension/size/magic-byte checks; a renamed text file or executable is rejected regardless of its extension or claimed `Content-Type` | No |
 | `StreamTicketServiceTest` (8 cases) | Tampered signature, payload swapped under a stolen signature, wrong session, no session, expired ticket | No |
 | `AccessControlTest` (9 cases) | Anonymous/viewer/admin against every `/api/admin/**` route, the delete route, `/api/content`, and all three content-delivery endpoints, through the real Spring Security filter chain | Yes |
+| `HostedHackathonFlowTest`, `HackathonWorkflowFlowTest` | A hosted event end to end through MockMvc: phases, teams, submissions, judging and publishing; problem statements and the leader-only choice; drafts that aren't judged; certificates (who gets which, owner-only PDF, verify by code, no public download); reminders sent once | Yes |
+| `NetworkFlowTest`, `ConnectionServiceTest`, `MessagingFlowTest` | Connection rules (one per pair, no self, only the receiver answers, 404 for other people's ids, no email or role in responses), limits, and one-to-one messages | Yes |
+| `AiChatFlowTest` | Nova: length limits, marked-off history and attachments, the daily quota, failure shown as an error | Yes |
+
 
 ## Bonus features implemented
 
@@ -644,6 +679,12 @@ All five bonus items from the brief are implemented.
 - **No silent ticket refresh for long videos.** A video ticket is valid for 30 minutes; a video
   longer than that would need to be reloaded. Chosen over building refresh logic given the time
   available — see below.
+- **Messaging has no screen yet.** One-to-one messages between connected members work and are tested on the server, but the web
+  app only shows connections and invitations. A messages screen is the next piece of that feature.
+- **Hackathon reminders run in the web server.** They are checked every minute by a scheduled task, so they go out only while a
+  server is running; a deadline that passes while it is down gets its remaining reminder when it comes back up, but a missed
+  "day before" reminder is not sent late. Several servers are safe (the event row is locked), but a dedicated scheduler would be
+  the next step at scale.
 - **Interview recordings live in one browser.** They are saved on the learner's device only (IndexedDB), so they can't be
   watched from another device, are lost if the browser's site data is cleared, and the browser may clear them when short of
   space unless it agrees to keep them. The interviewer's synthesised voice isn't in the recording; replay shows it as captions.
